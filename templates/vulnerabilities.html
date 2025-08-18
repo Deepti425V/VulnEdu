@@ -63,7 +63,9 @@
     <div style="display: grid; gap: 16px;">
         {% set latest_critical_high = [] %}
         {% for cve in latest_cves[:10] %}
-        {% if cve.get('Severity', '').upper() in ['CRITICAL', 'HIGH'] %}
+        {% set severity = cve.get('Severity', '') %}
+        {% set severity_str = severity if severity is string else (severity[0] if severity and severity|length > 0 else '') %}
+        {% if severity_str.upper() in ['CRITICAL', 'HIGH'] %}
         {% set _ = latest_critical_high.append(cve) %}
         {% endif %}
         {% endfor %}
