@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Severity Pie Chart -->
+<div class="card mb-4">
+    <div class="card-header">Severity Distribution</div>
+    <div class="card-body">
+        <canvas id="severityPie" height="120"></canvas>
+    </div>
+</div>
+
+<!-- Timeline Line Chart -->
+<div class="card mb-4">
+    <div class="card-header">CVEs Over Time</div>
+    <div class="card-body">
+        <canvas id="timelineChart" height="120"></canvas>
+    </div>
+</div>
+
+<!-- Top CWE Bar Chart -->
+<div class="card mb-4">
+    <div class="card-header">Top Vulnerability Types (CWEs)</div>
+    <div class="card-body">
+        <canvas id="cweBar" height="200"></canvas>
+    </div>
+</div>
+
+<!-- Pass data as JSON for JS -->
+<script>
+    const metrics = {{ metrics|tojson }};
+    const timeline_data = {{ timeline_data|tojson }};
+    const cwe_stats = {{ cwe_stats|tojson }};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/visualizations.js') }}"></script>
+
+{% endblock %}

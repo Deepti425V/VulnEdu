@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ APP_NAME or "VulnEdu" }}</title>
+  <!-- Main CSS: handles theme/colors/layout -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+  <!-- Chart.js for all dashboard visualizations -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* Basic body & overall theme settings */
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', 'Arial', 'sans-serif';
+      background-color: #101828;
+      color: #f8fafc;
+    }
+    /* Sidebar: fixed, full-height, with dark theme blues */
+    .sidebar {
+      width: 250px;
+      background: #1a2236;
+      color: #fff;
+      padding: 30px 0 0 0;
+      height: 100vh;
+      position: fixed;
+      left: 0; top: 0; bottom: 0;
+      box-shadow: 2px 0 14px rgba(0,0,0,0.1);
+    }
+    .sidebar-header {
+      font-weight: 700;
+      font-size: 1.5rem;
+      color: #63a4ff;            /* Brand blue highlight */
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .sidebar-links {
+      padding-left: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    /* Sidebar navigation links styling */
+    .sidebar-links a,
+    .sidebar-links .sidebar-parent {
+      color: #a9adc1;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 8px 6px;
+      border-radius: 4px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .sidebar-links a.active, .sidebar-links a:hover {
+      background: #263159;
+      color: #fff;
+    }
+    .sidebar-links .sidebar-parent {
+      padding-bottom: 4px;
+    }
+    /* Learn submenu for educational content/topics */
+    .sidebar-submenu {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-left: 20px;
+      margin-top: 3px;
+    }
+    .sidebar-submenu a {
+      font-weight: 520;
+      font-size: 0.97em;
+      padding: 7px 7px 7px 18px;
+      color: #a9adc1;
+      border-radius: 3px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .sidebar-submenu a.active, .sidebar-submenu a:hover {
+      background: #263159;
+      color: #63a4ff;
+    }
+    /* Main content wrapper: shifted over so sidebar doesn't overlap */
+    .mainwrap {
+      margin-left: 250px;
+      min-height: 100vh;
+      background: #101828;
+      box-sizing: border-box;
+    }
+    header {
+      padding: 0;
+      background: transparent;
+      color: inherit;
+    }
+    /* Content area (centered, padded) */
+    main {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 36px 40px;
+    }
+    /* Simple footer: low contrast, right-aligned */
+    footer {
+      padding: 16px;
+      background: #151e37;
+      color: #94a3b8;
+      font-size: 0.91em;
+      text-align: right;
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <!-- === Sidebar: Main Navigation === -->
+  <aside class="sidebar">
+    <div class="sidebar-header">VulnEdu</div>
+    <div class="sidebar-links">
+      <!-- Primary nav items; highlights active page -->
+      <a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}">Dashboard</a>
+      <a href="{{ url_for('vulnerabilities') }}" class="{% if request.endpoint == 'vulnerabilities' %}active{% endif %}">Vulnerabilities</a>
+      <div class="sidebar-parent" style="font-size:1.05em; color:#a9adc1;">Learn</div>
+      <div class="sidebar-submenu">
+        <!-- Educational content, with highlighting for current topic -->
+        <a href="{{ url_for('learn_topic', topic='what-is-cwe') }}" class="{% if request.endpoint == 'learn_topic' and request.view_args.topic == 'what-is-cwe' %}active{% endif %}">
+          What is a CWE?
+        </a>
+        <a href="{{ url_for('learn_topic', topic='what-is-cve') }}" class="{% if request.endpoint == 'learn_topic' and request.view_args.topic == 'what-is-cve' %}active{% endif %}">
+          What is a CVE?
+        </a>
+        <a href="{{ url_for('learn_topic', topic='cvss-scores') }}" class="{% if request.endpoint == 'learn_topic' and request.view_args.topic == 'cvss-scores' %}active{% endif %}">
+          Understanding CVSS Scores
+        </a>
+        <a href="{{ url_for('learn_topic', topic='what-is-nvd-mitre') }}" class="{% if request.endpoint == 'learn_topic' and request.view_args.topic == 'what-is-nvd-mitre' %}active{% endif %}">
+          What is NVD &amp; MITRE?
+        </a>
+        <a href="{{ url_for('learn_topic', topic='cve-vs-cwe-vs-cvss') }}" class="{% if request.endpoint == 'learn_topic' and request.view_args.topic == 'cve-vs-cwe-vs-cvss' %}active{% endif %}">
+          CVE vs CWE vs CVSS
+        </a>
+      </div>
+      <a href="{{ url_for('references') }}" class="{% if request.endpoint == 'references' %}active{% endif %}">References &amp; Resources</a>
+    </div>
+  </aside>
+  <!-- === Main Content Area (shifted for sidebar) === -->
+  <div class="mainwrap">
+    <header></header>
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+    <footer>© 2025 VulnEdu · Educational CVE Analysis Tool</footer>
+  </div>
+  <!-- Main application JS -->
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

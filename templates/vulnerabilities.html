@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="display: flex; flex-direction: column; gap: 32px">
+<!-- Header Section -->
+<div style="display:flex; justify-content:space-between; align-items:center;">
+    <div>
+        <h1 style="margin:0;color:#63a4ff;letter-spacing:1px;font-size:1.8rem;">
+            Vulnerabilities Database
+        </h1>
+        <div style="color:#a9adc1;margin-top:4px;font-size:1.07rem;">
+            Complete CVE Listing &amp; Search
+        </div>
+    </div>
+    <!-- Search and Filter Form -->
+    <form style="display:flex;gap:18px;" method="get" action="{{ url_for('vulnerabilities') }}">
+        <input type="text" name="q" value="{{ search_query or '' }}" placeholder="🔍 Search CVEs"
+               style="padding:9px;font-size:1rem;background:#222d44;color:#cdd7f7;border:none;border-radius:7px;">
+        <select name="severity"
+                style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
+            <option value="" {% if not severity_filter %}selected{% endif %}>All Severities</option>
+            <option value="CRITICAL" {% if severity_filter == 'CRITICAL' %}selected{% endif %}>Critical</option>
+            <option value="HIGH" {% if severity_filter == 'HIGH' %}selected{% endif %}>High</option>
+            <option value="MEDIUM" {% if severity_filter == 'MEDIUM' %}selected{% endif %}>Medium</option>
+            <option value="LOW" {% if severity_filter == 'LOW' %}selected{% endif %}>Low</option>
+        </select>
+        <select name="year"
+                style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
+            <option value="" {% if not year_filter %}selected{% endif %}>All Years</option>
+            {% for y in available_years %}
+            <option value="{{ y }}" {% if year_filter == y %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+        <select name="month"
+                style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
+            <option value="" {% if not month_filter %}selected{% endif %}>All Months</option>
+            {% for m in available_months %}
+            <option value="{{ m }}" {% if month_filter == m %}selected{% endif %}>{{ "%02d"|format(m) }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit"
+                style="background:#63a4ff;color:white;border:none;padding:10px 18px;border-radius:7px;font-weight:700;">
+            Filter
+        </button>
+    </form>
+</div>
+{% if note_text %}
+<div style="font-size: 0.85em; color: #a9adc1; margin-bottom: 12px; font-style: italic;">
+    {{ note_text }}
+</div>
+{% endif %}
+<!-- Latest Vulnerabilities Highlight Section -->
+<section style="background:#1a2236;padding:28px;border-radius:16px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2 style="margin:0; font-size:1.6rem; color:#63a4ff; display: flex; align-items: center;">
+                <span style="margin-right: 10px;">🚨</span> Latest Critical &amp; High Vulnerabilities
+            </h2>
+            <div style="color:#94a3b8; margin-top: 6px; font-size: 0.95em;">
+                Most recent high-impact security vulnerabilities
+            </div>
+        </div>
+    </div>
+    <div style="display: grid; gap: 16px;">
+        {% set latest_critical_high = [] %}
+        {% for cve in latest_cves[:10] %}
+        {% if cve.get('Severity', '').upper() in ['CRITICAL', 'HIGH'] %}
+        {% set _ = latest_critical_high.append(cve) %}
+        {% endif %}
+        {% endfor %}
+        {% if latest_critical_high %}
+        {% for cve in latest_critical_high[:5] %}
+        <div style="background: #263159; border-radius: 12px; padding: 20px; border-left: 4px solid {% if cve.get('Severity') == 'CRITICAL' %}#f47174{% else %}#fca311{% endif %};">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                        <a href="{{ url_for('cve_detail', cve_id=cve.get('ID'), year=year_filter, month=month_filter, page=current_page, severity=severity_filter) }}"
+                           style="color: #63a4ff; font-weight: 700; font-size: 1.1em; text-decoration: none;">
+                            {{ cve.get('ID', 'N/A') }}
+                        </a>
+                        <span style="background:
+{% if cve.get('Severity') == 'CRITICAL' %}#f47174{% elif cve.get('Severity') == 'HIGH' %}#fca311{% elif cve.get('Severity') == 'MEDIUM' %}#3498db{% else %}#42d392{% endif %};
+color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8em; font-weight: bold;">
+                            {{ cve.get('Severity', 'UNKNOWN') }}
+                        </span>
+                    </div>
+                    <div style="color: #e2e8f0; line-height: 1.5; font-size: 0.95em;">
+                        {{ cve.get('Description', 'No description available')[:200] }}
+                        {% if cve.get('Description', '')|length > 200 %}...{% endif %}
+                    </div>
+                </div>
+                <div style="margin-left: 20px; text-align: right; color: #94a3b8; font-size: 0.85em;">
+                    {% if cve.get('Published') %}
+                    <div>{{ cve.get('Published')[:10] }}</div>
+                    {% endif %}
+                    {% if cve.get('CWE') %}
+                    <div style="margin-top: 4px;">{{ cve.get('CWE') }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div style="text-align: center; color: #94a3b8; padding: 20px;">
+            <div style="font-size: 1.5rem; margin-bottom: 8px;">🔍</div>
+            <div>No critical or high severity vulnerabilities found in current dataset</div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+<!-- Results Summary -->
+<div style="display: flex; justify-content: space-between; align-items: center; background: #1a2236; padding: 16px 24px; border-radius: 12px;">
+    <div style="color: #e2e8f0; font-weight: 600;">
+        <span style="color: #63a4ff;">{{ total_results }}</span>
+        vulnerabilities found
+        {% if search_query or severity_filter or year_filter or month_filter %}
+        <span style="color: #94a3b8; font-weight: normal; margin-left: 8px;">
+            (filtered results)
+        </span>
+        {% endif %}
+    </div>
+    {% if total_pages > 1 %}
+    <div style="color: #94a3b8;">
+        Page {{ current_page }} of {{ total_pages }}
+    </div>
+    {% endif %}
+</div>
+<!-- Main CVE Table -->
+<section style="background: #1a2236; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+    <div style="padding: 24px 28px; border-bottom: 1px solid #2a364f;">
+        <h2 style="margin: 0; font-size: 1.3rem; color: #e2e8f0; display: flex; align-items: center;">
+            <span style="margin-right: 10px;"></span> All Vulnerabilities
+        </h2>
+    </div>
+    {% if latest_cves %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #212d46;">
+                    <th style="padding: 16px 20px; text-align: center; color: #94a3b8; font-weight: 600; font-size: 1.1em; border-bottom: 1px solid #2a364f;">CVE ID</th>
+                    <th style="padding: 16px 20px; text-align: center; color: #94a3b8; font-weight: 600; font-size: 1.1em; border-bottom: 1px solid #2a364f;">Description</th>
+                    <th style="padding: 16px 20px; text-align: center; color: #94a3b8; font-weight: 600; font-size: 1.1em; border-bottom: 1px solid #2a364f;">Severity</th>
+                    <th style="padding: 16px 20px; text-align: center; color: #94a3b8; font-weight: 600; font-size: 1.1em; border-bottom: 1px solid #2a364f;">Published</th>
+                    <th style="padding: 16px 20px; text-align: center; color: #94a3b8; font-weight: 600; font-size: 1.1em; border-bottom: 1px solid #2a364f;">CWE</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for cve in latest_cves %}
+            <tr style="background: #1a2236; border-bottom: 1px solid #2a364f; transition: background 0.2s;" onmouseover="this.style.background='#212d46'" onmouseout="this.style.background='#1a2236'">
+                <td style="padding: 16px 20px;text-align: center; font-size: 1.18rem;">
+                    <a href="{{ url_for('cve_detail', cve_id=cve.get('ID'), year=year_filter, month=month_filter, page=current_page, severity=severity_filter) }}"
+                       style="color: #63a4ff; font-weight: 600; text-decoration: none; font-family: monospace;">
+                        {{ cve.get('ID', 'N/A') }}
+                    </a>
+                </td>
+                <td style="padding: 16px 20px; color: #e2e8f0; line-height: 1.4; max-width: 400px;">
+                    {{ cve.get('Description', 'No description available')[:120] }}{% if cve.get('Description', '')|length > 120 %}...{% endif %}
+                </td>
+                <td style="padding: 16px 20px; text-align: center;">
+                    <span style="background:
+{% if cve.get('Severity') == 'CRITICAL' %}#f47174{% elif cve.get('Severity') == 'HIGH' %}#fca311{% elif cve.get('Severity') == 'MEDIUM' %}#3498db{% elif cve.get('Severity') == 'LOW' %}#42d392{% else %}#6b7280{% endif %};
+color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold;">
+                        {{ cve.get('Severity', 'UNKNOWN') }}
+                    </span>
+                </td>
+                <td style="padding: 16px 20px; text-align: center; color: #94a3b8; font-size: 1.18em; font-family: monospace;">
+                    {% if cve.get('Published') %}
+                    {{ cve.get('Published')[:10] }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td style="padding: 16px 20px; text-align: center; color: #94a3b8; font-size: 1.18em; font-family: monospace;">
+                    {% if cve.get('CWE') %}
+                    {{ cve.get('CWE') }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="padding: 40px; text-align: center; color: #94a3b8;">
+        <div style="font-size: 3rem; margin-bottom: 16px;">🔍</div>
+        <div style="font-size: 1.1rem; margin-bottom: 8px;">No vulnerabilities found</div>
+        <div style="font-size: 0.9rem;">Try adjusting your filters or search terms</div>
+    </div>
+    {% endif %}
+</section>
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 20px;">
+    {% if current_page > 1 %}
+    <a href="{{ url_for('vulnerabilities', page=current_page-1, q=search_query, severity=severity_filter, year=year_filter, month=month_filter) }}"
+       style="background: #263159; color: #63a4ff; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+        ← Previous
+    </a>
+    {% endif %}
+    {% for page_num in page_numbers %}
+    {% if page_num == current_page %}
+    <span style="background: #63a4ff; color: white; padding: 10px 14px; border-radius: 8px; font-weight: 700;">
+        {{ page_num }}
+    </span>
+    {% else %}
+    <a href="{{ url_for('vulnerabilities', page=page_num, q=search_query, severity=severity_filter, year=year_filter, month=month_filter) }}"
+       style="background: #263159; color: #a9adc1; padding: 10px 14px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+        {{ page_num }}
+    </a>
+    {% endif %}
+    {% endfor %}
+    {% if current_page < total_pages %}
+    <a href="{{ url_for('vulnerabilities', page=current_page+1, q=search_query, severity=severity_filter, year=year_filter, month=month_filter) }}"
+       style="background: #263159; color: #63a4ff; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+        Next →
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+</div>
+
+<div style="text-align:center; margin:2.5em 0 1em 0;">
+  <a href="{{ url_for('index') }}" style="color:#63a4ff; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
+    ← Back to Dashboard
+  </a>
+</div>
+
+{% endblock %}

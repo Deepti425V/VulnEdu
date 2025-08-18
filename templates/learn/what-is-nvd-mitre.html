@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="max-width:1400px;margin:0 auto 32px auto;padding-top:20px;">
+    <h1 style="color:#63a4ff;">What is NVD & MITRE?</h1>
+    <p style="color:#e2e8f0;font-size:1.12em;line-height:1.6;">
+        <strong>NVD</strong> (National Vulnerability Database) and <strong>MITRE</strong> are the two foundational organizations 
+        that maintain the vulnerability intelligence systems used worldwide. Understanding their roles helps you navigate 
+        the cybersecurity landscape more effectively.
+    </p>
+
+    <!-- NVD Section -->
+    <section style="background:#1a2236;border-radius:14px;padding:28px;margin-bottom:32px;">
+        <h2 style="color:#fca311;margin:0 0 20px 0;display:flex;align-items:center;">
+            <span style="margin-right:12px;">🏛️</span> National Vulnerability Database (NVD)
+        </h2>
+        <div style="color:#e2e8f0;margin-bottom:20px;">
+            <strong>Who:</strong> Managed by the National Institute of Standards and Technology (NIST), part of the U.S. Department of Commerce<br>
+            <strong>What:</strong> The U.S. government's repository of standards-based vulnerability management data<br>
+            <strong>Why it matters:</strong> Provides comprehensive vulnerability information with standardized severity scores (CVSS)
+        </div>
+        
+        <div style="background:#232b45;border-radius:8px;padding:20px;margin-bottom:20px;">
+            <h3 style="color:#42d392;margin:0 0 12px 0;">What NVD Provides:</h3>
+            <ul style="color:#a9adc1;margin-left:20px;">
+                <li><strong>CVSS Scores:</strong> Standardized severity ratings for vulnerabilities</li>
+                <li><strong>CPE Names:</strong> Standardized naming for IT products and platforms</li>
+                <li><strong>CWE Mappings:</strong> Links vulnerabilities to weakness categories</li>
+                <li><strong>Reference Links:</strong> Technical details, patches, and advisories</li>
+                <li><strong>API Access:</strong> Machine-readable data feeds for automation</li>
+            </ul>
+        </div>
+
+        <div style="background:#263159;border-radius:8px;padding:16px;">
+            <strong style="color:#fca311;">Real-World Usage:</strong><br>
+            <span style="color:#e2e8f0;">Security teams use NVD data to prioritize patching, vulnerability scanners reference NVD for severity scores, and compliance frameworks often require NVD-based vulnerability management.</span>
+        </div>
+    </section>
+
+    <!-- MITRE Section -->
+    <section style="background:#1a2236;border-radius:14px;padding:28px;margin-bottom:32px;">
+        <h2 style="color:#42d392;margin:0 0 20px 0;display:flex;align-items:center;">
+            <span style="margin-right:12px;">🔬</span> MITRE Corporation
+        </h2>
+        <div style="color:#e2e8f0;margin-bottom:20px;">
+            <strong>Who:</strong> Non-profit organization that operates federally funded research and development centers<br>
+            <strong>What:</strong> Creates and maintains the CVE and CWE programs<br>
+            <strong>Why it matters:</strong> Provides the universal naming conventions that make vulnerability communication possible
+        </div>
+        
+        <div style="background:#232b45;border-radius:8px;padding:20px;margin-bottom:20px;">
+            <h3 style="color:#63a4ff;margin:0 0 12px 0;">MITRE's Key Programs:</h3>
+            <div style="display:grid;gap:16px;">
+                <div style="border-left:4px solid #63a4ff;padding-left:16px;">
+                    <strong style="color:#63a4ff;">CVE Program</strong><br>
+                    <span style="color:#a9adc1;">Assigns unique identifiers to publicly known vulnerabilities (CVE-YYYY-NNNNN format)</span>
+                </div>
+                <div style="border-left:4px solid #3b8ded;padding-left:16px;">
+                    <strong style="color:#3b8ded;">CWE Program</strong><br>
+                    <span style="color:#a9adc1;">Catalogs common types of software and hardware weaknesses</span>
+                </div>
+                <div style="border-left:4px solid #f8a541;padding-left:16px;">
+                    <strong style="color:#f8a541;">ATT&CK Framework</strong><br>
+                    <span style="color:#a9adc1;">Knowledge base of adversary tactics and techniques based on real-world observations</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="background:#263159;border-radius:8px;padding:16px;">
+            <strong style="color:#42d392;">Global Impact:</strong><br>
+            <span style="color:#e2e8f0;">MITRE's standards are used by security vendors, researchers, and organizations worldwide to ensure consistent vulnerability identification and communication.</span>
+        </div>
+    </section>
+
+    <!-- How They Work Together -->
+    <section style="background:#1a2236;border-radius:14px;padding:28px;margin-bottom:32px;">
+        <h2 style="color:#63a4ff;margin:0 0 20px 0;display:flex;align-items:center;">
+            <span style="margin-right:12px;">🤝</span> How NVD & MITRE Work Together
+        </h2>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+            <div style="background:#232b45;border-radius:8px;padding:20px;">
+                <h3 style="color:#fca311;margin:0 0 12px 0;">MITRE's Role</h3>
+                <ul style="color:#a9adc1;margin-left:16px;">
+                    <li>Creates CVE identifiers</li>
+                    <li>Maintains CWE catalog</li>
+                    <li>Coordinates with researchers</li>
+                    <li>Ensures quality standards</li>
+                </ul>
+            </div>
+            <div style="background:#232b45;border-radius:8px;padding:20px;">
+                <h3 style="color:#42d392;margin:0 0 12px 0;">NVD's Role</h3>
+                <ul style="color:#a9adc1;margin-left:16px;">
+                    <li>Adds CVSS scores to CVEs</li>
+                    <li>Provides detailed analysis</li>
+                    <li>Links to technical references</li>
+                    <li>Offers API access for automation</li>
+                </ul>
+            </div>
+        </div>
+
+        <div style="background:#263159;border-radius:8px;padding:16px;text-align:center;">
+            <strong style="color:#63a4ff;">The Process:</strong><br>
+            <span style="color:#e2e8f0;">MITRE assigns CVE → Security researchers provide details → NVD analyzes and scores → Public database updated → Security tools worldwide sync the data</span>
+        </div>
+    </section>
+
+    <!-- For Students & Professionals -->
+    <section style="background:#232b45;border-radius:14px;padding:28px;">
+        <h2 style="color:#63a4ff;margin:0 0 20px 0;display:flex;align-items:center;">
+            <span style="margin-right:12px;">🎓</span> Why This Matters for Your Career
+        </h2>
+        
+        <div style="display:grid;gap:20px;">
+            <div style="border-left:4px solid #42d392;padding-left:20px;">
+                <h3 style="color:#42d392;margin:0 0 8px 0;">For Security Professionals</h3>
+                <span style="color:#e2e8f0;">Understanding NVD and MITRE helps you communicate effectively with global security teams, choose the right tools, and implement industry-standard vulnerability management processes.</span>
+            </div>
+            
+            <div style="border-left:4px solid #f8a541;padding-left:20px;">
+                <h3 style="color:#f8a541;margin:0 0 8px 0;">For Developers</h3>
+                <span style="color:#e2e8f0;">Knowledge of CVE/CWE helps you understand security patterns, write more secure code, and participate in responsible disclosure when you find vulnerabilities.</span>
+            </div>
+            
+            <div style="border-left:4px solid #3b8ded;padding-left:20px;">
+                <h3 style="color:#3b8ded;margin:0 0 8px 0;">For Researchers</h3>
+                <span style="color:#e2e8f0;">These frameworks provide the foundation for security research, academic papers, and contribute to the global knowledge base of cybersecurity.</span>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

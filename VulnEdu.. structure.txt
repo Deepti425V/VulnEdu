@@ -1,0 +1,36 @@
+VulnEdu/
+│
+├── vulnedu.py                      
+├── config.py                    
+├── requirements.txt            
+├── README.md                   
+│
+├── static/                      
+│   ├── css/
+│   │   └── styles.css           
+│   ├── js/
+│   │   └── main.js              
+│   │   └── visualizations.js 
+│   │   └── charts.js              
+│   │   └── dashboard.js     
+│   └── img/
+│       └── logo.svg             
+│
+├── templates/                   
+│   ├── base.html                
+│   ├── index.html               
+│   ├── search.html              
+│   └── cve_detail.html          
+│   └── visualizations.html       
+│
+├── services/                    
+│   ├── nvd_api.py              
+│   └── data_analysis.py 
+│   ├── cwe_map.py              
+│   └── fetch_CVE.py  
+│   └── group_CVE.py            
+│
+└── data/                       
+    └── cache/
+        ├── rq1_common.json      
+        └── rq2_severity.json   

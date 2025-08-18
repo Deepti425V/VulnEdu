@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- ===== CVE DETAILS PAGE =========== -->
+<div style="max-width: 1400px; margin: 2em auto; background: #1a2236; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); padding: 2.5em 3em; color: #e2e8f0;">
+
+    <!-- HEADER SECTION (CVE ID, published date, etc) -->
+    <div style="display: flex; align-items: center; margin-bottom: 1.5em;">
+        <div style="flex: 1;">
+            <!-- Main CVE title with lock icon -->
+            <h2 style="margin: 0; font-size: 1.8em; color: #63a4ff; letter-spacing: 0.5px;">
+                <span style="font-size:1.3em;vertical-align:middle;">🔒</span>
+                {{ cve.get('ID', '-') }}
+            </h2>
+
+            <!-- Sub-info: published date, last modified, CVSS score -->
+            <div style="display: flex; gap: 1.5em; margin-top: 0.5em; color: #94a3b8; font-size: 0.95em;">
+                <div>
+                    <strong>Published:</strong> {{ cve.get('Published', '-')[:10] }}
+                </div>
+                <div>
+                    <strong>Last Modified:</strong> {{ cve.get('lastModified', '-')[:10] if cve.get('lastModified') else '-' }}
+                </div>
+                {% if cve.get('CVSS_Score') %}
+                <div>
+                    <strong>CVSS:</strong> {{ cve.get('CVSS_Score', '-') }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Severity Badge (CRITICAL, HIGH, MEDIUM, LOW) with colors -->
+        {% if cve.get('Severity') %}
+        <div style="background: 
+            {% if cve.get('Severity') == 'CRITICAL' %}#f41717
+            {% elif cve.get('Severity') == 'HIGH' %}#fc2311
+            {% elif cve.get('Severity') == 'MEDIUM' %}#3498db
+            {% elif cve.get('Severity') == 'LOW' %}#4126392
+            {% else %}#888{% endif %};
+            color: white; padding: 0.5em 1em; border-radius: 6px; font-weight: bold; font-size: 1.1em;">
+            {{ cve.get('Severity', 'UNKNOWN') }}
+        </div>
+        {% endif %}
+    </div>
+
+
+    <!-- == DESCRIPTION SECTION === -->
+    <div style="margin-bottom: 2em;">
+        <h3 style="margin: 0 0 0.8em 0; font-size: 1.3em; color: #cdd7ff; display: flex; align-items: center;">
+            <span style="margin-right: 8px;">📝</span> Description
+        </h3>
+        <div style="background: #212d46; padding: 1.2em; border-radius: 8px; line-height: 1.6;">
+            {{ cve.get('Description', 'No description available') }}
+        </div>
+    </div>
+
+    <!-- == METRICS SECTION (CVSS Scores) === -->
+    <div style="margin-bottom: 2em;">
+        <h3 style="margin: 0 0 0.8em 0; font-size: 1.3em; color: #cdd7ff; display: flex; align-items: center;">
+            <span style="margin-right: 8px;">⚠️</span> Severity & Metrics
+        </h3>
+        
+        {% set metrics = cve.get('metrics', {}) %}
+        {% set cvss = metrics.get('cvssMetricV31', metrics.get('cvssMetricV30', metrics.get('cvssMetricV2', []))) %}
+        
+        {% if cvss|length > 0 %}
+            <!-- Grid of CVSS metric cards (auto wraps per screen size) -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 1em;">
+            {% for metric in cvss %}
+                {% set cvssData = metric.get('cvssData', {}) %}
+                <div style="background: #212d46; border-radius: 8px; padding: 1.2em; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                    
+                    <!-- Severity + Score -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8em;">
+                        <div style="font-size: 1.1em; font-weight: bold; color: 
+                            {% if cvssData.get('baseSeverity') == 'CRITICAL' %}#f47174
+                            {% elif cvssData.get('baseSeverity') == 'HIGH' %}#fca311
+                            {% elif cvssData.get('baseSeverity') == 'MEDIUM' %}#3b8ded
+                            {% elif cvssData.get('baseSeverity') == 'LOW' %}#42d392
+                            {% else %}#a9adc1{% endif %};">
+                            {{ cvssData.get('baseSeverity', 'UNKNOWN') }}
+                        </div>
+                        <div style="font-size: 1.4em; font-weight: bold;">
+                            {{ cvssData.get('baseScore', '-') }}
+                        </div>
+                    </div>
+                    
+                    <!-- Vector String -->
+                    <div style="margin-bottom: 0.5em;">
+                        <div style="font-size: 0.9em; color: #94a3b8;">Vector String</div>
+                        <div style="font-family: monospace; word-break: break-all;">{{ cvssData.get('vectorString', '-') }}</div>
+                    </div>
+                    
+                    <!-- Version (CVSS v2/v3.0/v3.1) -->
+                    <div style="margin-bottom: 0.5em;">
+                        <div style="font-size: 0.9em; color: #94a3b8;">Version</div>
+                        <div>{{ metric.get('type', '').replace('cvssMetricV', 'CVSS v') }}</div>
+                    </div>
+                    
+                    <!-- Source of the scoring -->
+                    <div>
+                        <div style="font-size: 0.9em; color: #94a3b8;">Source</div>
+                        <div>{{ metric.get('source', '-') }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div style="background: #212d46; padding: 1.2em; border-radius: 8px; text-align: center; color: #94a3b8;">
+                No CVSS metrics available for this vulnerability
+            </div>
+        {% endif %}
+    </div>
+
+
+    <!-- === WEAKNESSES SECTION (CWE Mappings) === -->
+    <div style="margin-bottom: 2em;">
+        <h3 style="margin: 0 0 0.8em 0; font-size: 1.3em; color: #cdd7ff; display: flex; align-items: center;">
+            <span style="margin-right: 8px;">🔑</span> Weaknesses (CWE)
+        </h3>
+        
+        {% if cve.get('CWE') %}
+            <div style="background: #212d46; padding: 1.2em; border-radius: 8px;">
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5em;">
+                    {% set cwe_code = cve.get('CWE') %}
+                    {% if cwe_code.startswith('CWE-') %}
+                        <!-- Link to CWE official page -->
+                        <a href="https://cwe.mitre.org/data/definitions/{{ cwe_code[4:] }}.html" target="_blank"
+                           style="background: #263159; color: #63a4ff; padding: 0.5em 1em; border-radius: 20px; 
+                                  text-decoration: none; font-weight: 500; display: inline-flex; align-items: center;">
+                            {{ cwe_code }}
+                            <span style="margin-left: 6px; font-size: 0.9em;">↗</span>
+                        </a>
+                    {% else %}
+                        <!-- Non-standard CWE string -->
+                        <span style="background: #263159; color: #a9adc1; padding: 0.5em 1em; border-radius: 20px;">
+                            {{ cwe_code }}
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+        {% else %}
+            <div style="background: #212d46; padding: 1.2em; border-radius: 8px; text-align: center; color: #94a3b8;">
+                No CWE information available
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- == AFFECTED PRODUCTS SECTION === -->
+    {% if cve.get('Products') and cve.get('Products')|length > 0 %}
+    <div style="margin-bottom: 2em;">
+        <h3 style="margin: 0 0 0.8em 0; font-size: 1.3em; color: #cdd7ff; display: flex; align-items: center;">
+            <span style="margin-right: 8px;">📦</span> Affected Products
+        </h3>
+        <div style="background: #212d46; padding: 1.2em; border-radius: 8px;">
+            <ul style="margin: 0; padding-left: 1.2em;">
+            {% for product in cve.get('Products', []) %}
+                <li style="margin-bottom: 0.5em;">{{ product }}</li>
+            {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ==== REFERENCES SECTION ==== -->
+    <div style="margin-bottom: 2em;">
+        <h3 style="margin: 0 0 0.8em 0; font-size: 1.3em; color: #cdd7ff; display: flex; align-items: center;">
+            <span style="margin-right: 8px;">🔗</span> References
+        </h3>
+        
+        {% if cve.get('References') and cve.get('References')|length > 0 %}
+            <div style="background: #212d46; padding: 1.2em; border-radius: 8px;">
+                <ul style="margin: 0; padding: 0; list-style: none;">
+                {% for ref in cve.get('References', []) %}
+                    <li style="margin-bottom: 0.8em; padding-bottom: 0.8em; border-bottom: 1px solid #2a364f;">
+                        <!-- Reference links (external) -->
+                        <a href="{{ ref }}" target="_blank" 
+                           style="color: #63a4ff; text-decoration: none; word-break: break-all;
+                                  display: inline-flex; align-items: center;">
+                            {{ ref }}
+                            <span style="margin-left: 6px; font-size: 0.9em;">↗</span>
+                        </a>
+                    </li>
+                {% endfor %}
+                </ul>
+            </div>
+        {% else %}
+            <div style="background: #212d46; padding: 1.2em; border-radius: 8px; text-align: center; color: #94a3b8;">
+                No references available
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- === BACK TO DASHBOARD BUTTON ==== -->
+    <div style="text-align:center; margin:2.5em 0 1em 0;">
+        <a href="{{ url_for('index') }}" style="color:#63a4ff; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
+            ← Back to Dashboard
+        </a>
+    </div>
+
+</div>
+{% endblock %}

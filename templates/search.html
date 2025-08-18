@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Search Results</h2>
+<form method="get" class="topbar-search">
+  <input type="text" name="q" placeholder="Search" value="{{ q }}">
+  <select name="severity">
+    <option value="">All</option>
+    <option value="CRITICAL" {% if severity == 'CRITICAL' %}selected{% endif %}>Critical</option>
+    <option value="HIGH" {% if severity == 'HIGH' %}selected{% endif %}>High</option>
+    <option value="MEDIUM" {% if severity == 'MEDIUM' %}selected{% endif %}>Medium</option>
+    <option value="LOW" {% if severity == 'LOW' %}selected{% endif %}>Low</option>
+  </select>
+  <button type="submit">Filter</button>
+</form>
+{% if results %}
+<table class="vuln-table">
+  <thead>
+    <tr>
+      <th>CVE ID</th>
+      <th>Description</th>
+      <th>Severity</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for cve in results %}
+    <tr>
+      <td><a href="{{ url_for('cve_detail', cve_id=cve.id) }}">{{ cve.id }}</a></td>
+      <td>{{ cve.description }}</td>
+      <td><span class="cve-badge {{ cve.severity }}">{{ cve.severity }}</span></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No CVEs found for your query.</p>
+{% endif %}
+{% endblock %}
