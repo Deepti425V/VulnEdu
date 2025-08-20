@@ -11,19 +11,76 @@ from calendar import monthrange
 import os
 from threading import Thread, Lock
 import time
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import functools
 
 app = Flask(__name__)
 
-# Global cache with longer expiration and better error handling
+# Enhanced global cache with circuit breaker pattern
+class CircuitBreaker:
+    def __init__(self, failure_threshold=3, timeout=300):  # 5 minutes timeout
+        self.failure_threshold = failure_threshold
+        self.timeout = timeout
+        self.failure_count = 0
+        self.last_failure_time = None
+        self.state = 'CLOSED'  # CLOSED, OPEN, HALF_OPEN
+    
+    def call(self, func, *args, **kwargs):
+        if self.state == 'OPEN':
+            if time.time() - self.last_failure_time > self.timeout:
+                self.state = 'HALF_OPEN'
+            else:
+                raise Exception("Circuit breaker is OPEN - API calls temporarily disabled")
+        
+        try:
+            result = func(*args, **kwargs)
+            if self.state == 'HALF_OPEN':
+                self.state = 'CLOSED'
+                self.failure_count = 0
+            return result
+        except Exception as e:
+            self.failure_count += 1
+            if self.failure_count >= self.failure_threshold:
+                self.state = 'OPEN'
+                self.last_failure_time = time.time()
+            raise e
+
+# Global cache with enhanced error handling
 timeline_cache = {
     'data': None,
     'last_updated': None,
     'lock': Lock(),
-    'fallback_data': None
+    'fallback_data': None,
+    'circuit_breaker': CircuitBreaker()
 }
-TIMELINE_CACHE_HOURS = 24  # Increased cache time
+TIMELINE_CACHE_HOURS = 6  # Reduced cache time for more frequent updates
+
+# Thread pool for background tasks
+executor = ThreadPoolExecutor(max_workers=2)
 
 _warmed_up = False
+
+def cache_with_timeout(timeout_seconds=3600):
+    """Decorator for caching function results with timeout"""
+    def decorator(func):
+        cache = {}
+        
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            key = str(args) + str(kwargs)
+            now = time.time()
+            
+            if key in cache:
+                data, timestamp = cache[key]
+                if now - timestamp < timeout_seconds:
+                    return data
+            
+            result = func(*args, **kwargs)
+            cache[key] = (result, now)
+            return result
+        return wrapper
+    return decorator
 
 def create_fallback_timeline_data():
     """Create realistic fallback timeline data when API fails"""
@@ -50,6 +107,7 @@ def create_fallback_timeline_data():
     }
 
 def get_cached_timeline_data():
+    """Get timeline data with circuit breaker protection"""
     global timeline_cache
     
     with timeline_cache['lock']:
@@ -61,10 +119,19 @@ def get_cached_timeline_data():
             (now - timeline_cache['last_updated']).total_seconds() < TIMELINE_CACHE_HOURS * 3600):
             return timeline_cache['data']
         
-        # Try to generate new data, but don't block for too long
+        # Use fallback data if circuit breaker is open
+        if timeline_cache['circuit_breaker'].state == 'OPEN':
+            print("[Timeline] Circuit breaker is OPEN, using fallback data")
+            if timeline_cache['fallback_data']:
+                return timeline_cache['fallback_data']
+            fallback_data = create_fallback_timeline_data()
+            timeline_cache['fallback_data'] = fallback_data
+            return fallback_data
+        
+        # Try to generate new data with circuit breaker protection
         try:
             print("[Timeline] Attempting to refresh timeline data...")
-            timeline_data = generate_timeline_data()
+            timeline_data = timeline_cache['circuit_breaker'].call(generate_timeline_data)
             timeline_cache['data'] = timeline_data
             timeline_cache['last_updated'] = now
             timeline_cache['fallback_data'] = timeline_data  # Store as fallback
@@ -84,10 +151,11 @@ def get_cached_timeline_data():
             return fallback_data
 
 def generate_timeline_data():
-    """Generate timeline data with timeout protection"""
+    """Generate timeline data with timeout protection - NEVER call this directly in routes"""
     try:
-        # Try to get recent CVEs with a short timeout
-        recent_cves = get_all_cves(days=15, force_refresh=False)  # Reduced from 30 to 15 days
+        # This should only be called from background threads
+        # Use very conservative timeout
+        recent_cves = get_all_cves(days=10, force_refresh=False, timeout=5)  # 5 second timeout
         
         now = datetime.now(timezone.utc)
         months = []
@@ -221,10 +289,10 @@ def refresh_timeline_cache_background():
     def refresh_task():
         try:
             get_cached_timeline_data()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Background timeline refresh failed: {e}")
     
-    Thread(target=refresh_task, daemon=True).start()
+    executor.submit(refresh_task)
 
 def warm_dashboard_cache_if_needed():
     """Warm cache without blocking if it fails"""
@@ -234,10 +302,10 @@ def warm_dashboard_cache_if_needed():
         
         def _warm():
             try:
-                # Try to warm cache but don't block for too long
-                get_all_cves(days=15, force_refresh=False)
-                refresh_timeline_cache_background()
-                warm_cwe_cache()
+                # Submit background tasks but don't wait for them
+                executor.submit(lambda: get_all_cves(days=10, force_refresh=False, timeout=5))
+                executor.submit(refresh_timeline_cache_background)
+                executor.submit(warm_cwe_cache)
             except Exception as e:
                 print(f"Cache warming failed: {e}")
         
@@ -350,10 +418,12 @@ def get_cwe_radar_descriptions():
         "CWE-200": "Information Exposure.",
     }
 
+@cache_with_timeout(1800)  # 30 minute cache
 def get_cve_trends_30_days():
-    """Get CVE trends for last 30 days with fallback"""
+    """Get CVE trends for last 30 days with fallback - cached version"""
     try:
-        cves = get_all_cves(days=15, force_refresh=False)  # Reduced timeout
+        # Use cached data only, don't fetch fresh
+        cves = get_all_cves(days=10, force_refresh=False, timeout=3)  # Very short timeout
         today = datetime.now(timezone.utc).date()
         start_day = today - timedelta(days=29)
         date_counts = {start_day + timedelta(days=i): 0 for i in range(30)}
@@ -420,9 +490,10 @@ def index():
         severity_filter = request.args.get('severity')
         search_query = request.args.get('q')
         
-        # Get CVEs with timeout protection
+        # Get CVEs with timeout protection - NEVER BLOCK HERE
         try:
-            all_cves = get_all_cves(year=year, month=month, force_refresh=False)
+            # Use only cached data with very short timeout
+            all_cves = get_all_cves(year=year, month=month, force_refresh=False, timeout=2)
         except Exception as e:
             print(f"Error fetching CVEs: {e}")
             # Use sample data if API fails
@@ -445,7 +516,7 @@ def index():
         metrics = calculate_severity_metrics(all_cves_with_dates)
         total_cves = sum(metrics.values())
         
-        # Get timeline data
+        # Get timeline data - these should use cached data only
         timeline_daily = get_cve_trends_30_days()
         timeline_months = get_cached_timeline_data()
         
@@ -490,7 +561,7 @@ def index():
             note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')} to {note_end_date.strftime('%Y-%m-%d')}"
         else:
             now_date = datetime.now(timezone.utc).date()
-            note_start_date = now_date - timedelta(days=14)  # Reduced from 29
+            note_start_date = now_date - timedelta(days=9)  # Reduced from 14
             note_end_date = now_date
             note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')} to {note_end_date.strftime('%Y-%m-%d')}"
         
@@ -537,7 +608,7 @@ def learn_topic(topic):
         return redirect(url_for('learn_topic', topic='what-is-cve'))
     
     try:
-        cves = get_all_cves(force_refresh=False)
+        cves = get_all_cves(force_refresh=False, timeout=2)
         cwe_dict = get_cwe_dict()
         selected_cwes = list(CWE_TITLES.keys())
         cwe_severity = get_cwe_severity_chart_data(cves, selected_cwes)
@@ -598,10 +669,10 @@ def vulnerabilities():
             show_note = True
         else:
             note_end_date = datetime.now(timezone.utc).date()
-            note_start_date = note_end_date - timedelta(days=14)  # Reduced
+            note_start_date = note_end_date - timedelta(days=9)  # Reduced
             show_note = True
         
-        # Get CVEs with error handling
+        # Get CVEs with error handling - NEVER BLOCK HERE
         try:
             all_cves = []
             current_date = datetime.now(timezone.utc)
@@ -611,7 +682,7 @@ def vulnerabilities():
                 months_diff = (current_date.year - year) * 12 + (current_date.month - month)
                 
                 if months_diff <= 2:
-                    all_cves = get_all_cves(year=year, month=month, force_refresh=False)
+                    all_cves = get_all_cves(year=year, month=month, force_refresh=False, timeout=2)
                 else:
                     # Use sample data for older months
                     timeline_data = get_cached_timeline_data()
@@ -622,7 +693,7 @@ def vulnerabilities():
                         all_cves = generate_sample_cves_for_month(year, month, count)
             elif year and not month:
                 if year == current_date.year:
-                    all_cves = get_all_cves(year=year, force_refresh=False)
+                    all_cves = get_all_cves(year=year, force_refresh=False, timeout=2)
                 else:
                     # Generate sample data for older years
                     all_cves = []
@@ -637,7 +708,7 @@ def vulnerabilities():
                             sample_count = random.randint(600, 1200)
                             all_cves.extend(generate_sample_cves_for_month(year, m, sample_count))
             else:
-                all_cves = get_all_cves(days=15, force_refresh=False)  # Reduced from 30
+                all_cves = get_all_cves(days=10, force_refresh=False, timeout=2)  # Reduced from 15
         
         except Exception as e:
             print(f"Error fetching vulnerabilities: {e}")
