@@ -43,7 +43,7 @@ def _save_to_cache(cves):
     except Exception as e:
         print(f"[CVE Cache] Error saving cache: {e}")
 
-def _create_fallback_cves(days=15):
+def _create_fallback_cves(days=30):
     """Create realistic fallback CVE data when API is unavailable"""
     print(f"[CVE Fallback] Creating fallback data for {days} days")
     
@@ -132,7 +132,7 @@ def _create_fallback_cves(days=15):
     fallback_cves.sort(key=lambda x: x.get('Published', ''), reverse=True)
     return fallback_cves
 
-def _fetch_from_nvd(days=15):
+def _fetch_from_nvd(days=30):
     """Grabs CVEs from NVD API with improved timeout and error handling"""
     print(f"[NVD API] Attempting to fetch CVEs for last {days} days...")
     
@@ -153,8 +153,8 @@ def _fetch_from_nvd(days=15):
     
     headers = {"apikey": NVD_API_KEY}
     
-    # Limit to 2 API calls maximum to avoid timeouts
-    max_calls = 2
+    # Limit to 3 API calls maximum to avoid timeouts
+    max_calls = 3
     call_count = 0
     
     while call_count < max_calls:
@@ -270,11 +270,11 @@ def _refresh_cache():
     
     try:
         # Try to fetch from NVD with timeout protection
-        cves = _fetch_from_nvd(days=15)  # Reduced from 30
+        cves = _fetch_from_nvd(days=30)
         
         if not cves:
             print("[CVEs] No CVEs fetched from API, using fallback data")
-            cves = _create_fallback_cves(days=15)
+            cves = _create_fallback_cves(days=30)
         
         _save_to_cache(cves)
         print(f"[CVEs] Cache refreshed with {len(cves)} CVEs")
@@ -284,7 +284,7 @@ def _refresh_cache():
         print("[CVEs] Creating fallback data...")
         
         # Create fallback data and save it
-        fallback_cves = _create_fallback_cves(days=15)
+        fallback_cves = _create_fallback_cves(days=30)
         _save_to_cache(fallback_cves)
         print(f"[CVEs] Saved {len(fallback_cves)} fallback CVEs to cache")
 
@@ -344,18 +344,18 @@ def get_all_cves(max_results=None, year=None, month=None, days=None, force_refre
                 
                 # Last resort: create fallback data
                 print("[CVEs] No cache available, creating fallback data")
-                fallback_cves = _create_fallback_cves(days=15)
+                fallback_cves = _create_fallback_cves(days=30)
                 _save_to_cache(fallback_cves)
                 return fallback_cves
     
     # For filtered requests or forced refresh, try to fetch live data
     try:
         print(f"[CVEs] Fetching filtered/fresh data (year={year}, month={month}, days={days})")
-        cves = _fetch_from_nvd(days=days or 15)
+        cves = _fetch_from_nvd(days=days or 30)
         
         if not cves:
             print("[CVEs] No live data available, using fallback")
-            cves = _create_fallback_cves(days=days or 15)
+            cves = _create_fallback_cves(days=days or 30)
         
         # Apply year/month filtering if requested
         if year and month:
@@ -386,7 +386,7 @@ def get_all_cves(max_results=None, year=None, month=None, days=None, force_refre
             return cached_cves
         
         print("[CVEs] No cache available, generating fallback data")
-        fallback_cves = _create_fallback_cves(days=days or 15)
+        fallback_cves = _create_fallback_cves(days=days or 30)
         return fallback_cves
 
 # Don't start auto-refresh in production to avoid resource issues
