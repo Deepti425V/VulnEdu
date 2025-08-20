@@ -63,13 +63,17 @@
     <div style="display: grid; gap: 16px;">
         {% set latest_critical_high = [] %}
         {% for cve in latest_cves[:10] %}
-        {% if cve.get('Severity') and (cve.get('Severity')|string).upper() in ['CRITICAL', 'HIGH'] %}
+        {% set severity = cve.get('Severity', '') %}
+        {% set severity_str = severity if severity is string else (severity[0] if severity and severity|length > 0 else '') %}
+        {% if severity_str.upper() in ['CRITICAL', 'HIGH'] %}
         {% set _ = latest_critical_high.append(cve) %}
         {% endif %}
         {% endfor %}
         {% if latest_critical_high %}
         {% for cve in latest_critical_high[:5] %}
-        <div style="background: #263159; border-radius: 12px; padding: 20px; border-left: 4px solid {% if cve.get('Severity') == 'CRITICAL' %}#f47174{% else %}#fca311{% endif %};">
+        {% set severity = cve.get('Severity', '') %}
+        {% set severity_str = severity if severity is string else (severity[0] if severity and severity|length > 0 else '') %}
+        <div style="background: #263159; border-radius: 12px; padding: 20px; border-left: 4px solid {% if severity_str == 'CRITICAL' %}#f47174{% else %}#fca311{% endif %};">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                 <div style="flex: 1;">
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
@@ -78,9 +82,9 @@
                             {{ cve.get('ID', 'N/A') }}
                         </a>
                         <span style="background:
-{% if cve.get('Severity') == 'CRITICAL' %}#f47174{% elif cve.get('Severity') == 'HIGH' %}#fca311{% elif cve.get('Severity') == 'MEDIUM' %}#3498db{% else %}#42d392{% endif %};
+{% if severity_str == 'CRITICAL' %}#f47174{% elif severity_str == 'HIGH' %}#fca311{% elif severity_str == 'MEDIUM' %}#3498db{% else %}#42d392{% endif %};
 color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8em; font-weight: bold;">
-                            {{ cve.get('Severity', 'UNKNOWN') }}
+                            {{ severity_str or 'UNKNOWN' }}
                         </span>
                     </div>
                     <div style="color: #e2e8f0; line-height: 1.5; font-size: 0.95em;">
@@ -145,6 +149,8 @@ color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8em; font-wei
             </thead>
             <tbody>
             {% for cve in latest_cves %}
+            {% set severity = cve.get('Severity', '') %}
+            {% set severity_str = severity if severity is string else (severity[0] if severity and severity|length > 0 else '') %}
             <tr style="background: #1a2236; border-bottom: 1px solid #2a364f; transition: background 0.2s;" onmouseover="this.style.background='#212d46'" onmouseout="this.style.background='#1a2236'">
                 <td style="padding: 16px 20px;text-align: center; font-size: 1.18rem;">
                     <a href="{{ url_for('cve_detail', cve_id=cve.get('ID'), year=year_filter, month=month_filter, page=current_page, severity=severity_filter) }}"
@@ -157,9 +163,9 @@ color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8em; font-wei
                 </td>
                 <td style="padding: 16px 20px; text-align: center;">
                     <span style="background:
-{% if cve.get('Severity') == 'CRITICAL' %}#f47174{% elif cve.get('Severity') == 'HIGH' %}#fca311{% elif cve.get('Severity') == 'MEDIUM' %}#3498db{% elif cve.get('Severity') == 'LOW' %}#42d392{% else %}#6b7280{% endif %};
+{% if severity_str == 'CRITICAL' %}#f47174{% elif severity_str == 'HIGH' %}#fca311{% elif severity_str == 'MEDIUM' %}#3498db{% elif severity_str == 'LOW' %}#42d392{% else %}#6b7280{% endif %};
 color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold;">
-                        {{ cve.get('Severity', 'UNKNOWN') }}
+                        {{ severity_str or 'UNKNOWN' }}
                     </span>
                 </td>
                 <td style="padding: 16px 20px; text-align: center; color: #94a3b8; font-size: 1.18em; font-family: monospace;">
