@@ -24,7 +24,53 @@ try:
 except:
     print("[Startup] Could not reset circuit breaker")
 
-# Enhanced global cache with circuit breaker pattern
+# Global data consistency cache - THIS IS THE KEY FIX
+_consistent_data_cache = {
+    'timeline_data': None,
+    'sample_cves_by_month': {},  # Store generated CVEs by month key
+    'last_generated': None,
+    'lock': Lock()
+}
+
+def get_consistent_sample_cves_for_month(year, month, count):
+    """Generate consistent sample CVEs that don't change on refresh - THIS FIXES YOUR PROBLEM"""
+    global _consistent_data_cache
+    
+    month_key = f"{year}-{month:02d}"
+    
+    with _consistent_data_cache['lock']:
+        # Check if we already have consistent data for this month
+        if month_key in _consistent_data_cache['sample_cves_by_month']:
+            existing_cves = _consistent_data_cache['sample_cves_by_month'][month_key]
+            print(f"[Consistent Data] Using existing {len(existing_cves)} CVEs for {month_key}")
+            return existing_cves
+        
+        # Generate new data and store it for consistency
+        print(f"[Consistent Data] Generating NEW {count} CVEs for {month_key} (will be consistent on refresh)")
+        new_cves = generate_sample_cves_for_month(year, month, count)
+        _consistent_data_cache['sample_cves_by_month'][month_key] = new_cves
+        _consistent_data_cache['last_generated'] = datetime.now()
+        
+        return new_cves
+
+def get_consistent_timeline_data():
+    """Get timeline data that stays consistent across refreshes"""
+    global _consistent_data_cache
+    
+    with _consistent_data_cache['lock']:
+        # Check if we have existing timeline data
+        if (_consistent_data_cache['timeline_data'] is not None and 
+            _consistent_data_cache['last_generated'] is not None):
+            print("[Consistent Data] Using existing timeline data for consistency")
+            return _consistent_data_cache['timeline_data']
+        
+        # Generate new timeline data
+        print("[Consistent Data] Generating NEW timeline data (will be consistent on refresh)")
+        timeline_data = generate_timeline_data()
+        _consistent_data_cache['timeline_data'] = timeline_data
+        _consistent_data_cache['last_generated'] = datetime.now()
+        
+        return timeline_data
 class CircuitBreaker:
     def __init__(self, failure_threshold=3, timeout=300): # 5 minutes timeout
         self.failure_threshold = failure_threshold
@@ -112,38 +158,14 @@ def create_fallback_timeline_data():
     }
 
 def get_cached_timeline_data():
-    """Get timeline data with circuit breaker protection"""
+    """Get timeline data that is CONSISTENT across all refreshes"""
     global timeline_cache
     
     with timeline_cache['lock']:
         now = datetime.now(timezone.utc)
         
-        # Check if we have valid cached data
-        if (timeline_cache['data'] is not None and 
-            timeline_cache['last_updated'] is not None and
-            (now - timeline_cache['last_updated']).total_seconds() < TIMELINE_CACHE_HOURS * 3600):
-            return timeline_cache['data']
-        
-        # Try to generate new data with longer timeout and force refresh for accuracy
-        try:
-            print("[Timeline] Attempting to refresh timeline data...")
-            timeline_data = timeline_cache['circuit_breaker'].call(generate_timeline_data)
-            timeline_cache['data'] = timeline_data
-            timeline_cache['last_updated'] = now
-            timeline_cache['fallback_data'] = timeline_data # Store as fallback
-            return timeline_data
-        except Exception as e:
-            print(f"[Timeline] Failed to refresh timeline data: {e}")
-            # Use fallback data if available
-            if timeline_cache['fallback_data']:
-                print("[Timeline] Using previous fallback data")
-                return timeline_cache['fallback_data']
-            
-            # Create new fallback data
-            print("[Timeline] Creating new fallback data")
-            fallback_data = create_fallback_timeline_data()
-            timeline_cache['fallback_data'] = fallback_data
-            return fallback_data
+        # Use consistent data system instead of regenerating
+        return get_consistent_timeline_data()
 
 def generate_timeline_data():
     """Generate timeline data with consistent counts for chart and vulnerability pages - 5 YEARS"""
@@ -720,30 +742,30 @@ def vulnerabilities():
             note_start_date = note_end_date - timedelta(days=29) # Updated to match 30-day period
             show_note = True
         
-        # Get CVEs with improved consistency - use SAME cached data as dashboard
+        # Get CVEs with GUARANTEED CONSISTENCY - no more random data on refresh
         try:
             all_cves = []
             current_date = datetime.now(timezone.utc)
             
             if year and month:
-                # For specific year/month - get count from timeline and generate that exact amount
-                timeline_data = get_cached_timeline_data()
+                # For specific year/month - get EXACT count from timeline and use CONSISTENT data
+                timeline_data = get_consistent_timeline_data()  # Use consistent timeline
                 month_key = f"{year}-{month:02d}"
                 
                 if month_key in timeline_data['labels']:
                     idx = timeline_data['labels'].index(month_key)
                     expected_count = timeline_data['values'][idx]
-                    print(f"[Vulnerabilities] Generating EXACTLY {expected_count} CVEs for {month_key} to match timeline")
-                    all_cves = generate_sample_cves_for_month(year, month, expected_count)
+                    print(f"[Vulnerabilities] Using CONSISTENT {expected_count} CVEs for {month_key} from timeline")
+                    all_cves = get_consistent_sample_cves_for_month(year, month, expected_count)  # CONSISTENT DATA
                 else:
-                    # If not in timeline, generate reasonable amount
+                    # If not in timeline, generate reasonable amount but CONSISTENT
                     base_count = 1400 if year >= 2022 else 900
-                    print(f"[Vulnerabilities] Month {month_key} not in timeline, generating {base_count} CVEs")
-                    all_cves = generate_sample_cves_for_month(year, month, base_count)
+                    print(f"[Vulnerabilities] Month {month_key} not in timeline, using CONSISTENT {base_count} CVEs")
+                    all_cves = get_consistent_sample_cves_for_month(year, month, base_count)  # CONSISTENT DATA
                     
             elif year and not month:
-                # For full year - sum ALL months from timeline for exact match
-                timeline_data = get_cached_timeline_data()
+                # For full year - sum ALL months from timeline for EXACT match with CONSISTENT data
+                timeline_data = get_consistent_timeline_data()  # Use consistent timeline
                 all_cves = []
                 total_expected = 0
                 
@@ -756,10 +778,10 @@ def vulnerabilities():
                         count = 1400 if year >= 2022 else 900
                     
                     total_expected += count
-                    monthly_cves = generate_sample_cves_for_month(year, m, count)
+                    monthly_cves = get_consistent_sample_cves_for_month(year, m, count)  # CONSISTENT DATA
                     all_cves.extend(monthly_cves)
                 
-                print(f"[Vulnerabilities] Generated {len(all_cves)} CVEs for year {year} (expected: {total_expected})")
+                print(f"[Vulnerabilities] Using CONSISTENT {len(all_cves)} CVEs for year {year} (expected: {total_expected})")
                     
             else:
                 # Current period - use same cached CVEs as dashboard
@@ -768,9 +790,9 @@ def vulnerabilities():
                 
         except Exception as e:
             print(f"Error fetching vulnerabilities: {e}")
-            # Use basic fallback
+            # Use basic fallback but CONSISTENT
             if year and month:
-                all_cves = generate_sample_cves_for_month(year, month, 1400)
+                all_cves = get_consistent_sample_cves_for_month(year, month, 1400)
             else:
                 all_cves = generate_sample_cves_for_month(2025, 8, 100)
                 
