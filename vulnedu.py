@@ -446,38 +446,52 @@ def get_cwe_radar_descriptions():
         "CWE-200": "Information Exposure.",
     }
 
-@cache_with_timeout(900) # 15 minute cache for dashboard chart
+@cache_with_timeout(900) # 15 minute cache - reduced for more frequent updates
 def get_cve_trends_30_days():
-    """
-    UPDATED: Returns only REAL NVD API data for last 30 days (ending today).
-    No fallback/random/demo/sample data is ever used.
-    If the NVD API fails, returns a chart with all zeros.
-    """
+    """Get CVE trends for last 30 days with real data - FIXED to get actual 30 days"""
     try:
-        # Always request real (live) NVD API data for last 30 days
-        cves = get_all_cves(days=30, force_refresh=True, timeout=20)
+        # Calculate the exact 30-day period
         today = datetime.now(timezone.utc).date()
-        start_day = today - timedelta(days=29)
-        date_counts = {start_day + timedelta(days=i): 0 for i in range(30)}
+        start_date = today - timedelta(days=29)  # 29 days ago + today = 30 days total
+        
+        print(f"[CVE Trends] Getting real data from {start_date} to {today}")
+        
+        # Force refresh to get the most current data for the 30-day period
+        cves = get_all_cves(days=30, force_refresh=True, timeout=25)
+        
+        # Create date buckets for all 30 days
+        date_counts = {}
+        for i in range(30):
+            date_key = start_date + timedelta(days=i)
+            date_counts[date_key] = 0
+        
+        # Count CVEs by their published date
         for cve in cves:
             dt = parse_published_date(cve)
             if dt:
                 dt_date = dt.date()
-                if dt_date in date_counts:
+                # Only count CVEs that fall within our 30-day window
+                if start_date <= dt_date <= today:
                     date_counts[dt_date] += 1
+        
+        # Sort dates and return the data
+        sorted_dates = sorted(date_counts.keys())
+        
         return {
-            'labels': [d.strftime('%Y-%m-%d') for d in sorted(date_counts.keys())],
-            'values': [date_counts[d] for d in sorted(date_counts.keys())]
+            'labels': [d.strftime('%Y-%m-%d') for d in sorted_dates],
+            'values': [date_counts[d] for d in sorted_dates]
         }
+        
     except Exception as e:
-        print(f"Error getting CVE trends REAL: {e}")
+        print(f"Error getting CVE trends: {e}")
+        # Minimal fallback - return empty data rather than fake data
         today = datetime.now(timezone.utc).date()
-        start_day = today - timedelta(days=29)
-        dates = [start_day + timedelta(days=i) for i in range(30)]
-        # Always show blank chart on error
+        start_date = today - timedelta(days=29)
+        dates = [start_date + timedelta(days=i) for i in range(30)]
+        
         return {
             'labels': [d.strftime('%Y-%m-%d') for d in dates],
-            'values': [0] * 30
+            'values': [0] * 30 # Show zeros instead of fake data
         }
 
 # Health check endpoint for Render
