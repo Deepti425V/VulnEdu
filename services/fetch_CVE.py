@@ -8,23 +8,22 @@ import time
 import random
 import math
 
-# FIXED VERSION - NO MORE RANDOM DATA GENERATION
-# Where we'll keep scraped CVEs between sessions (local file cache)
+# FIXED VERSION - GET ALL CVEs + PROPER GRAPH DATA
 CACHE_PATH = "data/cache/cve_cache.json"
 CACHE_TIME_MINUTES = 1440 # 24 hours
-SCHEDULE_HOUR = 0 # Midnight (server local time)
+SCHEDULE_HOUR = 0
 
 # Global timeout and circuit breaker settings
-DEFAULT_TIMEOUT = 20
-MAX_RETRIES = 2
+DEFAULT_TIMEOUT = 30  # Increased timeout
+MAX_RETRIES = 3
 CIRCUIT_BREAKER_FAILURES = 5
-CIRCUIT_BREAKER_TIMEOUT = 600 # 10 minutes
+CIRCUIT_BREAKER_TIMEOUT = 600
 
 # Circuit breaker state
 circuit_breaker = {
     'failures': 0,
     'last_failure': None,
-    'state': 'CLOSED' # CLOSED, OPEN, HALF_OPEN
+    'state': 'CLOSED'
 }
 
 def _is_circuit_open():
@@ -85,177 +84,20 @@ def _save_to_cache(cves):
     except Exception as e:
         print(f"[CVE Cache] Error saving cache: {e}")
 
-def _create_static_demo_data():
+def _fetch_from_nvd_all_pages(days=30, timeout=DEFAULT_TIMEOUT):
     """
-    FIXED: Create static demo data that NEVER changes
-    This ensures consistent counts across all pages and refreshes
+    FIXED: Fetch ALL CVEs from NVD API (not limited to 1000)
+    This will get ALL available CVEs for the specified time period
     """
-    print("[CVE Demo] Creating STATIC demo data for consistency")
-    
-    # STATIC data - these will always be the same
-    static_cves = [
-        {
-            'ID': 'CVE-2025-00001',
-            'Description': 'Cross-site scripting vulnerability in web application allows remote attackers to inject arbitrary web script or HTML via crafted input parameters',
-            'Severity': 'HIGH',
-            'CWE': 'CWE-79',
-            'Published': '2025-08-21T10:30:00.000Z',
-            'CVSS_Score': 7.5,
-            'References': ['https://nvd.nist.gov/vuln/detail/CVE-2025-00001'],
-            'Products': ['Web Application Framework'],
-            'metrics': {
-                'cvssMetricV31': [{
-                    'cvssData': {
-                        'baseScore': 7.5,
-                        'baseSeverity': 'HIGH',
-                        'vectorString': 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H'
-                    }
-                }]
-            }
-        },
-        {
-            'ID': 'CVE-2025-00002',
-            'Description': 'SQL injection vulnerability in database interface allows remote attackers to execute arbitrary SQL commands via malformed queries',
-            'Severity': 'CRITICAL',
-            'CWE': 'CWE-89',
-            'Published': '2025-08-21T09:15:00.000Z',
-            'CVSS_Score': 9.8,
-            'References': ['https://nvd.nist.gov/vuln/detail/CVE-2025-00002'],
-            'Products': ['Database Management System'],
-            'metrics': {
-                'cvssMetricV31': [{
-                    'cvssData': {
-                        'baseScore': 9.8,
-                        'baseSeverity': 'CRITICAL',
-                        'vectorString': 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H'
-                    }
-                }]
-            }
-        },
-        {
-            'ID': 'CVE-2025-00003',
-            'Description': 'Buffer overflow in network service allows attackers to execute arbitrary code via specially crafted requests',
-            'Severity': 'HIGH',
-            'CWE': 'CWE-119',
-            'Published': '2025-08-21T08:45:00.000Z',
-            'CVSS_Score': 8.1,
-            'References': ['https://nvd.nist.gov/vuln/detail/CVE-2025-00003'],
-            'Products': ['Network Service'],
-            'metrics': {
-                'cvssMetricV31': [{
-                    'cvssData': {
-                        'baseScore': 8.1,
-                        'baseSeverity': 'HIGH',
-                        'vectorString': 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H'
-                    }
-                }]
-            }
-        },
-        {
-            'ID': 'CVE-2025-00004',
-            'Description': 'Improper input validation in user authentication system allows bypass of security controls',
-            'Severity': 'MEDIUM',
-            'CWE': 'CWE-20',
-            'Published': '2025-08-21T07:20:00.000Z',
-            'CVSS_Score': 5.3,
-            'References': ['https://nvd.nist.gov/vuln/detail/CVE-2025-00004'],
-            'Products': ['Authentication System'],
-            'metrics': {
-                'cvssMetricV31': [{
-                    'cvssData': {
-                        'baseScore': 5.3,
-                        'baseSeverity': 'MEDIUM',
-                        'vectorString': 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N'
-                    }
-                }]
-            }
-        },
-        {
-            'ID': 'CVE-2025-00005',
-            'Description': 'Information disclosure vulnerability exposes sensitive system configuration data to unauthorized users',
-            'Severity': 'LOW',
-            'CWE': 'CWE-200',
-            'Published': '2025-08-21T06:10:00.000Z',
-            'CVSS_Score': 3.7,
-            'References': ['https://nvd.nist.gov/vuln/detail/CVE-2025-00005'],
-            'Products': ['Configuration Management'],
-            'metrics': {
-                'cvssMetricV31': [{
-                    'cvssData': {
-                        'baseScore': 3.7,
-                        'baseSeverity': 'LOW',
-                        'vectorString': 'CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N'
-                    }
-                }]
-            }
-        }
-    ]
-    
-    # Generate more static entries to have realistic counts
-    # IMPORTANT: Use deterministic generation so counts are ALWAYS the same
-    base_templates = [
-        ('Cross-site scripting', 'CWE-79', 'HIGH', 7.5),
-        ('SQL injection', 'CWE-89', 'CRITICAL', 9.8),
-        ('Buffer overflow', 'CWE-119', 'HIGH', 8.1),
-        ('Input validation', 'CWE-20', 'MEDIUM', 5.3),
-        ('Information disclosure', 'CWE-200', 'LOW', 3.7),
-        ('Authentication bypass', 'CWE-287', 'HIGH', 7.8),
-        ('Path traversal', 'CWE-22', 'MEDIUM', 6.1),
-        ('Command injection', 'CWE-78', 'CRITICAL', 9.3),
-    ]
-    
-    products = ['Apache HTTP Server', 'Microsoft Windows', 'Google Chrome', 'Mozilla Firefox', 'Oracle Java', 'WordPress', 'OpenSSL', 'Node.js']
-    
-    # Generate EXACTLY 100 CVEs for consistent counting
-    for i in range(6, 101):  # We already have 5, so make 95 more
-        template_idx = (i - 6) % len(base_templates)
-        template = base_templates[template_idx]
-        product_idx = (i - 6) % len(products)
-        product = products[product_idx]
-        
-        # Create deterministic date (spread over last 30 days)
-        days_ago = (i - 6) % 30
-        pub_date = datetime.now(timezone.utc) - timedelta(days=days_ago)
-        
-        static_cve = {
-            'ID': f'CVE-2025-{i:05d}',
-            'Description': f'{template[0]} vulnerability in {product} allows potential security compromise',
-            'Severity': template[2],
-            'CWE': template[1],
-            'Published': pub_date.strftime('%Y-%m-%dT%H:%M:%S.000Z'),
-            'CVSS_Score': template[3],
-            'References': [f'https://nvd.nist.gov/vuln/detail/CVE-2025-{i:05d}'],
-            'Products': [product],
-            'metrics': {
-                'cvssMetricV31': [{
-                    'cvssData': {
-                        'baseScore': template[3],
-                        'baseSeverity': template[2],
-                        'vectorString': 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H'
-                    }
-                }]
-            },
-            '_static_demo': True
-        }
-        static_cves.append(static_cve)
-    
-    # Sort by published date (newest first) for consistency
-    static_cves.sort(key=lambda x: x.get('Published', ''), reverse=True)
-    
-    print(f"[CVE Demo] Created {len(static_cves)} STATIC demo CVEs")
-    return static_cves
-
-def _fetch_from_nvd(days=30, timeout=DEFAULT_TIMEOUT):
-    """Grabs CVEs from NVD API - REAL DATA ONLY"""
     if _is_circuit_open():
         print("[NVD API] Circuit breaker is OPEN, skipping API call")
         return []
         
-    print(f"[NVD API] Attempting to fetch REAL CVEs for last {days} days...")
+    print(f"[NVD API] Fetching ALL CVEs for last {days} days (no limit)...")
     now_utc = datetime.now(timezone.utc)
     all_cves = []
     start_index = 0
-    results_per_page = 500
+    results_per_page = 2000  # Maximum allowed by NVD API
     pub_end = now_utc
     pub_start = pub_end - timedelta(days=days - 1)
 
@@ -268,28 +110,32 @@ def _fetch_from_nvd(days=30, timeout=DEFAULT_TIMEOUT):
     
     headers = {"apikey": NVD_API_KEY} if NVD_API_KEY else {}
 
-    max_calls = 2
-    call_count = 0
+    # Keep fetching until we get all pages
+    page_count = 0
+    max_pages = 50  # Safety limit to prevent infinite loops
     
-    while call_count < max_calls:
+    while page_count < max_pages:
         try:
-            print(f"[NVD API] Making request {call_count + 1}/{max_calls}...")
+            print(f"[NVD API] Fetching page {page_count + 1} (starting at index {start_index})...")
             response = requests.get(NVD_API_URL, params=params, headers=headers, timeout=timeout)
             response.raise_for_status()
             data = response.json()
-            _record_success()  # Mark success in circuit breaker
+            _record_success()
             
         except Exception as e:
-            print(f"[NVD API] Request {call_count + 1} failed: {e}")
-            _record_failure()  # Mark failure in circuit breaker
+            print(f"[NVD API] Page {page_count + 1} failed: {e}")
+            _record_failure()
             break
 
         vulnerabilities = data.get("vulnerabilities", [])
+        total_results = data.get("totalResults", 0)
+        
         if not vulnerabilities:
-            print(f"[NVD API] No vulnerabilities returned in request {call_count + 1}")
+            print(f"[NVD API] No more vulnerabilities on page {page_count + 1}")
             break
 
-        print(f"[NVD API] Processing {len(vulnerabilities)} vulnerabilities...")
+        print(f"[NVD API] Processing {len(vulnerabilities)} vulnerabilities from page {page_count + 1}...")
+        
         for item in vulnerabilities:
             cve = item.get("cve", {})
             published_str = cve.get("published", "")
@@ -343,25 +189,29 @@ def _fetch_from_nvd(days=30, timeout=DEFAULT_TIMEOUT):
                 "_real_data": True
             })
 
-        # Check if we should continue pagination
-        total_results = data.get("totalResults", 0)
-        if start_index + results_per_page >= total_results:
-            print(f"[NVD API] Retrieved all {total_results} results")
+        # Check if we've got all results
+        fetched_so_far = start_index + len(vulnerabilities)
+        print(f"[NVD API] Fetched {fetched_so_far} of {total_results} total CVEs")
+        
+        if fetched_so_far >= total_results:
+            print(f"[NVD API] Got all {total_results} available CVEs!")
             break
             
+        # Prepare for next page
         start_index += results_per_page
         params["startIndex"] = start_index
-        call_count += 1
-        time.sleep(2)  # Rate limiting
+        page_count += 1
+        
+        # Rate limiting - be nice to NVD API
+        time.sleep(1)
 
     all_cves.sort(key=lambda x: x.get("Published") or "", reverse=True)
-    print(f"[NVD API] Successfully fetched {len(all_cves)} REAL CVEs")
+    print(f"[NVD API] Successfully fetched {len(all_cves)} REAL CVEs across {page_count + 1} pages")
     return all_cves
 
 def get_all_cves(max_results=None, year=None, month=None, days=None, force_refresh=False, timeout=None):
     """
-    FIXED VERSION: Returns consistent CVE data
-    Priority: Cache -> Real API -> Static Demo (NO random data)
+    FIXED VERSION: Get ALL available CVEs (not limited to 1000)
     """
     if days is None:
         days = 30
@@ -377,10 +227,10 @@ def get_all_cves(max_results=None, year=None, month=None, days=None, force_refre
             result = cached_cves[:max_results] if max_results else cached_cves
             return result
 
-    # Try to fetch real data from NVD
+    # Try to fetch ALL real data from NVD
     try:
-        print(f"[CVEs] Attempting to fetch REAL data from NVD API...")
-        real_cves = _fetch_from_nvd(days=days, timeout=actual_timeout)
+        print(f"[CVEs] Attempting to fetch ALL REAL data from NVD API...")
+        real_cves = _fetch_from_nvd_all_pages(days=days, timeout=actual_timeout)
         
         if real_cves and len(real_cves) > 0:
             print(f"[CVEs] Got {len(real_cves)} REAL CVEs from NVD API")
@@ -414,22 +264,121 @@ def get_all_cves(max_results=None, year=None, month=None, days=None, force_refre
         result = cached_cves[:max_results] if max_results else cached_cves
         return result
 
-    # Last resort: Use static demo data (CONSISTENT, never changes)
-    print("[CVEs] Using STATIC demo data as final fallback")
-    static_cves = _create_static_demo_data()
+    # Last resort: Empty list (better than fake data)
+    print("[CVEs] No data available - returning empty list")
+    return []
+
+def get_daily_cve_data_for_30_days():
+    """
+    FIXED: Get REAL daily CVE data for last 30 days
+    This generates proper 30-day graph data
+    """
+    print("[Daily CVE] Generating REAL 30-day data...")
     
-    # Apply filtering if requested
-    if year and month:
-        filtered = [cve for cve in static_cves if cve.get("Published", "")[:7] == f"{year}-{month:02d}"]
-        result = filtered[:max_results] if max_results else filtered
-        return result
-    elif year:
-        filtered = [cve for cve in static_cves if cve.get("Published", "")[:4] == str(year)]
-        result = filtered[:max_results] if max_results else filtered
-        return result
+    try:
+        # Get CVEs for last 30 days
+        cves = get_all_cves(days=30)
+        
+        # Create 30-day date range
+        today = datetime.now(timezone.utc).date()
+        dates = [today - timedelta(days=i) for i in range(29, -1, -1)]  # Last 30 days in order
+        
+        # Count CVEs per day
+        daily_counts = {date: 0 for date in dates}
+        
+        for cve in cves:
+            published_str = cve.get('Published', '')
+            if published_str:
+                try:
+                    # Parse the published date
+                    published_dt = datetime.fromisoformat(published_str.replace('Z', '+00:00'))
+                    published_date = published_dt.date()
+                    
+                    if published_date in daily_counts:
+                        daily_counts[published_date] += 1
+                except Exception:
+                    continue
+        
+        # Convert to chart format
+        labels = [date.strftime('%Y-%m-%d') for date in dates]
+        values = [daily_counts[date] for date in dates]
+        
+        total_cves = sum(values)
+        print(f"[Daily CVE] Generated 30-day data: {total_cves} total CVEs across 30 days")
+        
+        return {
+            'labels': labels,
+            'values': values
+        }
+        
+    except Exception as e:
+        print(f"[Daily CVE] Error generating daily data: {e}")
+        # Return empty 30-day structure
+        today = datetime.now(timezone.utc).date()
+        dates = [today - timedelta(days=i) for i in range(29, -1, -1)]
+        return {
+            'labels': [date.strftime('%Y-%m-%d') for date in dates],
+            'values': [0] * 30
+        }
+
+def get_monthly_cve_data_for_5_years():
+    """
+    FIXED: Get REAL monthly CVE data for last 5 years
+    This generates proper 5-year graph data
+    """
+    print("[Monthly CVE] Generating REAL 5-year data...")
     
-    result = static_cves[:max_results] if max_results else static_cves
-    return result
+    try:
+        # Get CVEs for last 5 years (1825 days)
+        cves = get_all_cves(days=1825)  # 5 years = 1825 days
+        
+        # Create 5-year month range
+        now = datetime.now(timezone.utc)
+        months = []
+        
+        # Generate last 60 months (5 years)
+        for i in range(59, -1, -1):
+            month_date = now - timedelta(days=30 * i)
+            month_key = month_date.strftime('%Y-%m')
+            if month_key not in [m[1] for m in months]:  # Avoid duplicates
+                months.append((month_date.year, month_date.month, month_key))
+        
+        # Count CVEs per month
+        monthly_counts = {month_key: 0 for _, _, month_key in months}
+        
+        for cve in cves:
+            published_str = cve.get('Published', '')
+            if published_str and len(published_str) >= 7:
+                month_key = published_str[:7]  # YYYY-MM
+                if month_key in monthly_counts:
+                    monthly_counts[month_key] += 1
+        
+        # Convert to chart format (chronological order)
+        sorted_months = sorted(monthly_counts.items())
+        labels = [month for month, _ in sorted_months]
+        values = [count for _, count in sorted_months]
+        
+        total_cves = sum(values)
+        print(f"[Monthly CVE] Generated 5-year data: {total_cves} total CVEs across {len(labels)} months")
+        
+        return {
+            'labels': labels,
+            'values': values
+        }
+        
+    except Exception as e:
+        print(f"[Monthly CVE] Error generating monthly data: {e}")
+        # Return empty 5-year structure
+        now = datetime.now(timezone.utc)
+        months = []
+        for i in range(59, -1, -1):
+            month_date = now - timedelta(days=30 * i)
+            months.append(month_date.strftime('%Y-%m'))
+        
+        return {
+            'labels': list(set(months))[:60],  # Last 60 months
+            'values': [0] * 60
+        }
 
 def reset_circuit_breaker():
     """Manually reset circuit breaker"""
@@ -439,5 +388,4 @@ def reset_circuit_breaker():
     circuit_breaker['state'] = 'CLOSED'
     print("[Circuit Breaker] Manually reset to CLOSED state")
 
-# For production, disable auto-refresh to prevent random data changes
-print("[CVEs] Auto-refresh disabled for production consistency")
+print("[CVEs] Enhanced fetch module loaded - can get ALL CVEs + proper graph data")
