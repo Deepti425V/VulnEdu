@@ -8,15 +8,16 @@ import time
 import random
 import math
 
+# FIXED VERSION - NO MORE RANDOM DATA GENERATION
 # Where we'll keep scraped CVEs between sessions (local file cache)
 CACHE_PATH = "data/cache/cve_cache.json"
-CACHE_TIME_MINUTES = 1440 # 24 hours (reduced from 48)
+CACHE_TIME_MINUTES = 1440 # 24 hours
 SCHEDULE_HOUR = 0 # Midnight (server local time)
 
 # Global timeout and circuit breaker settings
-DEFAULT_TIMEOUT = 20 # Increased from 10
-MAX_RETRIES = 2 # Reduced from 3
-CIRCUIT_BREAKER_FAILURES = 5 # Increased from 3 to be less aggressive
+DEFAULT_TIMEOUT = 20
+MAX_RETRIES = 2
+CIRCUIT_BREAKER_FAILURES = 5
 CIRCUIT_BREAKER_TIMEOUT = 600 # 10 minutes
 
 # Circuit breaker state
@@ -84,97 +85,173 @@ def _save_to_cache(cves):
     except Exception as e:
         print(f"[CVE Cache] Error saving cache: {e}")
 
-def _create_fallback_cves(days=30):
-    """Create realistic fallback CVE data when API is unavailable"""
-    print(f"[CVE Fallback] Creating fallback data for {days} days")
-    fallback_cves = []
-    now = datetime.now(timezone.utc)
+def _create_static_demo_data():
+    """
+    FIXED: Create static demo data that NEVER changes
+    This ensures consistent counts across all pages and refreshes
+    """
+    print("[CVE Demo] Creating STATIC demo data for consistency")
     
-    # Common CWEs and their descriptions
-    cwe_data = {
-        'CWE-79': ('Cross-site Scripting', 'MEDIUM'),
-        'CWE-89': ('SQL Injection', 'HIGH'),
-        'CWE-20': ('Improper Input Validation', 'MEDIUM'),
-        'CWE-22': ('Path Traversal', 'MEDIUM'),
-        'CWE-119': ('Buffer Overflow', 'HIGH'),
-        'CWE-200': ('Information Exposure', 'LOW'),
-        'CWE-287': ('Improper Authentication', 'HIGH'),
-        'CWE-78': ('OS Command Injection', 'CRITICAL'),
-        'CWE-94': ('Code Injection', 'CRITICAL'),
-        'CWE-352': ('Cross-Site Request Forgery', 'MEDIUM')
-    }
-    
-    products = [
-        'Apache HTTP Server', 'Microsoft Windows', 'Google Chrome', 'Mozilla Firefox',
-        'Oracle Java', 'WordPress', 'OpenSSL', 'Node.js', 'PHP', 'MySQL',
-        'PostgreSQL', 'Docker', 'Kubernetes', 'Jenkins', 'Nginx', 'Redis'
+    # STATIC data - these will always be the same
+    static_cves = [
+        {
+            'ID': 'CVE-2025-00001',
+            'Description': 'Cross-site scripting vulnerability in web application allows remote attackers to inject arbitrary web script or HTML via crafted input parameters',
+            'Severity': 'HIGH',
+            'CWE': 'CWE-79',
+            'Published': '2025-08-21T10:30:00.000Z',
+            'CVSS_Score': 7.5,
+            'References': ['https://nvd.nist.gov/vuln/detail/CVE-2025-00001'],
+            'Products': ['Web Application Framework'],
+            'metrics': {
+                'cvssMetricV31': [{
+                    'cvssData': {
+                        'baseScore': 7.5,
+                        'baseSeverity': 'HIGH',
+                        'vectorString': 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H'
+                    }
+                }]
+            }
+        },
+        {
+            'ID': 'CVE-2025-00002',
+            'Description': 'SQL injection vulnerability in database interface allows remote attackers to execute arbitrary SQL commands via malformed queries',
+            'Severity': 'CRITICAL',
+            'CWE': 'CWE-89',
+            'Published': '2025-08-21T09:15:00.000Z',
+            'CVSS_Score': 9.8,
+            'References': ['https://nvd.nist.gov/vuln/detail/CVE-2025-00002'],
+            'Products': ['Database Management System'],
+            'metrics': {
+                'cvssMetricV31': [{
+                    'cvssData': {
+                        'baseScore': 9.8,
+                        'baseSeverity': 'CRITICAL',
+                        'vectorString': 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H'
+                    }
+                }]
+            }
+        },
+        {
+            'ID': 'CVE-2025-00003',
+            'Description': 'Buffer overflow in network service allows attackers to execute arbitrary code via specially crafted requests',
+            'Severity': 'HIGH',
+            'CWE': 'CWE-119',
+            'Published': '2025-08-21T08:45:00.000Z',
+            'CVSS_Score': 8.1,
+            'References': ['https://nvd.nist.gov/vuln/detail/CVE-2025-00003'],
+            'Products': ['Network Service'],
+            'metrics': {
+                'cvssMetricV31': [{
+                    'cvssData': {
+                        'baseScore': 8.1,
+                        'baseSeverity': 'HIGH',
+                        'vectorString': 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H'
+                    }
+                }]
+            }
+        },
+        {
+            'ID': 'CVE-2025-00004',
+            'Description': 'Improper input validation in user authentication system allows bypass of security controls',
+            'Severity': 'MEDIUM',
+            'CWE': 'CWE-20',
+            'Published': '2025-08-21T07:20:00.000Z',
+            'CVSS_Score': 5.3,
+            'References': ['https://nvd.nist.gov/vuln/detail/CVE-2025-00004'],
+            'Products': ['Authentication System'],
+            'metrics': {
+                'cvssMetricV31': [{
+                    'cvssData': {
+                        'baseScore': 5.3,
+                        'baseSeverity': 'MEDIUM',
+                        'vectorString': 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N'
+                    }
+                }]
+            }
+        },
+        {
+            'ID': 'CVE-2025-00005',
+            'Description': 'Information disclosure vulnerability exposes sensitive system configuration data to unauthorized users',
+            'Severity': 'LOW',
+            'CWE': 'CWE-200',
+            'Published': '2025-08-21T06:10:00.000Z',
+            'CVSS_Score': 3.7,
+            'References': ['https://nvd.nist.gov/vuln/detail/CVE-2025-00005'],
+            'Products': ['Configuration Management'],
+            'metrics': {
+                'cvssMetricV31': [{
+                    'cvssData': {
+                        'baseScore': 3.7,
+                        'baseSeverity': 'LOW',
+                        'vectorString': 'CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N'
+                    }
+                }]
+            }
+        }
     ]
     
-    # Generate CVEs for each day
-    for day_offset in range(days):
-        date = now - timedelta(days=day_offset)
-        daily_count = random.randint(15, 45) # Realistic daily CVE count
-        
-        for _ in range(daily_count):
-            cve_id = f"CVE-{date.year}-{random.randint(10000, 99999):05d}"
-            cwe = random.choice(list(cwe_data.keys()))
-            cwe_name, severity = cwe_data[cwe]
-            product = random.choice(products)
-            
-            # Adjust severity distribution to be more realistic
-            severity_weights = {'CRITICAL': 0.05, 'HIGH': 0.25, 'MEDIUM': 0.55, 'LOW': 0.15}
-            severity = random.choices(
-                list(severity_weights.keys()),
-                weights=list(severity_weights.values())
-            )[0]
-            
-            # Generate CVSS score based on severity
-            if severity == 'CRITICAL':
-                cvss_score = round(random.uniform(9.0, 10.0), 1)
-            elif severity == 'HIGH':
-                cvss_score = round(random.uniform(7.0, 8.9), 1)
-            elif severity == 'MEDIUM':
-                cvss_score = round(random.uniform(4.0, 6.9), 1)
-            else:
-                cvss_score = round(random.uniform(0.1, 3.9), 1)
-            
-            description = f"{cwe_name} vulnerability in {product} could allow attackers to compromise system security"
-            
-            fallback_cve = {
-                'ID': cve_id,
-                'Description': description,
-                'Severity': severity,
-                'CWE': cwe,
-                'Published': date.strftime('%Y-%m-%dT%H:%M:%S.000Z'),
-                'CVSS_Score': cvss_score,
-                'References': [
-                    f"https://nvd.nist.gov/vuln/detail/{cve_id}",
-                    f"https://cve.mitre.org/cgi-bin/cvename.cgi?name={cve_id}"
-                ],
-                'Products': [product],
-                'metrics': {
-                    'cvssMetricV31': [{
-                        'cvssData': {
-                            'baseScore': cvss_score,
-                            'baseSeverity': severity,
-                            'vectorString': f"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
-                        },
-                        'source': 'nvd@nist.gov',
-                        'type': 'Primary'
-                    }]
-                },
-                '_fallback': True
-            }
-            
-            fallback_cves.append(fallback_cve)
+    # Generate more static entries to have realistic counts
+    # IMPORTANT: Use deterministic generation so counts are ALWAYS the same
+    base_templates = [
+        ('Cross-site scripting', 'CWE-79', 'HIGH', 7.5),
+        ('SQL injection', 'CWE-89', 'CRITICAL', 9.8),
+        ('Buffer overflow', 'CWE-119', 'HIGH', 8.1),
+        ('Input validation', 'CWE-20', 'MEDIUM', 5.3),
+        ('Information disclosure', 'CWE-200', 'LOW', 3.7),
+        ('Authentication bypass', 'CWE-287', 'HIGH', 7.8),
+        ('Path traversal', 'CWE-22', 'MEDIUM', 6.1),
+        ('Command injection', 'CWE-78', 'CRITICAL', 9.3),
+    ]
     
-    # Sort by published date (newest first)
-    fallback_cves.sort(key=lambda x: x.get('Published', ''), reverse=True)
-    return fallback_cves
+    products = ['Apache HTTP Server', 'Microsoft Windows', 'Google Chrome', 'Mozilla Firefox', 'Oracle Java', 'WordPress', 'OpenSSL', 'Node.js']
+    
+    # Generate EXACTLY 100 CVEs for consistent counting
+    for i in range(6, 101):  # We already have 5, so make 95 more
+        template_idx = (i - 6) % len(base_templates)
+        template = base_templates[template_idx]
+        product_idx = (i - 6) % len(products)
+        product = products[product_idx]
+        
+        # Create deterministic date (spread over last 30 days)
+        days_ago = (i - 6) % 30
+        pub_date = datetime.now(timezone.utc) - timedelta(days=days_ago)
+        
+        static_cve = {
+            'ID': f'CVE-2025-{i:05d}',
+            'Description': f'{template[0]} vulnerability in {product} allows potential security compromise',
+            'Severity': template[2],
+            'CWE': template[1],
+            'Published': pub_date.strftime('%Y-%m-%dT%H:%M:%S.000Z'),
+            'CVSS_Score': template[3],
+            'References': [f'https://nvd.nist.gov/vuln/detail/CVE-2025-{i:05d}'],
+            'Products': [product],
+            'metrics': {
+                'cvssMetricV31': [{
+                    'cvssData': {
+                        'baseScore': template[3],
+                        'baseSeverity': template[2],
+                        'vectorString': 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H'
+                    }
+                }]
+            },
+            '_static_demo': True
+        }
+        static_cves.append(static_cve)
+    
+    # Sort by published date (newest first) for consistency
+    static_cves.sort(key=lambda x: x.get('Published', ''), reverse=True)
+    
+    print(f"[CVE Demo] Created {len(static_cves)} STATIC demo CVEs")
+    return static_cves
 
 def _fetch_from_nvd(days=30, timeout=DEFAULT_TIMEOUT):
-    """Grabs CVEs from NVD API with NO SIGNAL - simple requests only"""
-    print(f"[NVD API] Attempting to fetch CVEs for last {days} days...")
+    """Grabs CVEs from NVD API - REAL DATA ONLY"""
+    if _is_circuit_open():
+        print("[NVD API] Circuit breaker is OPEN, skipping API call")
+        return []
+        
+    print(f"[NVD API] Attempting to fetch REAL CVEs for last {days} days...")
     now_utc = datetime.now(timezone.utc)
     all_cves = []
     start_index = 0
@@ -188,25 +265,23 @@ def _fetch_from_nvd(days=30, timeout=DEFAULT_TIMEOUT):
         "pubStartDate": pub_start.isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
         "pubEndDate": pub_end.isoformat(timespec='milliseconds').replace('+00:00', 'Z')
     }
+    
+    headers = {"apikey": NVD_API_KEY} if NVD_API_KEY else {}
 
-    headers = {"apikey": NVD_API_KEY}
     max_calls = 2
     call_count = 0
-
+    
     while call_count < max_calls:
         try:
             print(f"[NVD API] Making request {call_count + 1}/{max_calls}...")
-            # Simple requests call - NO SIGNAL
-            response = requests.get(
-                NVD_API_URL,
-                params=params,
-                headers=headers,
-                timeout=timeout
-            )
+            response = requests.get(NVD_API_URL, params=params, headers=headers, timeout=timeout)
             response.raise_for_status()
             data = response.json()
+            _record_success()  # Mark success in circuit breaker
+            
         except Exception as e:
             print(f"[NVD API] Request {call_count + 1} failed: {e}")
+            _record_failure()  # Mark failure in circuit breaker
             break
 
         vulnerabilities = data.get("vulnerabilities", [])
@@ -230,7 +305,7 @@ def _fetch_from_nvd(days=30, timeout=DEFAULT_TIMEOUT):
             severity = "UNKNOWN"
             cvss = None
             metrics = cve.get("metrics", {})
-
+            
             # Try CVSS v3.1, then v3.0, then v2
             if "cvssMetricV31" in metrics:
                 sev_metric = metrics["cvssMetricV31"][0]
@@ -264,7 +339,8 @@ def _fetch_from_nvd(days=30, timeout=DEFAULT_TIMEOUT):
                 "Published": published_str,
                 "References": [ref["url"] for ref in cve.get("references", [])],
                 "Products": [],
-                "metrics": metrics
+                "metrics": metrics,
+                "_real_data": True
             })
 
         # Check if we should continue pagination
@@ -272,75 +348,88 @@ def _fetch_from_nvd(days=30, timeout=DEFAULT_TIMEOUT):
         if start_index + results_per_page >= total_results:
             print(f"[NVD API] Retrieved all {total_results} results")
             break
-
+            
         start_index += results_per_page
         params["startIndex"] = start_index
         call_count += 1
-        time.sleep(2)
+        time.sleep(2)  # Rate limiting
 
     all_cves.sort(key=lambda x: x.get("Published") or "", reverse=True)
-    print(f"[NVD API] Successfully fetched {len(all_cves)} CVEs")
+    print(f"[NVD API] Successfully fetched {len(all_cves)} REAL CVEs")
     return all_cves
 
 def get_all_cves(max_results=None, year=None, month=None, days=None, force_refresh=False, timeout=None):
     """
-    Returns the latest CVEs - FIXED VERSION
+    FIXED VERSION: Returns consistent CVE data
+    Priority: Cache -> Real API -> Static Demo (NO random data)
     """
     if days is None:
         days = 30
-    
     actual_timeout = timeout if timeout else DEFAULT_TIMEOUT
+
+    print(f"[CVEs] get_all_cves called with: max_results={max_results}, year={year}, month={month}, force_refresh={force_refresh}")
 
     # If asking for current data and cache is fresh, use cache
     if not year and not month and not force_refresh and _is_cache_fresh():
         cached_cves = _load_from_cache()
         if cached_cves:
-            print("[CVEs] Using fresh cache data")
-            return cached_cves[:max_results] if max_results else cached_cves
-
-    # For filtered requests or forced refresh, try to fetch live data
-    try:
-        print(f"[CVEs] Fetching filtered/fresh data (year={year}, month={month}, days={days})")
-        cves = _fetch_from_nvd(days=days, timeout=actual_timeout)
-        if not cves:
-            print("[CVEs] No live data available, using fallback")
-            cves = _create_fallback_cves(days=days)
-
-        # Apply year/month filtering if requested
-        if year and month:
-            filtered = []
-            for cve in cves:
-                pub = cve.get("Published", "")
-                if len(pub) >= 7:
-                    if pub[:4] == str(year) and int(pub[5:7]) == int(month):
-                        filtered.append(cve)
-            result = filtered[:max_results] if max_results else filtered
-            return result
-        elif year:
-            filtered = []
-            for cve in cves:
-                pub = cve.get("Published", "")
-                if len(pub) >= 4 and pub[:4] == str(year):
-                    filtered.append(cve)
-            result = filtered[:max_results] if max_results else filtered
-            return result
-        
-        result = cves[:max_results] if max_results else cves
-        return result
-
-    except Exception as e:
-        print(f"[CVEs] Failed to fetch live data: {e}")
-        # Fallback to cache
-        cached_cves = _load_from_cache()
-        if cached_cves:
-            print("[CVEs] Using cached data as fallback")
+            print(f"[CVEs] Using fresh cache data ({len(cached_cves)} CVEs)")
             result = cached_cves[:max_results] if max_results else cached_cves
             return result
 
-        print("[CVEs] No cache available, generating fallback data")
-        fallback_cves = _create_fallback_cves(days=days)
-        result = fallback_cves[:max_results] if max_results else fallback_cves
+    # Try to fetch real data from NVD
+    try:
+        print(f"[CVEs] Attempting to fetch REAL data from NVD API...")
+        real_cves = _fetch_from_nvd(days=days, timeout=actual_timeout)
+        
+        if real_cves and len(real_cves) > 0:
+            print(f"[CVEs] Got {len(real_cves)} REAL CVEs from NVD API")
+            # Save to cache
+            _save_to_cache(real_cves)
+            
+            # Apply filtering if requested
+            if year and month:
+                filtered = [cve for cve in real_cves if cve.get("Published", "")[:7] == f"{year}-{month:02d}"]
+                result = filtered[:max_results] if max_results else filtered
+                print(f"[CVEs] Filtered to {len(result)} CVEs for {year}-{month:02d}")
+                return result
+            elif year:
+                filtered = [cve for cve in real_cves if cve.get("Published", "")[:4] == str(year)]
+                result = filtered[:max_results] if max_results else filtered
+                print(f"[CVEs] Filtered to {len(result)} CVEs for year {year}")
+                return result
+            
+            result = real_cves[:max_results] if max_results else real_cves
+            return result
+        else:
+            print("[CVEs] NVD API returned no data")
+            
+    except Exception as e:
+        print(f"[CVEs] Failed to fetch from NVD API: {e}")
+
+    # Fallback to cache if API fails
+    cached_cves = _load_from_cache()
+    if cached_cves:
+        print(f"[CVEs] Using cached data as fallback ({len(cached_cves)} CVEs)")
+        result = cached_cves[:max_results] if max_results else cached_cves
         return result
+
+    # Last resort: Use static demo data (CONSISTENT, never changes)
+    print("[CVEs] Using STATIC demo data as final fallback")
+    static_cves = _create_static_demo_data()
+    
+    # Apply filtering if requested
+    if year and month:
+        filtered = [cve for cve in static_cves if cve.get("Published", "")[:7] == f"{year}-{month:02d}"]
+        result = filtered[:max_results] if max_results else filtered
+        return result
+    elif year:
+        filtered = [cve for cve in static_cves if cve.get("Published", "")[:4] == str(year)]
+        result = filtered[:max_results] if max_results else filtered
+        return result
+    
+    result = static_cves[:max_results] if max_results else static_cves
+    return result
 
 def reset_circuit_breaker():
     """Manually reset circuit breaker"""
@@ -350,4 +439,5 @@ def reset_circuit_breaker():
     circuit_breaker['state'] = 'CLOSED'
     print("[Circuit Breaker] Manually reset to CLOSED state")
 
-print("[CVEs] Auto-refresh disabled for production")
+# For production, disable auto-refresh to prevent random data changes
+print("[CVEs] Auto-refresh disabled for production consistency")
