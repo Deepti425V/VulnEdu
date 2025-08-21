@@ -1,4 +1,51 @@
 {% extends "base.html" %}
+{% block head %}
+<style>
+/* Scrollable year filter styling - matches CWE list theme */
+select[name="year"] {
+    max-height: 200px;
+    overflow-y: auto !important;
+}
+
+/* Custom scrollbar styling for year dropdown */
+select[name="year"]::-webkit-scrollbar {
+    width: 8px;
+}
+
+select[name="year"]::-webkit-scrollbar-track {
+    background: #1a2236;
+    border-radius: 4px;
+}
+
+select[name="year"]::-webkit-scrollbar-thumb {
+    background: #63a4ff;
+    border-radius: 4px;
+    border: 1px solid #263159;
+}
+
+select[name="year"]::-webkit-scrollbar-thumb:hover {
+    background: #5292e6;
+}
+
+select[name="year"]::-webkit-scrollbar-thumb:active {
+    background: #4a80cc;
+}
+
+/* Firefox scrollbar */
+select[name="year"] {
+    scrollbar-width: thin;
+    scrollbar-color: #63a4ff #1a2236;
+}
+
+/* Ensure dropdown opens properly */
+select[name="year"] option {
+    background: #222d44;
+    color: #cdd7f7;
+    padding: 8px;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- ======= MAIN DASHBOARD CONTAINER ========= -->
 <div style="display: flex; flex-direction: column; gap: 36px">
@@ -13,80 +60,77 @@
                 Dashboard &amp; Analytics
             </div>
         </div>
+        
         <!-- Search + filtering (severity, year, month) -->
         <form style="display:flex;gap:18px;" method="get" action="{{ url_for('index') }}">
-            <input type="text" name="q" value="{{ search_query or '' }}"
-                placeholder="🔍 Search CVEs"
-                style="padding:9px;font-size:1rem;background:#222d44;color:#cdd7f7;border:none;border-radius:7px;">
-            <select name="severity"
-                style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
+            <input type="text" name="q" value="{{ search_query or '' }}" placeholder="🔍 Search CVEs"
+                   style="padding:9px;font-size:1rem;background:#222d44;color:#cdd7f7;border:none;border-radius:7px;">
+            
+            <select name="severity" style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
                 <option value="" {% if not severity_filter %}selected{% endif %}>All Severities</option>
                 <option value="CRITICAL" {% if severity_filter == 'CRITICAL' %}selected{% endif %}>Critical</option>
                 <option value="HIGH" {% if severity_filter == 'HIGH' %}selected{% endif %}>High</option>
                 <option value="MEDIUM" {% if severity_filter == 'MEDIUM' %}selected{% endif %}>Medium</option>
                 <option value="LOW" {% if severity_filter == 'LOW' %}selected{% endif %}>Low</option>
             </select>
-            <select name="year"
-                style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
+            
+            <select name="year" style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
                 <option value="" {% if not year_filter %}selected{% endif %}>All Years</option>
                 {% for y in available_years %}
-                <option value="{{ y }}" {% if year_filter == y %}selected{% endif %}>
-                    {{ y }}</option>
+                    <option value="{{ y }}" {% if year_filter == y %}selected{% endif %}>{{ y }}</option>
                 {% endfor %}
             </select>
-            <select name="month"
-                style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
+            
+            <select name="month" style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
                 <option value="" {% if not month_filter %}selected{% endif %}>All Months</option>
                 {% for m in available_months %}
-                <option value="{{ m }}" {% if month_filter == m %}selected{% endif %}>
-                    {{ "%02d"|format(m) }}</option>
+                    <option value="{{ m }}" {% if month_filter == m %}selected{% endif %}>{{ "%02d"|format(m) }}</option>
                 {% endfor %}
             </select>
-            <button type="submit"
-                style="background:#63a4ff;color:white;border:none;padding:10px 18px;border-radius:7px;font-weight:700;">
+            
+            <button type="submit" style="background:#63a4ff;color:white;border:none;padding:10px 18px;border-radius:7px;font-weight:700;">
                 Filter</button>
         </form>
     </div>
-    <!-- Special dash note (if applicable): 
-     e.g. why result set is limited -->
+
+    <!-- Special dash note (if applicable): e.g. why result set is limited -->
     {% if note_text %}
     <div style="font-size: 0.85em; color: #a9adc1; margin-bottom: 12px; font-style: italic;">
         {{ note_text }}
     </div>
     {% endif %}
+
     <!-- First Row -->
     <div style="display: flex; gap: 25px;">
         <!-- CVE Trends Daily SparkLine Card -->
-<div class="trend-sevi-blocks" style="display: flex; flex-direction:column; justify-content: center; background:#1a2236; border-radius:18px; padding:20px; width:380px; height: 110px;">
-<div style="font-weight:700; color:#63a4ff; margin-bottom:8px; font-size: 1.02rem; letter-spacing:0.15px; text-align:left;">
-CVE Trends (Last 30 days)
+        <div class="trend-sevi-blocks" style="display: flex; flex-direction:column; justify-content: center; background:#1a2236; border-radius:18px; padding:20px; width:380px; height: 110px;">
+            <div style="font-weight:700; color:#63a4ff; margin-bottom:8px; font-size: 1.02rem; letter-spacing:0.15px; text-align:left;">
+                CVE Trends (Last 30 days)
             </div>
             <canvas id="dailyTrendChart" height="70"></canvas>
         </div>
+
         <!-- Severity Cards -->
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap:15px; flex: 1; align-items:stretch;">
             <div class="severity-card" data-severity="CRITICAL" style="background:#1a2236; cursor:pointer;border-radius:18px; padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:box-shadow 0.2s;">
-                <div style="font-size:2.2rem;font-weight:800;color:#f47174;">
-                    {{ metrics.CRITICAL }}</div>
+                <div style="font-size:2.2rem;font-weight:800;color:#f47174;">{{ metrics.CRITICAL }}</div>
                 <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">Critical</div>
             </div>
             <div class="severity-card" data-severity="HIGH" style="background:#1a2236;cursor:pointer;border-radius:18px;padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:box-shadow 0.2s;">
-                <div style="font-size:2.2rem;font-weight:800;color:#fca311;">
-                    {{ metrics.HIGH }}</div>
+                <div style="font-size:2.2rem;font-weight:800;color:#fca311;">{{ metrics.HIGH }}</div>
                 <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">High</div>
             </div>
             <div class="severity-card" data-severity="MEDIUM" style="background:#1a2236;cursor:pointer;border-radius:18px;padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:box-shadow 0.2s;">
-                <div style="font-size:2.2rem;font-weight:800;color:#3b8ded;">
-                    {{ metrics.MEDIUM }}</div>
+                <div style="font-size:2.2rem;font-weight:800;color:#3b8ded;">{{ metrics.MEDIUM }}</div>
                 <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">Medium</div>
             </div>
             <div class="severity-card" data-severity="LOW" style="background:#1a2236;cursor:pointer;border-radius:18px;padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:box-shadow 0.2s;">
-                <div style="font-size:2.2rem;font-weight:800;color:#42d392;">
-                    {{ metrics.LOW }}</div>
+                <div style="font-size:2.2rem;font-weight:800;color:#42d392;">{{ metrics.LOW }}</div>
                 <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">Low</div>
             </div>
         </div>
     </div>
+
     <!-- Second Row -->
     <div style="display: flex; gap: 25px; align-items: stretch;">
         <!-- Severity Distribution -->
@@ -105,6 +149,7 @@ CVE Trends (Last 30 days)
                     </div>
                 </div>
             </div>
+
             <!-- Manual legend for pie, with color boxes and percent values -->
             <div style="display:flex; flex-direction:column; justify-content:center; align-items:flex-start; margin-left: 5px; height:150px; min-width:125px; position: relative; top:32px;">
                 <div style="display:flex;align-items:left;gap:8px;font-size:1.06em; margin-bottom:20px;">
@@ -129,6 +174,7 @@ CVE Trends (Last 30 days)
                 </div>
             </div>
         </section>
+
         <!-- Vulnerabilities Over Time -->
         <section style="background:#1a2236; border-radius:14px; padding:30px 30px 10px 30px; flex:2; display: flex; flex-direction:column; min-width: 350px; min-height:250px; height: 300px;">
             <div style="font-weight:700; color:#63a4ff; margin-bottom:8px; font-size: 1.02rem; letter-spacing:0.15px; text-align:left;">
@@ -139,6 +185,7 @@ CVE Trends (Last 30 days)
             </div>
         </section>
     </div>
+
     <!-- Third Row: Vendor Risk Analysis ONLY -->
     <div style="display: flex; gap: 25px; align-items: stretch;">
         <section style="background:#1a2236; border-radius:14px; padding:30px; flex:1; min-height:430px;">
@@ -161,14 +208,13 @@ CVE Trends (Last 30 days)
                 <div style="position: relative; height:340px; margin-bottom:8px; width:60%;">
                     <canvas id="vendorRiskChart" width="400" height="320"></canvas>
                 </div>
+
                 <!-- Vendor Risk Analysis Legend Panel with Enhancements -->
-                <div id="radarReadout"
-                    style="height:340px; padding:18px 16px 8px 26px; display:block; color:#afc1ff; font-size:0.95em; min-width:256px; width:50%;">
+                <div id="radarReadout" style="height:340px; padding:18px 16px 8px 26px; display:block; color:#afc1ff; font-size:0.95em; min-width:256px; width:50%;">
                     <div style="background:#232b45; border-radius:12px; padding:18px 20px 20px 20px; color:#cdd7ff; margin-left:6px;" aria-labelledby="legendTitle" role="region" tabindex="0">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <span id="legendTitle" style="font-size:1.08em;font-weight:700;color:#63a4ff;">
-                                <svg id="legendInfoIcon" tabindex="0" aria-label="More info" width="20" height="20" viewBox="0 0 20 20"
-                                   style="cursor:pointer;margin-right:7px;vertical-align:-4px;"><circle cx="10" cy="10" r="9" fill="#3799f7"/><text x="10" y="14" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">?</text></svg>
+                                <svg id="legendInfoIcon" tabindex="0" aria-label="More info" width="20" height="20" viewBox="0 0 20 20" style="cursor:pointer;margin-right:7px;vertical-align:-4px;"><circle cx="10" cy="10" r="9" fill="#3799f7"/><text x="10" y="14" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">?</text></svg>
                                 How to read this chart?
                             </span>
                         </div>
@@ -182,11 +228,11 @@ CVE Trends (Last 30 days)
                                 The blue area <span style="color:#63a4ff;font-weight:700;">shows concentration of vulnerabilities</span> of the the type!
                             </li>
                             <li style="margin-bottom:9px;">
-                                <span style="font-family:sans-serif;font-size:1em;margin-right:8px;vertical-align:-1px;">🖱️</span>
+                                <span style="font-family:sans-serif;font-size:1em;margin-right:8px;vertical-align:-1px;">🖱</span>
                                 <span style="color:#fca311;font-weight:700;">Click</span> on any spike for details or filtering.
                             </li>
                             <li style="margin-bottom:9px;">
-                                <span style="font-family:sans-serif;font-size:1em;margin-right:8px;vertical-align:-1px;">⚠️</span>
+                                <span style="font-family:sans-serif;font-size:1em;margin-right:8px;vertical-align:-1px;">⚠</span>
                                 <span style="color:#f55855;font-weight:700;">Long spikes highlight your <span style="color:#f55855;">top risk areas</span>.</span>
                             </li>
                         </ul>
@@ -196,7 +242,7 @@ CVE Trends (Last 30 days)
                             <a href="{{ url_for('learn_topic', topic='secure-coding') }}" style="color:#42d392;font-weight:600;text-decoration:underline;">CWE mitigation tips</a>
                         </div>
                         <div id="legendBestPractice" style="margin-top:18px;background:#1a2236;padding:12px 13px;border-radius:7px;color:#eaf4fb;font-size:0.98em;">
-                          <span style="font-weight:700;color:#fca311;">Best Practice:</span> Review CWE mitigations, schedule fixes for top risk types, and prioritize high-frequency weaknesses first.
+                            <span style="font-weight:700;color:#fca311;">Best Practice:</span> Review CWE mitigations, schedule fixes for top risk types, and prioritize high-frequency weaknesses first.
                         </div>
                         <div id="legendInfoPopover" style="display:none;position:absolute;top:55px;right:-5px;background:#101828;color:#eaf4fb;border-radius:8px;width:258px;padding:18px;box-shadow:0 4px 16px #0002;z-index:14;" aria-live="assertive" role="dialog">
                             <div style="font-weight:700;color:#63a4ff;margin-bottom:7px;">Radar Chart Help</div>
@@ -209,6 +255,7 @@ CVE Trends (Last 30 days)
             </div>
         </section>
     </div>
+
     <script>
         window.timelineData = {{ timeline_data_years | tojson }};
         window.timelineDataDaily = {{ timeline_data_days | tojson }};
@@ -219,7 +266,6 @@ CVE Trends (Last 30 days)
         window.cweRadarDescriptions = {{ cwe_radar_descriptions | tojson }};
         window.cweMitigations = {};
     </script>
-    <script src="{{ url_for('static', filename='js/dashboard.js') }}">
-    </script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </div>
 {% endblock %}
