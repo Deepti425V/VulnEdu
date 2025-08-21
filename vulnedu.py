@@ -126,9 +126,18 @@ def get_cached_timeline_data():
             }
 
 def generate_timeline_data():
-    """Generate timeline data from REAL CVEs with proper historical coverage"""
+    """Generate timeline data - SIMPLIFIED to use only recent real data"""
     try:
-        print("[Timeline] Generating timeline data with historical coverage...")
+        print("[Timeline] Generating timeline from recent real CVEs only...")
+        
+        # Get recent CVEs (last 90 days) - this is what we have real data for
+        recent_cves = get_all_cves(force_refresh=False, timeout=30, days=90)
+        
+        if not recent_cves:
+            print("[Timeline] No real CVEs available")
+            raise Exception("No real CVE data available")
+        
+        print(f"[Timeline] Processing {len(recent_cves)} real CVEs")
         
         now = datetime.now(timezone.utc)
         months = []
@@ -142,94 +151,23 @@ def generate_timeline_data():
         month_labels = [f"{y}-{m:02d}" for y, m in months]
         month_counts = {k: 0 for k in month_labels}
         
-        # Get recent CVEs (last 90 days) for the most current data
-        try:
-            recent_cves = get_all_cves(force_refresh=False, timeout=30, days=90)
-            print(f"[Timeline] Got {len(recent_cves)} recent CVEs")
-            
-            # Count recent CVEs by month
-            for cve in recent_cves:
-                published_str = cve.get('Published', '')
-                if published_str and len(published_str) >= 7:
-                    month_key = published_str[:7]  # YYYY-MM format
-                    if month_key in month_counts:
-                        month_counts[month_key] += 1
-        except Exception as e:
-            print(f"[Timeline] Failed to get recent CVEs: {e}")
+        # Count REAL CVEs by month - only use what we actually have
+        for cve in recent_cves:
+            published_str = cve.get('Published', '')
+            if published_str and len(published_str) >= 7:
+                month_key = published_str[:7]  # YYYY-MM format
+                if month_key in month_counts:
+                    month_counts[month_key] += 1
         
-        # For historical months with no data, fetch year-specific data or use reasonable estimates
-        empty_months = [k for k, v in month_counts.items() if v == 0]
-        
-        if empty_months:
-            print(f"[Timeline] Filling in {len(empty_months)} months with no recent data...")
-            
-            # Group empty months by year for efficient fetching
-            years_needed = set()
-            for month_key in empty_months:
-                year = int(month_key.split('-')[0])
-                years_needed.add(year)
-            
-            # Try to fetch data for each year that needs it
-            for year in years_needed:
-                try:
-                    print(f"[Timeline] Fetching data for year {year}...")
-                    year_cves = get_all_cves(year=year, force_refresh=False, timeout=20, days=365)
-                    
-                    if year_cves:
-                        print(f"[Timeline] Got {len(year_cves)} CVEs for year {year}")
-                        # Count CVEs for this year's months
-                        for cve in year_cves:
-                            published_str = cve.get('Published', '')
-                            if published_str and len(published_str) >= 7:
-                                month_key = published_str[:7]
-                                if month_key in month_counts:
-                                    month_counts[month_key] += 1
-                    else:
-                        print(f"[Timeline] No real data for year {year}, using historical estimates")
-                        # Use historical estimates based on known CVE trends
-                        for month_num in range(1, 13):
-                            month_key = f"{year}-{month_num:02d}"
-                            if month_key in month_counts and month_counts[month_key] == 0:
-                                # Historical estimate based on CVE database growth
-                                if year >= 2023:
-                                    base_count = 1200 + (month_num * 50)  # Recent years have more CVEs
-                                elif year >= 2020:
-                                    base_count = 800 + (month_num * 30)
-                                elif year >= 2017:
-                                    base_count = 600 + (month_num * 20)
-                                else:
-                                    base_count = 400 + (month_num * 15)
-                                
-                                # Add some seasonal variation
-                                seasonal_factor = 1.0 + 0.2 * math.sin(2 * math.pi * month_num / 12)
-                                month_counts[month_key] = int(base_count * seasonal_factor)
-                                
-                except Exception as e:
-                    print(f"[Timeline] Failed to fetch data for year {year}: {e}")
-                    # Fill with estimates for this year
-                    for month_num in range(1, 13):
-                        month_key = f"{year}-{month_num:02d}"
-                        if month_key in month_counts and month_counts[month_key] == 0:
-                            if year >= 2023:
-                                base_count = 1200 + (month_num * 50)
-                            elif year >= 2020:
-                                base_count = 800 + (month_num * 30)
-                            elif year >= 2017:
-                                base_count = 600 + (month_num * 20)
-                            else:
-                                base_count = 400 + (month_num * 15)
-                            
-                            seasonal_factor = 1.0 + 0.2 * math.sin(2 * math.pi * month_num / 12)
-                            month_counts[month_key] = int(base_count * seasonal_factor)
-        
+        # DON'T fill in estimates - just show real data
         result_data = {
             'labels': list(month_counts.keys()),
             'values': list(month_counts.values())
         }
         
         total_cves = sum(result_data['values'])
-        real_data_months = len([v for v in result_data['values'] if v > 0])
-        print(f"[Timeline] Generated timeline with {total_cves} total CVEs across {real_data_months} months")
+        months_with_data = len([v for v in result_data['values'] if v > 0])
+        print(f"[Timeline] Generated timeline with {total_cves} real CVEs across {months_with_data} months with actual data")
         
         return result_data
         
@@ -381,13 +319,15 @@ def get_cwe_radar_descriptions():
 def get_cve_trends_30_days():
     """Get CVE trends for last 30 days with REAL data only"""
     try:
-        today = datetime.now(timezone.utc).date()
+        # Use current UTC time for accurate date calculation
+        now_utc = datetime.now(timezone.utc)
+        today = now_utc.date()
         start_date = today - timedelta(days=29)  # 29 days ago + today = 30 days total
         
-        print(f"[CVE Trends] Getting REAL data from {start_date} to {today}")
+        print(f"[CVE Trends] Getting REAL data from {start_date} to {today} (current UTC: {now_utc})")
         
-        # Get real CVE data
-        cves = get_all_cves(days=30, force_refresh=False, timeout=25)
+        # Get real CVE data - use force refresh to get latest data
+        cves = get_all_cves(days=30, force_refresh=True, timeout=25)
         
         if not cves:
             print("[CVE Trends] No real CVE data available")
@@ -405,6 +345,7 @@ def get_cve_trends_30_days():
             date_counts[date_key] = 0
         
         # Count CVEs by their published date
+        cves_in_window = 0
         for cve in cves:
             dt = parse_published_date(cve)
             if dt:
@@ -412,12 +353,13 @@ def get_cve_trends_30_days():
                 # Only count CVEs that fall within our 30-day window
                 if start_date <= dt_date <= today:
                     date_counts[dt_date] += 1
+                    cves_in_window += 1
         
         # Sort dates and return the data
         sorted_dates = sorted(date_counts.keys())
         
-        total_cves = sum(date_counts.values())
-        print(f"[CVE Trends] Processed {total_cves} real CVEs across 30 days")
+        print(f"[CVE Trends] Processed {cves_in_window} real CVEs within the 30-day window")
+        print(f"[CVE Trends] Date range: {sorted_dates[0]} to {sorted_dates[-1]}")
         
         return {
             'labels': [d.strftime('%Y-%m-%d') for d in sorted_dates],
@@ -427,7 +369,8 @@ def get_cve_trends_30_days():
     except Exception as e:
         print(f"Error getting CVE trends: {e}")
         # Return empty data rather than fake data
-        today = datetime.now(timezone.utc).date()
+        now_utc = datetime.now(timezone.utc)
+        today = now_utc.date()
         start_date = today - timedelta(days=29)
         dates = [start_date + timedelta(days=i) for i in range(30)]
         
