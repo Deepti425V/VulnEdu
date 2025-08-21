@@ -24,14 +24,14 @@ try:
 except:
     print("[Startup] Could not reset circuit breaker")
 
-# Enhanced global cache with circuit breaker pattern
+# Enhanced global cache - REAL DATA ONLY
 class CircuitBreaker:
-    def __init__(self, failure_threshold=3, timeout=300): # 5 minutes timeout
+    def __init__(self, failure_threshold=3, timeout=300):
         self.failure_threshold = failure_threshold
         self.timeout = timeout
         self.failure_count = 0
         self.last_failure_time = None
-        self.state = 'CLOSED' # CLOSED, OPEN, HALF_OPEN
+        self.state = 'CLOSED'
 
     def call(self, func, *args, **kwargs):
         if self.state == 'OPEN':
@@ -53,23 +53,22 @@ class CircuitBreaker:
                 self.last_failure_time = time.time()
             raise e
 
-# Global cache with enhanced error handling
+# Global cache - REAL DATA ONLY
 timeline_cache = {
     'data': None,
     'last_updated': None,
     'lock': Lock(),
-    'fallback_data': None,
     'circuit_breaker': CircuitBreaker()
 }
 
-TIMELINE_CACHE_HOURS = 6 # Reduced cache time for more frequent updates
+TIMELINE_CACHE_HOURS = 3  # Reduced cache time for more frequent real data updates
 
 # Thread pool for background tasks
 executor = ThreadPoolExecutor(max_workers=2)
 
 _warmed_up = False
 
-def cache_with_timeout(timeout_seconds=3600):
+def cache_with_timeout(timeout_seconds=1800):  # 30 minutes
     """Decorator for caching function results with timeout"""
     def decorator(func):
         cache = {}
@@ -87,32 +86,8 @@ def cache_with_timeout(timeout_seconds=3600):
         return wrapper
     return decorator
 
-def create_fallback_timeline_data():
-    """Create realistic fallback timeline data when API fails"""
-    now = datetime.now(timezone.utc)
-    months = []
-    base_month = now.replace(day=1)
-    
-    for i in reversed(range(36)):
-        dt = (base_month - timedelta(days=31 * i)).replace(day=1)
-        months.append((dt.year, dt.month))
-    
-    month_labels = [f"{y}-{m:02d}" for y, m in months]
-    month_counts = {}
-    
-    # Generate realistic monthly counts
-    for (y, m), label in zip(months, month_labels):
-        base_count = random.randint(800, 1500)
-        seasonal_factor = 1.0 + 0.3 * math.sin(2 * math.pi * m / 12)
-        month_counts[label] = int(base_count * seasonal_factor)
-    
-    return {
-        'labels': list(month_counts.keys()),
-        'values': [month_counts[k] for k in month_counts.keys()]
-    }
-
 def get_cached_timeline_data():
-    """Get timeline data with circuit breaker protection"""
+    """Get timeline data - REAL DATA ONLY"""
     global timeline_cache
     
     with timeline_cache['lock']:
@@ -122,38 +97,52 @@ def get_cached_timeline_data():
         if (timeline_cache['data'] is not None and 
             timeline_cache['last_updated'] is not None and
             (now - timeline_cache['last_updated']).total_seconds() < TIMELINE_CACHE_HOURS * 3600):
+            print("[Timeline] Using cached timeline data")
             return timeline_cache['data']
         
-        # Try to generate new data with longer timeout and force refresh for accuracy
+        # Generate new timeline data from REAL CVEs only
         try:
-            print("[Timeline] Attempting to refresh timeline data...")
+            print("[Timeline] Generating fresh timeline data from real CVEs...")
             timeline_data = timeline_cache['circuit_breaker'].call(generate_timeline_data)
             timeline_cache['data'] = timeline_data
             timeline_cache['last_updated'] = now
-            timeline_cache['fallback_data'] = timeline_data # Store as fallback
             return timeline_data
         except Exception as e:
-            print(f"[Timeline] Failed to refresh timeline data: {e}")
-            # Use fallback data if available
-            if timeline_cache['fallback_data']:
-                print("[Timeline] Using previous fallback data")
-                return timeline_cache['fallback_data']
+            print(f"[Timeline] Failed to generate timeline data: {e}")
+            # Return empty data rather than fake data
+            now = datetime.now(timezone.utc)
+            months = []
+            base_month = now.replace(day=1)
             
-            # Create new fallback data
-            print("[Timeline] Creating new fallback data")
-            fallback_data = create_fallback_timeline_data()
-            timeline_cache['fallback_data'] = fallback_data
-            return fallback_data
+            for i in reversed(range(36)):
+                dt = (base_month - timedelta(days=31 * i)).replace(day=1)
+                months.append((dt.year, dt.month))
+            
+            month_labels = [f"{y}-{m:02d}" for y, m in months]
+            
+            return {
+                'labels': month_labels,
+                'values': [0] * len(month_labels)  # Return zeros instead of fake data
+            }
 
 def generate_timeline_data():
-    """Generate timeline data with consistent counts for chart and vulnerability pages"""
+    """Generate timeline data from REAL CVEs only"""
     try:
-        # Get ALL cached CVEs for consistency
-        recent_cves = get_all_cves(force_refresh=False, timeout=5) # Use cache for speed and consistency
+        print("[Timeline] Fetching real CVEs for timeline generation...")
+        # Fetch more days to get better historical coverage
+        recent_cves = get_all_cves(force_refresh=False, timeout=30, days=90)
+        
+        if not recent_cves:
+            print("[Timeline] No real CVEs available for timeline")
+            raise Exception("No real CVE data available")
+        
+        print(f"[Timeline] Processing {len(recent_cves)} real CVEs for timeline")
+        
         now = datetime.now(timezone.utc)
         months = []
         base_month = now.replace(day=1)
         
+        # Generate 36 months of labels
         for i in reversed(range(36)):
             dt = (base_month - timedelta(days=31 * i)).replace(day=1)
             months.append((dt.year, dt.month))
@@ -161,149 +150,28 @@ def generate_timeline_data():
         month_labels = [f"{y}-{m:02d}" for y, m in months]
         month_counts = {k: 0 for k in month_labels}
         
-        # Count ALL CVEs from cache for consistency
+        # Count REAL CVEs by month
         for cve in recent_cves:
             published_str = cve.get('Published', '')
             if published_str and len(published_str) >= 7:
-                month_key = published_str[:7]
+                month_key = published_str[:7]  # YYYY-MM format
                 if month_key in month_counts:
                     month_counts[month_key] += 1
         
-        # Fill in realistic estimates for ALL months to avoid gaps
-        current_year = now.year
-        current_month = now.month
-        
-        for (y, m), label in zip(months, month_labels):
-            if month_counts[label] == 0:
-                # Generate realistic estimates for all historical months
-                if y >= 2022:  # Recent years get higher counts
-                    base_count = random.randint(1000, 1800)
-                else:  # Older years get lower counts
-                    base_count = random.randint(500, 1200)
-                
-                seasonal_factor = 1.0 + 0.3 * math.sin(2 * math.pi * m / 12)
-                month_counts[label] = int(base_count * seasonal_factor)
-        
-        return {
+        # Only use months that have real data
+        result_data = {
             'labels': list(month_counts.keys()),
-            'values': [month_counts[k] for k in month_counts.keys()]
+            'values': list(month_counts.values())
         }
+        
+        total_cves = sum(result_data['values'])
+        print(f"[Timeline] Generated timeline with {total_cves} total real CVEs across {len([v for v in result_data['values'] if v > 0])} months with data")
+        
+        return result_data
+        
     except Exception as e:
-        print(f"Error generating timeline data: {e}")
-        # Create complete fallback timeline with no gaps
-        now = datetime.now(timezone.utc)
-        months = []
-        base_month = now.replace(day=1)
-        
-        for i in reversed(range(36)):
-            dt = (base_month - timedelta(days=31 * i)).replace(day=1)
-            months.append((dt.year, dt.month))
-        
-        month_labels = [f"{y}-{m:02d}" for y, m in months]
-        month_counts = {}
-        
-        for (y, m), label in zip(months, month_labels):
-            if y >= 2022:
-                base_count = random.randint(1000, 1800)
-            else:
-                base_count = random.randint(500, 1200)
-            
-            seasonal_factor = 1.0 + 0.3 * math.sin(2 * math.pi * m / 12)
-            month_counts[label] = int(base_count * seasonal_factor)
-        
-        return {
-            'labels': list(month_counts.keys()),
-            'values': [month_counts[k] for k in month_counts.keys()]
-        }
-
-def generate_sample_cves_for_month(year, month, count):
-    """Generate sample CVE data for demonstration purposes with consistent counts"""
-    print(f"[Sample CVEs] Generating exactly {count} CVEs for {year}-{month:02d}")
-    sample_cves = []
-    common_cwes = ['CWE-79', 'CWE-89', 'CWE-20', 'CWE-22', 'CWE-119', 'CWE-200', 'CWE-287', 'CWE-78',
-                   'CWE-94', 'CWE-352', 'CWE-434', 'CWE-502', 'CWE-611', 'CWE-798', 'CWE-862', 'CWE-863']
-    severities = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
-    severity_weights = [0.1, 0.3, 0.45, 0.15]
-    
-    products = [
-        'Apache HTTP Server', 'Microsoft Windows', 'Google Chrome', 'Mozilla Firefox', 'Oracle Java',
-        'Adobe Flash Player', 'WordPress', 'OpenSSL', 'Node.js', 'PHP',
-        'MySQL', 'PostgreSQL', 'Docker', 'Kubernetes', 'Jenkins', 'Apache Tomcat', 'Nginx', 'Redis',
-        'MongoDB', 'Elasticsearch'
-    ]
-    
-    # Generate exactly the requested count
-    for i in range(count):
-        days_in_month = monthrange(year, month)[1]
-        day = random.randint(1, days_in_month)
-        cve_number = random.randint(10000, 99999)
-        cve_id = f"CVE-{year}-{cve_number:05d}"
-        
-        severity = random.choices(severities, weights=severity_weights)[0]
-        cwe = random.choice(common_cwes)
-        product = random.choice(products)
-        
-        descriptions = {
-            'CWE-79': f"Cross-site scripting vulnerability in {product} allows remote attackers to inject arbitrary web script or HTML via crafted input parameters",
-            'CWE-89': f"SQL injection vulnerability in {product} allows remote attackers to execute arbitrary SQL commands via malformed database queries",
-            'CWE-20': f"Improper input validation in {product} allows attackers to cause denial of service or execute arbitrary code",
-            'CWE-22': f"Path traversal vulnerability in {product} allows attackers to access files and directories outside the intended scope",
-            'CWE-119': f"Buffer overflow in {product} allows remote attackers to execute arbitrary code via specially crafted requests",
-            'CWE-200': f"Information disclosure vulnerability in {product} exposes sensitive data to unauthorized users through error messages",
-            'CWE-287': f"Authentication bypass vulnerability in {product} allows unauthorized access to protected resources",
-            'CWE-78': f"Command injection vulnerability in {product} allows execution of arbitrary operating system commands",
-            'CWE-94': f"Code injection vulnerability in {product} allows remote code execution through unsanitized user input",
-            'CWE-352': f"Cross-site request forgery vulnerability in {product} allows attackers to perform unauthorized actions",
-            'CWE-434': f"Unrestricted file upload vulnerability in {product} allows attackers to upload malicious files",
-            'CWE-502': f"Deserialization vulnerability in {product} allows remote code execution via untrusted data",
-            'CWE-611': f"XML external entity vulnerability in {product} allows attackers to access internal files",
-            'CWE-798': f"Use of hard-coded credentials in {product} allows unauthorized system access",
-            'CWE-862': f"Missing authorization vulnerability in {product} allows access to restricted functionality",
-            'CWE-863': f"Incorrect authorization vulnerability in {product} allows privilege escalation"
-        }
-        
-        description = descriptions.get(cwe, f"Vulnerability in {product} allows potential security compromise")
-        
-        if severity == 'CRITICAL':
-            cvss_score = round(random.uniform(9.0, 10.0), 1)
-        elif severity == 'HIGH':
-            cvss_score = round(random.uniform(7.0, 8.9), 1)
-        elif severity == 'MEDIUM':
-            cvss_score = round(random.uniform(4.0, 6.9), 1)
-        else:
-            cvss_score = round(random.uniform(0.1, 3.9), 1)
-        
-        sample_cve = {
-            'ID': cve_id,
-            'Description': description,
-            'Severity': severity,
-            'CWE': cwe,
-            'Published': f"{year}-{month:02d}-{day:02d}T{random.randint(0,23):02d}:{random.randint(0,59):02d}:{random.randint(0,59):02d}.000Z",
-            'CVSS_Score': cvss_score,
-            'References': [
-                f"https://nvd.nist.gov/vuln/detail/{cve_id}",
-                f"https://cve.mitre.org/cgi-bin/cvename.cgi?name={cve_id}",
-                f"https://security.{product.lower().replace(' ', '')}.com/advisories/{cve_id.lower()}"
-            ],
-            'Products': [product, f"{product} {random.randint(1, 10)}.{random.randint(0, 9)}"],
-            'metrics': {
-                'cvssMetricV31': [{
-                    'cvssData': {
-                        'baseScore': cvss_score,
-                        'baseSeverity': severity,
-                        'vectorString': f"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
-                    },
-                    'source': 'nvd@nist.gov',
-                    'type': 'Primary'
-                }]
-            },
-            '_simulated': True
-        }
-        
-        sample_cves.append(sample_cve)
-    
-    print(f"[Sample CVEs] Generated {len(sample_cves)} CVEs for {year}-{month:02d}")
-    return sample_cves
+        print(f"[Timeline] Error generating timeline data: {e}")
+        raise e
 
 def refresh_timeline_cache_background():
     """Background refresh that doesn't block main thread"""
@@ -322,8 +190,7 @@ def warm_dashboard_cache_if_needed():
         _warmed_up = True
         def _warm():
             try:
-                # Submit background tasks but don't wait for them
-                executor.submit(lambda: get_all_cves(days=30, force_refresh=False, timeout=15))
+                executor.submit(lambda: get_all_cves(days=30, force_refresh=False, timeout=20))
                 executor.submit(refresh_timeline_cache_background)
                 executor.submit(warm_cwe_cache)
             except Exception as e:
@@ -446,19 +313,27 @@ def get_cwe_radar_descriptions():
         "CWE-200": "Information Exposure.",
     }
 
-@cache_with_timeout(900) # 15 minute cache - reduced for more frequent updates
+@cache_with_timeout(600)  # 10 minute cache
 def get_cve_trends_30_days():
-    """Get CVE trends for last 30 days with real data - FIXED to get actual 30 days"""
+    """Get CVE trends for last 30 days with REAL data only"""
     try:
-        # Calculate the exact 30-day period
         today = datetime.now(timezone.utc).date()
         start_date = today - timedelta(days=29)  # 29 days ago + today = 30 days total
         
-        print(f"[CVE Trends] Getting real data from {start_date} to {today}")
+        print(f"[CVE Trends] Getting REAL data from {start_date} to {today}")
         
-        # Force refresh to get the most current data for the 30-day period
-        cves = get_all_cves(days=30, force_refresh=True, timeout=25)
+        # Get real CVE data
+        cves = get_all_cves(days=30, force_refresh=False, timeout=25)
         
+        if not cves:
+            print("[CVE Trends] No real CVE data available")
+            # Return empty data structure instead of fake data
+            dates = [start_date + timedelta(days=i) for i in range(30)]
+            return {
+                'labels': [d.strftime('%Y-%m-%d') for d in dates],
+                'values': [0] * 30
+            }
+
         # Create date buckets for all 30 days
         date_counts = {}
         for i in range(30):
@@ -477,6 +352,9 @@ def get_cve_trends_30_days():
         # Sort dates and return the data
         sorted_dates = sorted(date_counts.keys())
         
+        total_cves = sum(date_counts.values())
+        print(f"[CVE Trends] Processed {total_cves} real CVEs across 30 days")
+        
         return {
             'labels': [d.strftime('%Y-%m-%d') for d in sorted_dates],
             'values': [date_counts[d] for d in sorted_dates]
@@ -484,14 +362,14 @@ def get_cve_trends_30_days():
         
     except Exception as e:
         print(f"Error getting CVE trends: {e}")
-        # Minimal fallback - return empty data rather than fake data
+        # Return empty data rather than fake data
         today = datetime.now(timezone.utc).date()
         start_date = today - timedelta(days=29)
         dates = [start_date + timedelta(days=i) for i in range(30)]
         
         return {
             'labels': [d.strftime('%Y-%m-%d') for d in dates],
-            'values': [0] * 30 # Show zeros instead of fake data
+            'values': [0] * 30
         }
 
 # Health check endpoint for Render
@@ -499,7 +377,6 @@ def get_cve_trends_30_days():
 def health_check():
     """Health check endpoint to prevent app from sleeping"""
     try:
-        # Reset circuit breaker if it's been open for too long
         reset_circuit_breaker()
     except:
         pass
@@ -527,7 +404,7 @@ def references():
 
 @app.route("/", methods=["GET"])
 def index():
-    """Main dashboard with improved error handling and performance"""
+    """Main dashboard with REAL DATA ONLY"""
     try:
         # Start cache warming but don't wait for it
         warm_dashboard_cache_if_needed()
@@ -537,19 +414,43 @@ def index():
         severity_filter = request.args.get('severity')
         search_query = request.args.get('q')
         
-        # Get CVEs with increased timeout for real data
+        # Get CVEs - REAL DATA ONLY
         try:
-            # Use longer timeout and force refresh for accuracy
-            all_cves = get_all_cves(year=year, month=month, force_refresh=False, timeout=15)
+            print(f"[Dashboard] Fetching real CVEs for year={year}, month={month}")
+            all_cves = get_all_cves(year=year, month=month, force_refresh=False, timeout=20, days=30)
+            
+            if not all_cves:
+                print("[Dashboard] No real CVE data available")
+                # Return minimal dashboard with empty data instead of crashing
+                return render_template(
+                    "index.html",
+                    year_filter=year,
+                    month_filter=month,
+                    severity_filter=severity_filter,
+                    search_query=search_query,
+                    metrics={'CRITICAL': 0, 'HIGH': 0, 'MEDIUM': 0, 'LOW': 0},
+                    available_years=get_all_years(),
+                    available_months=list(range(1, 13)),
+                    timeline_data_days={'labels': [], 'values': []},
+                    timeline_data_years={'labels': [], 'values': []},
+                    severity_stats={'CRITICAL': 0, 'HIGH': 0, 'MEDIUM': 0, 'LOW': 0},
+                    severity_percentage={'CRITICAL': '0', 'HIGH': '0', 'MEDIUM': '0', 'LOW': '0'},
+                    cwe_radar={'indices': [], 'labels': [], 'values': []},
+                    cwe_radar_all={'all': {'indices': [], 'labels': [], 'values': []}, 'top5': {'indices': [], 'labels': [], 'values': []}, 'top10': {'indices': [], 'labels': [], 'values': []}},
+                    cwe_radar_weighted={'indices': [], 'labels': [], 'values': []},
+                    cwe_radar_descriptions=get_cwe_radar_descriptions(),
+                    note_text="No real CVE data currently available",
+                    total_cves=0
+                )
+            
         except Exception as e:
             print(f"Error fetching CVEs: {e}")
-            # Only use sample data as last resort
-            if year and month:
-                all_cves = generate_sample_cves_for_month(year, month, 50)
-            else:
-                all_cves = generate_sample_cves_for_month(2025, 8, 100)
+            # Return error state instead of fake data
+            return render_template("error.html", error="Unable to fetch real CVE data. Please try again later."), 500
         
-        # Process CVEs
+        print(f"[Dashboard] Processing {len(all_cves)} real CVEs")
+        
+        # Process CVEs with dates
         all_cves_with_dates = []
         for cve in all_cves:
             parsed_date = parse_published_date(cve)
@@ -559,15 +460,17 @@ def index():
         
         all_cves_with_dates.sort(key=lambda cve: cve.get('_parsed_published', datetime.min), reverse=True)
         
-        # Calculate metrics
+        # Calculate metrics from REAL data
         metrics = calculate_severity_metrics(all_cves_with_dates)
         total_cves = sum(metrics.values())
         
-        # Get timeline data - with increased accuracy
+        print(f"[Dashboard] Calculated metrics from {total_cves} real CVEs: {metrics}")
+        
+        # Get timeline data - REAL DATA ONLY
         timeline_daily = get_cve_trends_30_days()
         timeline_months = get_cached_timeline_data()
         
-        # Generate chart data
+        # Generate chart data from REAL CVEs
         cwe_radar_full = get_cwe_radar_data_full(all_cves_with_dates)
         cwe_radar_weighted = get_cwe_radar_weighted(all_cves_with_dates)
         cwe_radar_descriptions = get_cwe_radar_descriptions()
@@ -591,7 +494,7 @@ def index():
             if k not in metrics:
                 metrics[k] = 0
         
-        # Generate note text
+        # Generate note text based on actual data
         available_years = get_all_years()
         available_months = list(range(1, 13))
         note_text = None
@@ -600,16 +503,23 @@ def index():
             days_in_month = monthrange(year, month)[1]
             note_start_date = datetime(year, month, 1).date()
             note_end_date = datetime(year, month, days_in_month).date()
-            note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')} to {note_end_date.strftime('%Y-%m-%d')}"
+            note_text = f"Showing {total_cves} real CVEs from {note_start_date.strftime('%Y-%m-%d')} to {note_end_date.strftime('%Y-%m-%d')}"
         elif year and not month:
             note_start_date = datetime(year, 1, 1).date()
             note_end_date = datetime(year, 12, 31).date()
-            note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')} to {note_end_date.strftime('%Y-%m-%d')}"
+            note_text = f"Showing {total_cves} real CVEs from {note_start_date.strftime('%Y-%m-%d')} to {note_end_date.strftime('%Y-%m-%d')}"
         else:
-            now_date = datetime.now(timezone.utc).date()
-            note_start_date = now_date - timedelta(days=29) # Updated to reflect 30-day period
-            note_end_date = now_date
-            note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')} to {note_end_date.strftime('%Y-%m-%d')}"
+            # Determine actual date range from the data
+            if all_cves_with_dates:
+                dates = [cve['_parsed_published'].date() for cve in all_cves_with_dates if cve.get('_parsed_published')]
+                if dates:
+                    min_date = min(dates)
+                    max_date = max(dates)
+                    note_text = f"Showing {total_cves} real CVEs from {min_date.strftime('%Y-%m-%d')} to {max_date.strftime('%Y-%m-%d')}"
+                else:
+                    note_text = f"Showing {total_cves} real CVEs from recent data"
+            else:
+                note_text = "No real CVE data available for the selected period"
         
         return render_template(
             "index.html",
@@ -634,7 +544,6 @@ def index():
     
     except Exception as e:
         print(f"Critical error in index route: {e}")
-        # Return a basic error page instead of crashing
         return render_template("error.html", error="Service temporarily unavailable. Please try again in a few moments."), 500
 
 @app.route("/learn")
@@ -687,7 +596,7 @@ def learn_topic(topic):
 
 @app.route("/vulnerabilities/", methods=["GET"])
 def vulnerabilities():
-    """Vulnerabilities listing page with improved performance and real data consistency"""
+    """Vulnerabilities listing page with REAL DATA ONLY"""
     try:
         year = request.args.get('year', type=int)
         month = request.args.get('month', type=int)
@@ -717,61 +626,46 @@ def vulnerabilities():
             show_note = True
         else:
             note_end_date = datetime.now(timezone.utc).date()
-            note_start_date = note_end_date - timedelta(days=29) # Updated to match 30-day period
+            note_start_date = note_end_date - timedelta(days=29)
             show_note = True
         
-        # Get CVEs with improved consistency - use SAME data source as timeline
+        # Get CVEs - REAL DATA ONLY
         try:
-            all_cves = []
-            current_date = datetime.now(timezone.utc)
+            print(f"[Vulnerabilities] Fetching real CVEs for year={year}, month={month}, day={day}")
             
             if year and month:
-                # For specific year/month - generate consistent data based on timeline
-                timeline_data = get_cached_timeline_data()
-                month_key = f"{year}-{month:02d}"
-                
-                if month_key in timeline_data['labels']:
-                    idx = timeline_data['labels'].index(month_key)
-                    expected_count = timeline_data['values'][idx]
-                    print(f"[Vulnerabilities] Generating {expected_count} CVEs for {month_key}")
-                    all_cves = generate_sample_cves_for_month(year, month, expected_count)
-                else:
-                    # If not in timeline, generate reasonable amount
-                    base_count = 1200 if year >= 2022 else 800
-                    all_cves = generate_sample_cves_for_month(year, month, base_count)
-                    
-            elif year and not month:
-                # For full year - sum all months from timeline
-                timeline_data = get_cached_timeline_data()
-                all_cves = []
-                
-                for m in range(1, 13):
-                    month_key = f"{year}-{m:02d}"
-                    if month_key in timeline_data['labels']:
-                        idx = timeline_data['labels'].index(month_key)
-                        count = timeline_data['values'][idx]
-                    else:
-                        count = 1200 if year >= 2022 else 800
-                    
-                    monthly_cves = generate_sample_cves_for_month(year, m, count)
-                    all_cves.extend(monthly_cves)
-                    
+                # For specific year/month, try to get broader data and then filter
+                fetch_days = 365 if year < datetime.now().year else 90
+                all_cves = get_all_cves(year=year, month=month, force_refresh=False, timeout=20, days=fetch_days)
+            elif year:
+                # For full year
+                all_cves = get_all_cves(year=year, force_refresh=False, timeout=20, days=365)
             else:
-                # Current period - use cached CVEs for consistency
-                all_cves = get_all_cves(force_refresh=False, timeout=10)
+                # Current period
+                all_cves = get_all_cves(force_refresh=False, timeout=15, days=30)
+                
+            if not all_cves:
+                print("[Vulnerabilities] No real CVE data available")
+                return render_template(
+                    "vulnerabilities.html",
+                    latest_cves=[],
+                    year_filter=year,
+                    month_filter=month,
+                    day_filter=day,
+                    severity_filter=severity_filter,
+                    search_query=search_query,
+                    available_years=get_all_years(),
+                    available_months=list(range(1, 13)),
+                    current_page=1,
+                    total_pages=1,
+                    page_numbers=[1],
+                    total_results=0,
+                    note_text="No real CVE data available for the selected period"
+                )
                 
         except Exception as e:
             print(f"Error fetching vulnerabilities: {e}")
-            # Use basic fallback
-            if year and month:
-                all_cves = generate_sample_cves_for_month(year, month, 1200)
-            else:
-                all_cves = generate_sample_cves_for_month(2025, 8, 100)
-                
-        except Exception as e:
-            print(f"Error fetching vulnerabilities: {e}")
-            # Use fallback sample data only as last resort
-            all_cves = generate_sample_cves_for_month(2025, 8, 50)
+            return render_template("error.html", error="Unable to fetch real vulnerability data. Please try again later."), 500
         
         # Process CVEs with dates
         all_cves_with_dates = []
@@ -826,13 +720,15 @@ def vulnerabilities():
             else:
                 page_numbers = list(range(current_page - 3, current_page + 4))
         
-        # Generate note text
+        # Generate note text based on actual data
         note_text = None
         if show_note and note_start_date and note_end_date:
             if note_start_date == note_end_date:
-                note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')}"
+                note_text = f"Showing {total_results} real CVEs from {note_start_date.strftime('%Y-%m-%d')}"
             else:
-                note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')} to {note_end_date.strftime('%Y-%m-%d')}"
+                note_text = f"Showing {total_results} real CVEs from {note_start_date.strftime('%Y-%m-%d')} to {note_end_date.strftime('%Y-%m-%d')}"
+        
+        print(f"[Vulnerabilities] Displaying {len(cves_page)} CVEs out of {total_results} total")
         
         return render_template(
             "vulnerabilities.html",
@@ -868,28 +764,26 @@ def cve_detail(cve_id):
             try:
                 cve = get_cve_detail(cve_id)
                 
-                # If CVE not found in API, generate sample data for demo
+                # If CVE not found in API, return error instead of fake data
                 if cve.get('Description') == 'Not found':
-                    try:
-                        cve_year = int(cve_id.split('-')[1])
-                        current_year = datetime.now().year
-                        if cve_year < current_year - 1:
-                            sample_cves = generate_sample_cves_for_month(cve_year, 1, 1)
-                            if sample_cves:
-                                sample_cve = sample_cves[0]
-                                sample_cve['ID'] = cve_id
-                                cve = sample_cve
-                    except (ValueError, IndexError):
-                        pass
+                    cve = {
+                        'ID': cve_id,
+                        'Description': 'CVE details not found in NVD database.',
+                        'Severity': 'UNKNOWN',
+                        'CWE': 'CWE-NVD-UNKNOWN',
+                        'Published': 'Unknown',
+                        'References': [],
+                        'Products': [],
+                        'metrics': {}
+                    }
             except Exception as e:
                 print(f"Error fetching CVE detail: {e}")
-                # Generate fallback CVE data
                 cve = {
                     'ID': cve_id,
                     'Description': 'CVE details temporarily unavailable. Please try again later.',
                     'Severity': 'UNKNOWN',
                     'CWE': 'CWE-NVD-UNKNOWN',
-                    'Published': datetime.now().strftime('%Y-%m-%d'),
+                    'Published': 'Unknown',
                     'References': [],
                     'Products': [],
                     'metrics': {}
