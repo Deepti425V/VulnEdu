@@ -66,16 +66,16 @@ def get_cached_timeline_data():
    global timeline_cache
    with timeline_cache['lock']:
        now = datetime.now(timezone.utc)
-       if (timeline_cache['data'] is not None and
-           timeline_cache['last_updated'] is not None and
-           (now - timeline_cache['last_updated']).total_seconds() 
-           TIMELINE_CACHE_HOURS * 3600):
+       if(timeline_cache['data'] is not None and
+          timeline_cache['last_updated'] is not None and
+          (now - timeline_cache['last_updated']).total_seconds() 
+            TIMELINE_CACHE_HOURS * 3600):
            return timeline_cache['data']
        timeline_data = generate_timeline_data()
        timeline_cache['data'] = timeline_data
        timeline_cache['last_updated'] = now
        return timeline_data
-
+   
 def generate_timeline_data():
    now = datetime.now(timezone.utc)
    months = []
