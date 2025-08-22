@@ -2,8 +2,8 @@ name: Keep VulnEdu Alive
 
 on:
   schedule:
-    # Runs every 5 minutes
-    - cron: '*/5 * * * *'
+    # Runs every 14 minutes
+    - cron: '*/14 * * * *'
   
   # Allow manual trigger
   workflow_dispatch:
