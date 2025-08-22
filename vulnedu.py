@@ -52,10 +52,9 @@ def health_check():
                 "cwe_entries": cwe_count
             }
         }, 200
-        
     except Exception as e:
         return {
-            "status": "unhealthy", 
+            "status": "unhealthy",
             "error": str(e),
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "service": "VulnEdu",
@@ -66,10 +65,11 @@ def get_cached_timeline_data():
     global timeline_cache
     with timeline_cache['lock']:
         now = datetime.now(timezone.utc)
-        if (timeline_cache['data'] is not None and
+        if (timeline_cache['data'] is not None and 
             timeline_cache['last_updated'] is not None and
             (now - timeline_cache['last_updated']).total_seconds() < TIMELINE_CACHE_HOURS * 3600):
             return timeline_cache['data']
+        
         timeline_data = generate_timeline_data()
         timeline_cache['data'] = timeline_data
         timeline_cache['last_updated'] = now
@@ -79,11 +79,14 @@ def generate_timeline_data():
     now = datetime.now(timezone.utc)
     months = []
     base_month = now.replace(day=1)
+    
     for i in reversed(range(36)):
         dt = (base_month - timedelta(days=31 * i)).replace(day=1)
         months.append((dt.year, dt.month))
+    
     month_labels = [f"{y}-{m:02d}" for y, m in months]
     month_counts = {k: 0 for k in month_labels}
+    
     recent_cves = get_all_cves(days=30)
     for cve in recent_cves:
         published_str = cve.get('Published', '')
@@ -91,6 +94,7 @@ def generate_timeline_data():
             month_key = published_str[:7]
             if month_key in month_counts:
                 month_counts[month_key] += 1
+    
     current_year = now.year
     current_month = now.month
     for (y, m), label in zip(months, month_labels):
@@ -105,6 +109,7 @@ def generate_timeline_data():
                 base_count = random.randint(600, 1200)
                 seasonal_factor = 1.0 + 0.2 * math.sin(2 * math.pi * m / 12)
                 month_counts[label] = int(base_count * seasonal_factor)
+    
     return {
         'labels': list(month_counts.keys()),
         'values': [month_counts[k] for k in month_counts.keys()]
@@ -116,20 +121,24 @@ def generate_sample_cves_for_month(year, month, count):
                    'CWE-94', 'CWE-352', 'CWE-434', 'CWE-502', 'CWE-611', 'CWE-798', 'CWE-862', 'CWE-863']
     severities = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
     severity_weights = [0.1, 0.3, 0.45, 0.15]
+    
     products = [
         'Apache HTTP Server', 'Microsoft Windows', 'Google Chrome', 'Mozilla Firefox', 'Oracle Java',
         'Adobe Flash Player', 'WordPress', 'OpenSSL', 'Node.js', 'PHP',
         'MySQL', 'PostgreSQL', 'Docker', 'Kubernetes', 'Jenkins', 'Apache Tomcat', 'Nginx', 'Redis',
         'MongoDB', 'Elasticsearch'
     ]
+    
     for i in range(count):
         days_in_month = monthrange(year, month)[1]
         day = random.randint(1, days_in_month)
         cve_number = random.randint(10000, 99999)
         cve_id = f"CVE-{year}-{cve_number:05d}"
+        
         severity = random.choices(severities, weights=severity_weights)[0]
         cwe = random.choice(common_cwes)
         product = random.choice(products)
+        
         descriptions = {
             'CWE-79': f"Cross-site scripting vulnerability in {product} allows remote attackers to inject arbitrary web script or HTML via crafted input parameters",
             'CWE-89': f"SQL injection vulnerability in {product} allows remote attackers to execute arbitrary SQL commands via malformed database queries",
@@ -148,7 +157,9 @@ def generate_sample_cves_for_month(year, month, count):
             'CWE-862': f"Missing authorization vulnerability in {product} allows access to restricted functionality",
             'CWE-863': f"Incorrect authorization vulnerability in {product} allows privilege escalation"
         }
+        
         description = descriptions.get(cwe, f"Vulnerability in {product} allows potential security compromise")
+        
         if severity == 'CRITICAL':
             cvss_score = round(random.uniform(9.0, 10.0), 1)
         elif severity == 'HIGH':
@@ -157,6 +168,7 @@ def generate_sample_cves_for_month(year, month, count):
             cvss_score = round(random.uniform(4.0, 6.9), 1)
         else:
             cvss_score = round(random.uniform(0.1, 3.9), 1)
+        
         sample_cve = {
             'ID': cve_id,
             'Description': description,
@@ -183,7 +195,9 @@ def generate_sample_cves_for_month(year, month, count):
             },
             '_simulated': True
         }
+        
         sample_cves.append(sample_cve)
+    
     return sample_cves
 
 def refresh_timeline_cache_background():
@@ -233,12 +247,14 @@ def get_all_years():
 
 def get_cwe_severity_chart_data(cves, selected_cwe_list):
     cwe_severity = defaultdict(lambda: defaultdict(int))
+    
     for cve in cves:
         cwe = cve.get('CWE')
         if cwe in selected_cwe_list:
             severity = cve.get('Severity', 'UNKNOWN').upper()
             if severity in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
                 cwe_severity[cwe][severity] += 1
+    
     data = {
         'labels': [cwe_title(cwe) for cwe in selected_cwe_list],
         'indices': selected_cwe_list,
@@ -257,25 +273,32 @@ def get_cwe_radar_data_full(cves):
         cwe = cve.get('CWE')
         if cwe:
             cwe_counts[cwe] += 1
+    
     sorted_cwes = sorted(cwe_counts.items(), key=lambda x: x[1], reverse=True)
+    
     codes = [code for code, _ in sorted_cwes]
     names = [CWE_TITLES.get(code, code) for code, _ in sorted_cwes]
     values = [count for _, count in sorted_cwes]
+    
     top5_codes = codes[:5]
     top5_names = names[:5]
     top5_values = values[:5]
+    
     top10_codes = codes[:10]
     top10_names = names[:10]
     top10_values = values[:10]
+    
     full_data = {
         'all': {'indices': codes, 'labels': names, 'values': values},
         'top5': {'indices': top5_codes, 'labels': top5_names, 'values': top5_values},
         'top10': {'indices': top10_codes, 'labels': top10_names, 'values': top10_values},
     }
+    
     return full_data
 
 def get_cwe_radar_weighted(cves):
     cwe_severity = defaultdict(lambda: defaultdict(int))
+    
     for cve in cves:
         cwe = cve.get('CWE')
         if cwe:
@@ -283,10 +306,13 @@ def get_cwe_radar_weighted(cves):
             if severity in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
                 weight = {'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1}[severity]
                 cwe_severity[cwe]['W'] = cwe_severity[cwe].get('W', 0) + weight
+    
     sorted_cwes = sorted(cwe_severity.items(), key=lambda x: x[1].get('W', 0), reverse=True)
+    
     codes = [code for code, _ in sorted_cwes]
     names = [CWE_TITLES.get(code, code) for code, _ in sorted_cwes]
     values = [obj.get('W', 0) for _, obj in sorted_cwes]
+    
     return {'indices': codes, 'labels': names, 'values': values}
 
 def get_cwe_radar_descriptions():
@@ -306,13 +332,16 @@ def get_cve_trends_30_days():
     cves = get_all_cves(days=30)
     today = datetime.now(timezone.utc).date()
     start_day = today - timedelta(days=29)
+    
     date_counts = {start_day + timedelta(days=i): 0 for i in range(30)}
+    
     for cve in cves:
         dt = parse_published_date(cve)
         if dt:
             dt_date = dt.date()
             if dt_date in date_counts:
                 date_counts[dt_date] += 1
+    
     return {
         'labels': [d.strftime('%Y-%m-%d') for d in sorted(date_counts.keys())],
         'values': [date_counts[d] for d in sorted(date_counts.keys())]
@@ -340,34 +369,45 @@ def references():
 @app.route("/", methods=["GET"])
 def index():
     warm_dashboard_cache_if_needed()
+    
     year = request.args.get('year', type=int)
     month = request.args.get('month', type=int)
     severity_filter = request.args.get('severity')
     search_query = request.args.get('q')
+    
     fetch_days = 30
     now_date = datetime.now(timezone.utc).date()
     daily_start = now_date - timedelta(days=fetch_days - 1)
+    
     all_cves = get_all_cves(year=year, month=month)
+    
     all_cves_with_dates = []
     for cve in all_cves:
         parsed_date = parse_published_date(cve)
         if parsed_date:
             cve['_parsed_published'] = parsed_date
             all_cves_with_dates.append(cve)
+    
     all_cves_with_dates.sort(key=lambda cve: cve.get('_parsed_published', datetime.min), reverse=True)
+    
     metrics = calculate_severity_metrics(all_cves_with_dates)
     total_cves = sum(metrics.values())
+    
     timeline_daily = get_cve_trends_30_days()
     timeline_months = get_cached_timeline_data()
+    
     cwe_radar_full = get_cwe_radar_data_full(all_cves_with_dates)
     cwe_radar_weighted = get_cwe_radar_weighted(all_cves_with_dates)
     cwe_radar_descriptions = get_cwe_radar_descriptions()
+    
     display_metrics = metrics
     if severity_filter and severity_filter.upper() in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
         filtered_cves = [cve for cve in all_cves_with_dates if cve.get('Severity', '').upper() == severity_filter.upper()]
         display_metrics = calculate_severity_metrics(filtered_cves)
+    
     available_years = get_all_years()
     available_months = list(range(1, 13))
+    
     note_text = None
     if year and month:
         days_in_month = monthrange(year, month)[1]
@@ -379,20 +419,24 @@ def index():
     else:
         note_start_date = daily_start
         note_end_date = now_date
+    
     if note_start_date and note_end_date:
         if note_start_date == note_end_date:
             note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')}"
         else:
             note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')} to {note_end_date.strftime('%Y-%m-%d')}"
+    
     if total_cves == 0:
         severity_percentage = {k: "0" for k in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']}
     else:
         severity_percentage = {
             k: f"{(metrics.get(k, 0) * 100 // total_cves)}" for k in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
         }
+    
     for k in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
         if k not in metrics:
             metrics[k] = 0
+    
     return render_template(
         "index.html",
         year_filter=year,
@@ -425,14 +469,19 @@ def learn_topic(topic):
         'what-is-cwe', 'what-is-cve', 'cvss-scores',
         'what-is-nvd-mitre', 'cve-vs-cwe-vs-cvss'
     ]
+    
     if topic not in valid_topics:
         return redirect(url_for('learn_topic', topic='what-is-cve'))
+    
     cves = get_all_cves()
     cwe_dict = get_cwe_dict()
     selected_cwes = list(CWE_TITLES.keys())
     cwe_severity = get_cwe_severity_chart_data(cves, selected_cwes)
+    
     latest_cves = sorted(cves, key=lambda x: x.get('Published', ''), reverse=True)[:25]
+    
     now = datetime.now(timezone.utc)
+    
     return render_template(
         f"learn/{topic}.html",
         cwe_dict=cwe_dict,
@@ -452,10 +501,12 @@ def vulnerabilities():
     search_query = request.args.get('q')
     page = request.args.get('page', default=1, type=int)
     per_page = 15
+    
     fetch_days = None
     show_note = False
     note_start_date = None
     note_end_date = None
+    
     if year and month and day:
         note_start_date = datetime(year, month, day).date()
         note_end_date = note_start_date
@@ -474,11 +525,14 @@ def vulnerabilities():
         note_end_date = datetime.now(timezone.utc).date()
         note_start_date = note_end_date - timedelta(days=29)
         show_note = True
+    
     all_cves = []
     current_date = datetime.now(timezone.utc)
+    
     if year and month:
         filter_date = datetime(year, month, 1, tzinfo=timezone.utc)
         months_diff = (current_date.year - year) * 12 + (current_date.month - month)
+        
         if months_diff <= 2:
             all_cves = get_all_cves(year=year, month=month)
         else:
@@ -505,40 +559,49 @@ def vulnerabilities():
                     all_cves.extend(generate_sample_cves_for_month(year, m, sample_count))
     else:
         all_cves = get_all_cves(days=30)
+    
     all_cves_with_dates = []
     for cve in all_cves:
         parsed_date = parse_published_date(cve)
         if parsed_date is not None:
             cve['_parsed_published'] = parsed_date
             all_cves_with_dates.append(cve)
+    
     all_cves_with_dates.sort(key=lambda cve: cve.get('_parsed_published', datetime.min), reverse=True)
+    
     filtered_cves = all_cves_with_dates
+    
     if year and month and day:
-        filtered_cves = [cve for cve in filtered_cves if
+        filtered_cves = [cve for cve in filtered_cves if 
                         cve.get('_parsed_published') is not None and
                         cve['_parsed_published'].year == year and
                         cve['_parsed_published'].month == month and
                         cve['_parsed_published'].day == day]
     else:
         if severity_filter and severity_filter.upper() in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
-            filtered_cves = [cve for cve in filtered_cves if
+            filtered_cves = [cve for cve in filtered_cves if 
                            cve.get('Severity', '').upper() == severity_filter.upper()]
+        
         if search_query:
             q_lower = search_query.lower()
             if q_lower.startswith("cwe-") and q_lower[4:].isdigit():
-                filtered_cves = [cve for cve in filtered_cves if
+                filtered_cves = [cve for cve in filtered_cves if 
                                (cve.get("CWE") or "").lower() == q_lower]
             else:
-                filtered_cves = [cve for cve in filtered_cves if q_lower in
+                filtered_cves = [cve for cve in filtered_cves if q_lower in 
                                (cve.get('Description', '') + cve.get('ID', '')).lower()]
+    
     total_results = len(filtered_cves)
     total_pages = max(1, math.ceil(total_results / per_page))
     current_page = max(1, min(page, total_pages))
+    
     start_index = (current_page - 1) * per_page
     end_index = start_index + per_page
     cves_page = filtered_cves[start_index:end_index]
+    
     available_years = get_all_years()
     available_months = list(range(1, 13))
+    
     page_numbers = []
     if total_pages <= 7:
         page_numbers = list(range(1, total_pages + 1))
@@ -549,14 +612,17 @@ def vulnerabilities():
             page_numbers = list(range(total_pages - 6, total_pages + 1))
         else:
             page_numbers = list(range(current_page - 3, current_page + 4))
+    
     note_text = None
     if show_note and note_start_date and note_end_date:
         if note_start_date == note_end_date:
             note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')}"
         else:
             note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')} to {note_end_date.strftime('%Y-%m-%d')}"
+        
         if year and month and (current_date.year - year) * 12 + (current_date.month - month) > 2:
             note_text += " (Historical data - sample vulnerabilities for demonstration)"
+    
     return render_template(
         "vulnerabilities.html",
         latest_cves=cves_page,
@@ -572,38 +638,59 @@ def vulnerabilities():
         page_numbers=page_numbers,
         total_results=total_results,
         note_text=note_text
-    )
+   )
 
 @app.route("/cve/<cve_id>")
 def cve_detail(cve_id):
-    year = request.args.get('year', type=int)
-    month = request.args.get('month', type=int)
-    page = request.args.get('page', default=1, type=int)
-    severity = request.args.get('severity')
-    if cve_id.startswith("CVE-") and len(cve_id) == 13:
-        cve = get_cve_detail(cve_id)
-        if cve.get('Description') == 'Not found':
-            try:
-                cve_year = int(cve_id.split('-')[1])
-                current_year = datetime.now().year
-                if cve_year < current_year - 1:
+   year = request.args.get('year', type=int)
+   month = request.args.get('month', type=int)
+   page = request.args.get('page', default=1, type=int)
+   severity = request.args.get('severity')
+   
+   # Validate CVE ID format
+   if not cve_id or not cve_id.startswith("CVE-") or len(cve_id) < 9:
+       # Invalid CVE format - return error template or redirect
+       return render_template("error.html", 
+                            error="Invalid CVE ID format. CVE IDs should be in format CVE-YYYY-NNNNN")
+   
+   try:
+       # Try to get CVE details from NVD API
+       cve = get_cve_detail(cve_id)
+       
+       # If CVE not found in current data, try to generate sample data for historical CVEs
+       if cve.get('Description') == 'Not found':
+           try:
+               # Extract year from CVE ID for historical simulation
+               cve_year = int(cve_id.split('-')[1])
+               current_year = datetime.now().year
+               
+               # If it's an older CVE, generate sample data
+               if cve_year < current_year - 1:
                    sample_cves = generate_sample_cves_for_month(cve_year, 1, 1)
                    if sample_cves:
                        sample_cve = sample_cves[0]
                        sample_cve['ID'] = cve_id
                        cve = sample_cve
-            except (ValueError, IndexError):
+                       # Add a note that this is simulated data
+                       cve['_simulated_note'] = f"This CVE from {cve_year} is displayed with simulated data for demonstration purposes."
+           except (ValueError, IndexError):
+               # If we can't parse the year or generate sample data, use the original not found response
                pass
-    else:
-       cve = get_cve_detail(cve_id)
+       
        return render_template(
-       "cve_detail.html",
-       cve=cve,
-       year=year,
-       month=month,
-       page=page,
-       severity=severity
-   )
+           "cve_detail.html",
+           cve=cve,
+           year=year,
+           month=month,
+           page=page,
+           severity=severity
+       )
+       
+   except Exception as e:
+       # Handle any unexpected errors
+       app.logger.error(f"Error retrieving CVE {cve_id}: {str(e)}")
+       return render_template("error.html", 
+                            error=f"Error retrieving CVE details: {str(e)}")
 
 if __name__ == "__main__":
    app.run(debug=True)
