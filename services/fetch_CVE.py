@@ -21,31 +21,91 @@ def _is_cache_fresh():
         age_minutes = (now - mtime).total_seconds() / 60
         print(f"[CVEs] Cache age: {age_minutes:.1f} minutes (fresh if < {CACHE_TIME_MINUTES})")
         return age_minutes < CACHE_TIME_MINUTES
-    except Exception:
+    except Exception as e:
+        print(f"[CVEs] Error checking cache freshness: {e}")
         return False
 
 def _load_from_cache():
-    """Loads a cached batch of CVEs from disk"""
+    """Loads a cached batch of CVEs from disk - ROBUST JSON ONLY"""
     if not os.path.exists(CACHE_PATH):
+        print("[CVEs] No cache file found")
         return []
+    
     try:
+        print(f"[CVEs] Loading cache from {CACHE_PATH}")
+        file_size = os.path.getsize(CACHE_PATH)
+        print(f"[CVEs] Cache file size: {file_size} bytes")
+        
         with open(CACHE_PATH, "r", encoding="utf-8") as f:
+            # Try to load as JSON
             data = json.load(f)
-            print(f"[CVEs] Loaded {len(data)} CVEs from cache")
+            
+            # Validate the data structure
+            if not isinstance(data, list):
+                print(f"[CVEs] Cache data is not a list, got {type(data)}")
+                return []
+            
+            # Quick validation of first few items
+            valid_count = 0
+            for i, item in enumerate(data[:5]):  # Check first 5 items
+                if isinstance(item, dict) and 'ID' in item:
+                    valid_count += 1
+            
+            if valid_count == 0:
+                print("[CVEs] Cache contains no valid CVE records")
+                return []
+            
+            print(f"[CVEs] Successfully loaded {len(data)} CVEs from cache")
             return data
+            
+    except json.JSONDecodeError as e:
+        print(f"[CVEs] JSON decode error in cache file: {e}")
+        print("[CVEs] Corrupted cache detected, will regenerate")
+        # Delete corrupted cache
+        try:
+            os.remove(CACHE_PATH)
+            print("[CVEs] Deleted corrupted cache file")
+        except:
+            pass
+        return []
     except Exception as e:
-        print(f"[CVEs] Cache load error: {e}")
+        print(f"[CVEs] Unexpected error loading cache: {e}")
         return []
 
 def _save_to_cache(cves):
-    """Dump the whole CVE list to disk (creates directory if needed)"""
+    """Dump the whole CVE list to disk as JSON (creates directory if needed)"""
     try:
+        print(f"[CVEs] Saving {len(cves)} CVEs to cache...")
+        
+        # Ensure directory exists
         os.makedirs(os.path.dirname(CACHE_PATH), exist_ok=True)
-        with open(CACHE_PATH, "w", encoding="utf-8") as f:
-            json.dump(cves, f)
-        print(f"[CVEs] Saved {len(cves)} CVEs to cache")
+        
+        # Validate data before saving
+        if not isinstance(cves, list):
+            print(f"[CVEs] Error: Cannot save non-list data to cache: {type(cves)}")
+            return
+        
+        # Write atomically - write to temp file first, then rename
+        temp_path = CACHE_PATH + ".tmp"
+        with open(temp_path, "w", encoding="utf-8") as f:
+            json.dump(cves, f, indent=None, separators=(',', ':'))
+        
+        # Atomic rename
+        os.replace(temp_path, CACHE_PATH)
+        
+        # Verify the save
+        saved_size = os.path.getsize(CACHE_PATH)
+        print(f"[CVEs] Successfully saved {len(cves)} CVEs to cache ({saved_size} bytes)")
+        
     except Exception as e:
-        print(f"[CVEs] Cache save error: {e}")
+        print(f"[CVEs] Error saving cache: {e}")
+        # Clean up temp file if it exists
+        temp_path = CACHE_PATH + ".tmp"
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except:
+                pass
 
 def _parse_cve_datetime(date_str):
     """Parse CVE datetime string into timezone-aware datetime object"""
