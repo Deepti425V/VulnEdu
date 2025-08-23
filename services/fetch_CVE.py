@@ -43,7 +43,22 @@ def _fetch_from_nvd(days=30):
     start_index = 0
     results_per_page = 2000
     pub_end = now_utc
-    pub_start = pub_end - timedelta(days=days - 1)
+    
+    # FIX 1: Correct date range calculation
+    # For "today" (1 day), we want from start of today to now
+    # For 30 days, we want full 30 days of data
+    pub_start = pub_end - timedelta(days=days)
+
+    # FIX 2: Use proper date boundaries for more accurate filtering
+    if days == 1:  # For "today", use start of today in UTC
+        today_utc = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+        pub_start = today_utc
+        pub_end = now_utc
+    else:
+        # For multi-day ranges, use full day boundaries
+        pub_start = (pub_end - timedelta(days=days)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    print(f"[CVEs] Fetching CVEs from {pub_start.isoformat()} to {pub_end.isoformat()}")
 
     params = {
         "resultsPerPage": results_per_page,
@@ -52,6 +67,7 @@ def _fetch_from_nvd(days=30):
         "pubEndDate": pub_end.isoformat(timespec='milliseconds').replace('+00:00', 'Z')
     }
     headers = {"apikey": NVD_API_KEY}
+    
     #Loop the NVD pagination (max 2000 per page)
     while True:
         try:
@@ -66,20 +82,42 @@ def _fetch_from_nvd(days=30):
         if not vulnerabilities:
             #NVD returned no new CVEs, we're done
             break
+            
         for item in vulnerabilities:
             cve = item.get("cve", {})
             published_str = cve.get("published", "")
             if not published_str:
                 continue
+                
+            # FIX 3: Proper datetime parsing with timezone awareness
             try:
-                published_dt = datetime.strptime(published_str[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                # Parse the full timestamp, not just the date part
+                if 'T' in published_str:
+                    # Full timestamp like "2025-08-23T15:15:04.123"
+                    if published_str.endswith('Z'):
+                        published_dt = datetime.fromisoformat(published_str.replace('Z', '+00:00'))
+                    else:
+                        published_dt = datetime.fromisoformat(published_str)
+                        if published_dt.tzinfo is None:
+                            published_dt = published_dt.replace(tzinfo=timezone.utc)
+                else:
+                    # Just date like "2025-08-23"
+                    published_dt = datetime.strptime(published_str[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
             except ValueError:
+                print(f"[CVEs] Warning: Could not parse publish date '{published_str}' for {cve.get('id', 'unknown')}")
                 continue
+                
+            # Additional filtering to ensure we only get CVEs in our date range
+            if not (pub_start <= published_dt <= pub_end):
+                continue
+                
             cve_id = cve.get("id", "")
             description = next((desc["value"] for desc in cve.get("descriptions", []) if desc.get("lang") == "en"), "")
+            
             severity = "UNKNOWN"
             cvss = None
             metrics = cve.get("metrics", {})
+            
             #Try CVSS v3.1, then v3.0, then v2
             if "cvssMetricV31" in metrics:
                 sev_metric = metrics["cvssMetricV31"][0]
@@ -93,6 +131,7 @@ def _fetch_from_nvd(days=30):
                 sev_metric = metrics["cvssMetricV2"][0]
                 severity = sev_metric.get("baseSeverity", severity)
                 cvss = sev_metric["cvssData"].get("baseScore", cvss)
+                
             #Pull out CWE if present
             cwe = None
             for weakness in cve.get("weaknesses", []):
@@ -102,6 +141,7 @@ def _fetch_from_nvd(days=30):
                         break
                 if cwe:
                     break
+                    
             #Fill in all fields; "Products" will be empty here
             all_cves.append({
                 "ID": cve_id,
@@ -116,6 +156,8 @@ def _fetch_from_nvd(days=30):
             })
 
         total_results = data.get("totalResults", 0)
+        print(f"[CVEs] Fetched {len(vulnerabilities)} CVEs (page {start_index//results_per_page + 1}), total available: {total_results}")
+        
         if start_index + results_per_page >= total_results:
             #Got everything, break the pagination loop
             break
@@ -124,6 +166,7 @@ def _fetch_from_nvd(days=30):
 
     #Sort from newest to oldest so latest threats are always up top
     all_cves.sort(key=lambda x: x.get("Published") or "", reverse=True)
+    print(f"[CVEs] Completed fetch. Total CVEs processed: {len(all_cves)}")
     return all_cves
 
 def _refresh_cache():
@@ -163,30 +206,64 @@ def get_all_cves(max_results=None, year=None, month=None, days=None, force_refre
     #Dashboard always uses the cache unless filters or manual refresh
     if not year and not month and not days and not force_refresh and _is_cache_fresh():
         return _load_from_cache()
+        
     #If dashboard, and cache is missing/outdated, fetch & block until we have it
     if not year and not month and not days and not force_refresh and not _is_cache_fresh():
         _refresh_cache()
         return _load_from_cache()
+        
     #If filtering (or forced refresh), always fetch live from NVD
     cves = _fetch_from_nvd(days=days or 30)
 
-    #Filter by year and month as needed (handy for advanced charts)
+    # FIX 4: Improved filtering with proper date comparison
     if year and month:
         filtered = []
         for cve in cves:
             pub = cve.get("Published", "")
-            if len(pub) >= 7:
-                if pub[:4] == str(year) and int(pub[5:7]) == int(month):
-                    filtered.append(cve)
+            if pub:
+                try:
+                    # Parse the date properly
+                    if 'T' in pub:
+                        if pub.endswith('Z'):
+                            pub_dt = datetime.fromisoformat(pub.replace('Z', '+00:00'))
+                        else:
+                            pub_dt = datetime.fromisoformat(pub)
+                    else:
+                        pub_dt = datetime.strptime(pub[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                    
+                    # Check if it matches the requested year and month
+                    if pub_dt.year == year and pub_dt.month == month:
+                        filtered.append(cve)
+                except ValueError:
+                    # Fallback to string comparison if parsing fails
+                    if len(pub) >= 7:
+                        if pub[:4] == str(year) and int(pub[5:7]) == int(month):
+                            filtered.append(cve)
         return filtered
     
-    #Otherwise, return all CVEs we just loaded
+    #Filter by year only
     elif year:
         filtered = []
         for cve in cves:
             pub = cve.get("Published", "")
-            if len(pub) >= 4 and pub[:4] == str(year):
-                filtered.append(cve)
+            if pub:
+                try:
+                    # Parse the date properly
+                    if 'T' in pub:
+                        if pub.endswith('Z'):
+                            pub_dt = datetime.fromisoformat(pub.replace('Z', '+00:00'))
+                        else:
+                            pub_dt = datetime.fromisoformat(pub)
+                    else:
+                        pub_dt = datetime.strptime(pub[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                    
+                    # Check if it matches the requested year
+                    if pub_dt.year == year:
+                        filtered.append(cve)
+                except ValueError:
+                    # Fallback to string comparison if parsing fails
+                    if len(pub) >= 4 and pub[:4] == str(year):
+                        filtered.append(cve)
         return filtered
 
     # Otherwise, return all CVEs we just loaded
