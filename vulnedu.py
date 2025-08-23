@@ -218,11 +218,12 @@ def calculate_severity_metrics_fresh(cves):
     return result
 
 def generate_timeline_data():
-    """Generate timeline data with more accurate recent data"""
+    """Generate timeline data with accurate recent data and proper historical simulation"""
     now = datetime.now(timezone.utc)
     months = []
     base_month = now.replace(day=1)
     
+    # Generate last 36 months
     for i in reversed(range(36)):
         dt = (base_month - timedelta(days=31 * i)).replace(day=1)
         months.append((dt.year, dt.month))
@@ -230,44 +231,85 @@ def generate_timeline_data():
     month_labels = [f"{y}-{m:02d}" for y, m in months]
     month_counts = {k: 0 for k in month_labels}
     
-    # Get fresh data for recent months (last 6 months)
-    try:
-        recent_cves = get_all_cves(days=180, force_refresh=True)  # Last 6 months
-        for cve in recent_cves:
-            published_str = cve.get('Published', '')
-            if published_str and len(published_str) >= 7:
-                month_key = published_str[:7]
-                if month_key in month_counts:
-                    month_counts[month_key] += 1
-    except Exception as e:
-        print(f"[Timeline] Error fetching recent CVEs: {e}")
-        # Fall back to cached data if available
-        recent_cves = get_all_cves(days=30)
-        for cve in recent_cves:
-            published_str = cve.get('Published', '')
-            if published_str and len(published_str) >= 7:
-                month_key = published_str[:7]
-                if month_key in month_counts:
-                    month_counts[month_key] += 1
+    print(f"[Timeline] Generating timeline data for {len(month_labels)} months")
     
-    # Fill in missing months with realistic simulated data
+    # Get fresh data for ALL months in the current year
     current_year = now.year
     current_month = now.month
+    
+    try:
+        # Fetch data for the entire current year to get accurate counts
+        print(f"[Timeline] Fetching data for current year {current_year}")
+        current_year_cves = get_all_cves(year=current_year, force_refresh=True)
+        
+        # Process current year CVEs
+        for cve in current_year_cves:
+            published_str = cve.get('Published', '')
+            if published_str and len(published_str) >= 7:
+                month_key = published_str[:7]  # YYYY-MM format
+                if month_key in month_counts:
+                    month_counts[month_key] += 1
+        
+        print(f"[Timeline] Processed {len(current_year_cves)} CVEs for current year")
+        
+        # Also get some recent data from previous year for better accuracy
+        if current_year > 2022:
+            prev_year_cves = get_all_cves(year=current_year-1, force_refresh=True)
+            for cve in prev_year_cves:
+                published_str = cve.get('Published', '')
+                if published_str and len(published_str) >= 7:
+                    month_key = published_str[:7]
+                    if month_key in month_counts:
+                        month_counts[month_key] += 1
+            
+            print(f"[Timeline] Processed {len(prev_year_cves)} CVEs for previous year")
+        
+    except Exception as e:
+        print(f"[Timeline] Error fetching current year data: {e}")
+        # Fall back to recent days data
+        try:
+            recent_cves = get_all_cves(days=90, force_refresh=True)
+            for cve in recent_cves:
+                published_str = cve.get('Published', '')
+                if published_str and len(published_str) >= 7:
+                    month_key = published_str[:7]
+                    if month_key in month_counts:
+                        month_counts[month_key] += 1
+            print(f"[Timeline] Used fallback data: {len(recent_cves)} CVEs from last 90 days")
+        except Exception as fallback_error:
+            print(f"[Timeline] Fallback also failed: {fallback_error}")
+    
+    # Fill in missing historical months with realistic simulated data
+    # Only simulate for months that are NOT in the current year
     for (y, m), label in zip(months, month_labels):
         if month_counts[label] == 0:
-            # Don't simulate current and recent months if we have no real data
-            if y == current_year and m >= current_month - 1:
+            # Don't simulate current year data - if it's zero, leave it zero
+            if y == current_year:
+                print(f"[Timeline] Keeping zero count for current year month {label} (no data available)")
                 continue
-            elif y >= current_year - 1:
-                # Recent historical data
+                
+            # Generate realistic historical data for previous years
+            if y >= current_year - 2:
+                # Recent historical years (more accurate simulation)
                 base_count = random.randint(800, 1500)
                 seasonal_factor = 1.0 + 0.3 * math.sin(2 * math.pi * m / 12)
                 month_counts[label] = int(base_count * seasonal_factor)
-            else:
-                # Older historical data
+            elif y >= current_year - 5:
+                # Medium historical years
                 base_count = random.randint(600, 1200)
                 seasonal_factor = 1.0 + 0.2 * math.sin(2 * math.pi * m / 12)
                 month_counts[label] = int(base_count * seasonal_factor)
+            else:
+                # Older historical years
+                base_count = random.randint(400, 900)
+                seasonal_factor = 1.0 + 0.15 * math.sin(2 * math.pi * m / 12)
+                month_counts[label] = int(base_count * seasonal_factor)
+    
+    # Log the final counts for debugging
+    current_year_months = [label for label in month_labels if label.startswith(str(current_year))]
+    for month_label in current_year_months:
+        count = month_counts[month_label]
+        print(f"[Timeline] {month_label}: {count} CVEs")
     
     return {
         'labels': list(month_counts.keys()),

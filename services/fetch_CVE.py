@@ -8,7 +8,7 @@ import time
 
 #Where we'll keep scraped CVEs between sessions (local file cache)
 CACHE_PATH = "data/cache/cve_cache.json"
-CACHE_TIME_MINUTES = 60     # Reduced to 1 hour for fresher data
+CACHE_TIME_MINUTES = 60     # 1 hour for fresher data
 SCHEDULE_HOUR = 0           # Midnight (server local time)
 
 def _is_cache_fresh():
@@ -69,12 +69,42 @@ def _parse_cve_datetime(date_str):
         print(f"[CVEs] Warning: Could not parse date '{date_str}': {e}")
         return None
 
+def _is_rejected_cve(cve_data):
+    """Check if a CVE is rejected or invalid"""
+    cve = cve_data.get("cve", {})
+    
+    # Check vulnerability status
+    vuln_status = cve.get("vulnStatus", "").upper()
+    if vuln_status in ["REJECTED", "WITHDRAWN"]:
+        return True
+    
+    # Check description for rejection indicators
+    descriptions = cve.get("descriptions", [])
+    for desc in descriptions:
+        if desc.get("lang") == "en":
+            desc_text = desc.get("value", "").lower()
+            # Common rejection patterns
+            rejection_indicators = [
+                "rejected reason:",
+                "not used",
+                "** reject **",
+                "** reserved **",
+                "this cve id has been rejected",
+                "this identifier was withdrawn",
+                "duplicate of cve-"
+            ]
+            if any(indicator in desc_text for indicator in rejection_indicators):
+                return True
+    
+    return False
+
 def _fetch_from_nvd(days=30, year=None, month=None):
     """Grabs CVEs from NVD API for the specified time period"""
     now_utc = datetime.now(timezone.utc)
     all_cves = []
     start_index = 0
     results_per_page = 2000
+    rejected_count = 0
     
     # Calculate date range based on parameters
     if year and month:
@@ -131,6 +161,11 @@ def _fetch_from_nvd(days=30, year=None, month=None):
             
         page_added = 0
         for item in vulnerabilities:
+            # Skip rejected CVEs
+            if _is_rejected_cve(item):
+                rejected_count += 1
+                continue
+                
             cve = item.get("cve", {})
             published_str = cve.get("published", "")
             if not published_str:
@@ -151,6 +186,10 @@ def _fetch_from_nvd(days=30, year=None, month=None):
                 if desc.get("lang") == "en":
                     description = desc.get("value", "")
                     break
+            
+            # Skip CVEs without proper descriptions
+            if not description or len(description.strip()) < 10:
+                continue
             
             severity = "UNKNOWN"
             cvss = None
@@ -198,7 +237,7 @@ def _fetch_from_nvd(days=30, year=None, month=None):
 
         total_results = data.get("totalResults", 0)
         total_fetched += page_added
-        print(f"[CVEs] Page {start_index//results_per_page + 1}: Added {page_added} CVEs. Total so far: {total_fetched}/{total_results}")
+        print(f"[CVEs] Page {start_index//results_per_page + 1}: Added {page_added} valid CVEs, rejected {rejected_count} CVEs. Total so far: {total_fetched}/{total_results}")
         
         # Check if we have all results
         if start_index + results_per_page >= total_results or len(vulnerabilities) < results_per_page:
@@ -213,7 +252,7 @@ def _fetch_from_nvd(days=30, year=None, month=None):
 
     # Sort from newest to oldest
     all_cves.sort(key=lambda x: x.get("Published") or "", reverse=True)
-    print(f"[CVEs] Fetch completed. Total CVEs: {len(all_cves)}")
+    print(f"[CVEs] Fetch completed. Total valid CVEs: {len(all_cves)}, rejected CVEs filtered out: {rejected_count}")
     return all_cves
 
 def _refresh_cache():
@@ -222,7 +261,7 @@ def _refresh_cache():
     try:
         cves = _fetch_from_nvd(days=30)  # Get last 30 days for dashboard
         _save_to_cache(cves)
-        print(f"[CVEs] Cache refreshed successfully. Fetched {len(cves)} CVEs.")
+        print(f"[CVEs] Cache refreshed successfully. Fetched {len(cves)} valid CVEs.")
     except Exception as e:
         print(f"[CVEs] Cache refresh failed: {e}")
 
