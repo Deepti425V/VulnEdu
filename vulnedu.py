@@ -33,6 +33,10 @@ _warmed_up = False
 def force_refresh():
     """Debug route to force fresh data and clear all caches"""
     try:
+        print("=" * 50)
+        print("DEBUG FORCE REFRESH STARTED")
+        print("=" * 50)
+        
         # Clear severity cache
         global severity_cache
         with severity_cache['lock']:
@@ -47,25 +51,131 @@ def force_refresh():
         
         # Delete cache file if it exists
         cache_path = "data/cache/cve_cache.json"
+        cache_deleted = False
         if os.path.exists(cache_path):
             os.remove(cache_path)
+            cache_deleted = True
+            print(f"[DEBUG] Cache file deleted: {cache_path}")
             
         # Force fresh CVE fetch for today
+        print("[DEBUG] Fetching fresh CVE data for today...")
         fresh_cves = get_all_cves(days=1, force_refresh=True)
         
         # Get sample publish dates
         sample_dates = [cve.get("Published") for cve in fresh_cves[:10]]
         
+        # Test current year data
+        print("[DEBUG] Testing current year data fetch...")
+        current_year = datetime.now(timezone.utc).year
+        current_year_cves = get_all_cves(year=current_year, force_refresh=True)
+        
+        # Analyze current year data by month
+        monthly_counts = {}
+        for cve in current_year_cves:
+            pub_date = cve.get('Published', '')
+            if len(pub_date) >= 7:
+                month_key = pub_date[:7]
+                monthly_counts[month_key] = monthly_counts.get(month_key, 0) + 1
+        
+        print(f"[DEBUG] Current year ({current_year}) CVE counts by month:")
+        for month, count in sorted(monthly_counts.items()):
+            print(f"[DEBUG]   {month}: {count} CVEs")
+        
+        # Generate fresh timeline data
+        print("[DEBUG] Generating fresh timeline data...")
+        timeline_data = generate_timeline_data()
+        
+        # Show recent months from timeline
+        current_year_labels = [label for label in timeline_data['labels'] if label.startswith(str(current_year))]
+        current_year_values = []
+        for label in current_year_labels:
+            idx = timeline_data['labels'].index(label)
+            current_year_values.append(timeline_data['values'][idx])
+        
+        print(f"[DEBUG] Timeline data for {current_year}:")
+        for label, value in zip(current_year_labels, current_year_values):
+            print(f"[DEBUG]   {label}: {value} CVEs")
+        
         return {
             "status": "success",
             "message": "All caches cleared and fresh data fetched",
             "today_cves_count": len(fresh_cves),
+            "current_year_cves_count": len(current_year_cves),
+            "current_year_monthly_counts": monthly_counts,
+            "timeline_current_year": dict(zip(current_year_labels, current_year_values)),
             "sample_publish_dates": sample_dates,
-            "cache_file_deleted": not os.path.exists(cache_path),
+            "cache_file_deleted": cache_deleted,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
     except Exception as e:
+        print(f"[DEBUG] Error in force_refresh: {e}")
+        import traceback
+        traceback.print_exc()
         return {"error": str(e), "timestamp": datetime.now(timezone.utc).isoformat()}, 500
+
+@app.route("/debug/timeline-test")
+def timeline_test():
+    """Special debug endpoint just for timeline testing"""
+    try:
+        print("=" * 50)
+        print("TIMELINE DEBUG TEST")
+        print("=" * 50)
+        
+        current_year = datetime.now(timezone.utc).year
+        print(f"[TIMELINE-DEBUG] Current year: {current_year}")
+        
+        # Test direct CVE fetch for current year
+        print(f"[TIMELINE-DEBUG] Fetching CVEs for year {current_year}...")
+        year_cves = get_all_cves(year=current_year, force_refresh=True)
+        print(f"[TIMELINE-DEBUG] Found {len(year_cves)} CVEs for {current_year}")
+        
+        # Analyze by month
+        month_analysis = {}
+        for cve in year_cves:
+            pub_str = cve.get('Published', '')
+            print(f"[TIMELINE-DEBUG] CVE {cve.get('ID', 'UNKNOWN')}: Published = '{pub_str}'")
+            if len(pub_str) >= 7:
+                month_key = pub_str[:7]
+                if month_key not in month_analysis:
+                    month_analysis[month_key] = []
+                month_analysis[month_key].append(cve.get('ID', 'UNKNOWN'))
+        
+        print(f"[TIMELINE-DEBUG] Month analysis:")
+        for month, cve_ids in sorted(month_analysis.items()):
+            print(f"[TIMELINE-DEBUG]   {month}: {len(cve_ids)} CVEs")
+            if len(cve_ids) <= 5:  # Show first 5 CVE IDs
+                print(f"[TIMELINE-DEBUG]     Sample IDs: {cve_ids}")
+            else:
+                print(f"[TIMELINE-DEBUG]     Sample IDs: {cve_ids[:5]}... (+{len(cve_ids)-5} more)")
+        
+        # Generate timeline and show the process
+        print(f"[TIMELINE-DEBUG] Generating timeline data...")
+        timeline_data = generate_timeline_data()
+        
+        # Show current year timeline results
+        current_year_timeline = {}
+        for i, label in enumerate(timeline_data['labels']):
+            if label.startswith(str(current_year)):
+                current_year_timeline[label] = timeline_data['values'][i]
+        
+        print(f"[TIMELINE-DEBUG] Final timeline for {current_year}:")
+        for month, count in current_year_timeline.items():
+            print(f"[TIMELINE-DEBUG]   {month}: {count} CVEs")
+        
+        return {
+            "status": "success",
+            "current_year": current_year,
+            "direct_fetch_count": len(year_cves),
+            "month_analysis": {month: len(cves) for month, cves in month_analysis.items()},
+            "timeline_results": current_year_timeline,
+            "sample_cves": [{"id": cve.get('ID'), "published": cve.get('Published')} for cve in year_cves[:10]]
+        }
+        
+    except Exception as e:
+        print(f"[TIMELINE-DEBUG] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e)}, 500
 
 @app.route("/health")
 def health_check():
@@ -219,6 +329,8 @@ def calculate_severity_metrics_fresh(cves):
 
 def generate_timeline_data():
     """Generate timeline data with accurate recent data and proper historical simulation"""
+    print("[Timeline] Starting timeline data generation...")
+    
     now = datetime.now(timezone.utc)
     months = []
     base_month = now.replace(day=1)
@@ -232,55 +344,87 @@ def generate_timeline_data():
     month_counts = {k: 0 for k in month_labels}
     
     print(f"[Timeline] Generating timeline data for {len(month_labels)} months")
+    print(f"[Timeline] Month range: {month_labels[0]} to {month_labels[-1]}")
     
     # Get fresh data for ALL months in the current year
     current_year = now.year
     current_month = now.month
     
+    print(f"[Timeline] Current year: {current_year}, current month: {current_month}")
+    
     try:
         # Fetch data for the entire current year to get accurate counts
         print(f"[Timeline] Fetching data for current year {current_year}")
         current_year_cves = get_all_cves(year=current_year, force_refresh=True)
+        print(f"[Timeline] Fetched {len(current_year_cves)} CVEs for current year")
         
-        # Process current year CVEs
+        # Process current year CVEs with detailed logging
+        processed_count = 0
         for cve in current_year_cves:
             published_str = cve.get('Published', '')
+            cve_id = cve.get('ID', 'UNKNOWN')
+            
             if published_str and len(published_str) >= 7:
                 month_key = published_str[:7]  # YYYY-MM format
                 if month_key in month_counts:
                     month_counts[month_key] += 1
+                    processed_count += 1
+                    
+                    # Log first few CVEs for each month
+                    if month_counts[month_key] <= 3:
+                        print(f"[Timeline] Added {cve_id} to {month_key} (published: {published_str})")
+            else:
+                print(f"[Timeline] Skipping {cve_id} - invalid publish date: '{published_str}'")
         
-        print(f"[Timeline] Processed {len(current_year_cves)} CVEs for current year")
+        print(f"[Timeline] Processed {processed_count} CVEs for current year")
+        
+        # Show current year month counts
+        for month_label in month_labels:
+            if month_label.startswith(str(current_year)) and month_counts[month_label] > 0:
+                print(f"[Timeline] {month_label}: {month_counts[month_label]} CVEs")
         
         # Also get some recent data from previous year for better accuracy
         if current_year > 2022:
+            print(f"[Timeline] Fetching data for previous year {current_year-1}")
             prev_year_cves = get_all_cves(year=current_year-1, force_refresh=True)
+            
+            prev_processed = 0
             for cve in prev_year_cves:
                 published_str = cve.get('Published', '')
                 if published_str and len(published_str) >= 7:
                     month_key = published_str[:7]
                     if month_key in month_counts:
                         month_counts[month_key] += 1
+                        prev_processed += 1
             
-            print(f"[Timeline] Processed {len(prev_year_cves)} CVEs for previous year")
+            print(f"[Timeline] Processed {prev_processed} CVEs for previous year")
         
     except Exception as e:
         print(f"[Timeline] Error fetching current year data: {e}")
+        import traceback
+        traceback.print_exc()
+        
         # Fall back to recent days data
         try:
+            print("[Timeline] Falling back to recent days data...")
             recent_cves = get_all_cves(days=90, force_refresh=True)
+            fallback_processed = 0
             for cve in recent_cves:
                 published_str = cve.get('Published', '')
                 if published_str and len(published_str) >= 7:
                     month_key = published_str[:7]
                     if month_key in month_counts:
                         month_counts[month_key] += 1
-            print(f"[Timeline] Used fallback data: {len(recent_cves)} CVEs from last 90 days")
+                        fallback_processed += 1
+            print(f"[Timeline] Used fallback data: processed {fallback_processed} CVEs from last 90 days")
         except Exception as fallback_error:
             print(f"[Timeline] Fallback also failed: {fallback_error}")
+            import traceback
+            traceback.print_exc()
     
     # Fill in missing historical months with realistic simulated data
     # Only simulate for months that are NOT in the current year
+    simulated_count = 0
     for (y, m), label in zip(months, month_labels):
         if month_counts[label] == 0:
             # Don't simulate current year data - if it's zero, leave it zero
@@ -294,27 +438,38 @@ def generate_timeline_data():
                 base_count = random.randint(800, 1500)
                 seasonal_factor = 1.0 + 0.3 * math.sin(2 * math.pi * m / 12)
                 month_counts[label] = int(base_count * seasonal_factor)
+                simulated_count += 1
             elif y >= current_year - 5:
                 # Medium historical years
                 base_count = random.randint(600, 1200)
                 seasonal_factor = 1.0 + 0.2 * math.sin(2 * math.pi * m / 12)
                 month_counts[label] = int(base_count * seasonal_factor)
+                simulated_count += 1
             else:
                 # Older historical years
                 base_count = random.randint(400, 900)
                 seasonal_factor = 1.0 + 0.15 * math.sin(2 * math.pi * m / 12)
                 month_counts[label] = int(base_count * seasonal_factor)
+                simulated_count += 1
     
-    # Log the final counts for debugging
+    print(f"[Timeline] Simulated {simulated_count} historical months")
+    
+    # Log the final counts for debugging current year
     current_year_months = [label for label in month_labels if label.startswith(str(current_year))]
+    print(f"[Timeline] FINAL COUNTS for {current_year}:")
     for month_label in current_year_months:
         count = month_counts[month_label]
-        print(f"[Timeline] {month_label}: {count} CVEs")
+        print(f"[Timeline]   {month_label}: {count} CVEs")
+    
+    total_cves = sum(month_counts.values())
+    print(f"[Timeline] Timeline generation completed. Total CVEs across all months: {total_cves}")
     
     return {
         'labels': list(month_counts.keys()),
         'values': [month_counts[k] for k in month_counts.keys()]
     }
+
+# [Rest of the functions remain the same as in your current app.py...]
 
 def generate_sample_cves_for_month(year, month, count):
     """Generate sample CVE data for demonstration purposes"""
