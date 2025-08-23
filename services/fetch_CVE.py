@@ -8,7 +8,7 @@ import time
 
 #Where we'll keep scraped CVEs between sessions (local file cache)
 CACHE_PATH = "data/cache/cve_cache.json"
-CACHE_TIME_MINUTES = 60     # 1 hour for fresher data
+CACHE_TIME_MINUTES = 240  # 4 hours - much longer to prevent constant refetching
 SCHEDULE_HOUR = 0           # Midnight (server local time)
 
 def _is_cache_fresh():
@@ -19,6 +19,7 @@ def _is_cache_fresh():
         mtime = datetime.fromtimestamp(os.path.getmtime(CACHE_PATH), tz=timezone.utc)
         now = datetime.now(timezone.utc)
         age_minutes = (now - mtime).total_seconds() / 60
+        print(f"[CVEs] Cache age: {age_minutes:.1f} minutes (fresh if < {CACHE_TIME_MINUTES})")
         return age_minutes < CACHE_TIME_MINUTES
     except Exception:
         return False
@@ -99,7 +100,9 @@ def _is_rejected_cve(cve_data):
     return False
 
 def _fetch_from_nvd(days=30, year=None, month=None):
-    """Grabs CVEs from NVD API for the specified time period"""
+    """Grabs CVEs from NVD API for the specified time period - ONLY WHEN ABSOLUTELY NECESSARY"""
+    print(f"[CVEs] WARNING: Making expensive API call! (days={days}, year={year}, month={month})")
+    
     now_utc = datetime.now(timezone.utc)
     all_cves = []
     start_index = 0
@@ -269,12 +272,15 @@ def _auto_refresh_job():
     """Scheduler thread: wakes up periodically to update cache"""
     while True:
         try:
-            # Refresh every hour instead of daily for more current data
-            time.sleep(3600)  # 1 hour
-            _refresh_cache()
+            # Only refresh every 4 hours to avoid excessive API calls
+            time.sleep(14400)  # 4 hours
+            if not _is_cache_fresh():  # Only refresh if cache is actually stale
+                _refresh_cache()
+            else:
+                print("[CVEs] Cache still fresh, skipping auto-refresh")
         except Exception as e:
             print(f"[CVEs] Auto-refresh error: {e}")
-            time.sleep(300)  # Wait 5 minutes before retrying
+            time.sleep(1800)  # Wait 30 minutes before retrying
 
 def start_auto_cache_scheduler():
     """Start the scheduler thread automatically"""
@@ -284,44 +290,80 @@ def start_auto_cache_scheduler():
 
 def get_all_cves(max_results=None, year=None, month=None, days=None, force_refresh=False):
     """
-    Returns the latest CVEs. Uses local cache for dashboard, fresh data for filters.
+    Returns the latest CVEs. PRIORITY: Use cached data unless absolutely necessary.
     
     Args:
         max_results: Maximum number of results to return
         year: Filter by specific year
         month: Filter by specific month (requires year)
         days: Get data from last N days
-        force_refresh: Force fresh fetch from NVD API
+        force_refresh: Force fresh fetch from NVD API (USE SPARINGLY!)
     """
     
-    # If filtering by specific time periods or forced refresh, always fetch fresh
-    if year or month or days or force_refresh:
-        print(f"[CVEs] Fetching fresh data (year={year}, month={month}, days={days}, force={force_refresh})")
-        cves = _fetch_from_nvd(days=days or 30, year=year, month=month)
-        
-        # Apply max_results limit if specified
-        if max_results and len(cves) > max_results:
-            cves = cves[:max_results]
-            
-        return cves
+    print(f"[CVEs] Request: year={year}, month={month}, days={days}, force_refresh={force_refresh}")
     
-    # For dashboard (no filters), try to use cache first
-    if _is_cache_fresh():
-        print("[CVEs] Using cached data for dashboard")
-        cached_cves = _load_from_cache()
-        if cached_cves:
-            if max_results and len(cached_cves) > max_results:
-                return cached_cves[:max_results]
-            return cached_cves
-    
-    # Cache is stale or empty, refresh it
-    print("[CVEs] Cache is stale, refreshing...")
-    _refresh_cache()
+    # CRITICAL: Always try cache first, regardless of parameters
     cached_cves = _load_from_cache()
+    cache_is_fresh = _is_cache_fresh()
     
-    if max_results and len(cached_cves) > max_results:
-        return cached_cves[:max_results]
-    return cached_cves
+    # If we have fresh cached data, use it for most requests
+    if cached_cves and cache_is_fresh and not force_refresh:
+        print(f"[CVEs] Using cached data ({len(cached_cves)} CVEs)")
+        
+        # Apply filters to cached data if needed
+        filtered_cves = cached_cves
+        
+        if year:
+            filtered_cves = [cve for cve in filtered_cves if cve.get('Published', '')[:4] == str(year)]
+            
+        if month and year:
+            month_str = f"{year}-{month:02d}"
+            filtered_cves = [cve for cve in filtered_cves if cve.get('Published', '')[:7] == month_str]
+            
+        if max_results and len(filtered_cves) > max_results:
+            filtered_cves = filtered_cves[:max_results]
+            
+        print(f"[CVEs] Filtered to {len(filtered_cves)} CVEs from cache")
+        return filtered_cves
+    
+    # Only make API calls if absolutely necessary
+    if force_refresh or not cached_cves or not cache_is_fresh:
+        print(f"[CVEs] Making API call - force_refresh={force_refresh}, has_cache={bool(cached_cves)}, cache_fresh={cache_is_fresh}")
+        
+        try:
+            # Fetch fresh data
+            if year and month:
+                fresh_cves = _fetch_from_nvd(year=year, month=month)
+            elif year:
+                fresh_cves = _fetch_from_nvd(year=year)
+            elif days:
+                fresh_cves = _fetch_from_nvd(days=days)
+            else:
+                fresh_cves = _fetch_from_nvd(days=30)
+            
+            # Update cache with fresh data (but only for recent data)
+            if not year and not month:  # Only cache recent data
+                _save_to_cache(fresh_cves)
+            
+            if max_results and len(fresh_cves) > max_results:
+                fresh_cves = fresh_cves[:max_results]
+                
+            return fresh_cves
+            
+        except Exception as e:
+            print(f"[CVEs] API call failed: {e}")
+            # Fall back to cached data even if stale
+            if cached_cves:
+                print(f"[CVEs] Falling back to stale cached data ({len(cached_cves)} CVEs)")
+                if max_results and len(cached_cves) > max_results:
+                    return cached_cves[:max_results]
+                return cached_cves
+            else:
+                print("[CVEs] No cached data available, returning empty list")
+                return []
+    
+    # This should never be reached, but just in case
+    return cached_cves or []
 
 # Start the auto-refresh scheduler when module is imported
 start_auto_cache_scheduler()
