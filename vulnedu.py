@@ -26,7 +26,7 @@ severity_cache = {
 }
 
 TIMELINE_CACHE_HOURS = 6
-SEVERITY_CACHE_MINUTES = 5  # Much shorter cache for severity data
+SEVERITY_CACHE_MINUTES = 10  # 10 minutes cache for severity data
 _warmed_up = False
 
 @app.route("/health")
@@ -82,8 +82,8 @@ def get_cached_timeline_data():
         timeline_cache['last_updated'] = now
         return timeline_data
 
-def get_cached_severity_metrics(year=None, month=None, force_refresh=False):
-    """Get cached severity metrics with shorter cache time for real-time updates"""
+def get_cached_severity_metrics(year=None, month=None):
+    """Get cached severity metrics with reasonable cache time"""
     global severity_cache
     with severity_cache['lock']:
         now = datetime.now(timezone.utc)
@@ -91,44 +91,46 @@ def get_cached_severity_metrics(year=None, month=None, force_refresh=False):
         
         # Check if we need to refresh cache
         needs_refresh = (
-            force_refresh or
             severity_cache['data'] is None or 
+            cache_key not in (severity_cache['data'] or {}) or
             severity_cache['last_updated'] is None or
             (now - severity_cache['last_updated']).total_seconds() > SEVERITY_CACHE_MINUTES * 60
         )
         
         if needs_refresh:
-            print(f"Refreshing severity cache for {cache_key}")  # Debug logging
+            print(f"Refreshing severity cache for {cache_key}")
             
-            # Get fresh CVE data
+            # Get CVE data without force refresh to avoid timeouts
             if year and month:
-                fresh_cves = get_all_cves(year=year, month=month, force_refresh=True)
+                fresh_cves = get_all_cves(year=year, month=month)
             elif year:
-                fresh_cves = get_all_cves(year=year, force_refresh=True)
+                fresh_cves = get_all_cves(year=year)
             else:
-                fresh_cves = get_all_cves(days=30, force_refresh=True)
+                fresh_cves = get_all_cves(days=30)
             
             # Calculate fresh severity metrics
             severity_data = calculate_severity_metrics_fresh(fresh_cves)
             
-            severity_cache['data'] = {cache_key: severity_data}
+            if severity_cache['data'] is None:
+                severity_cache['data'] = {}
+            severity_cache['data'][cache_key] = severity_data
             severity_cache['last_updated'] = now
-            print(f"Updated severity cache: {severity_data}")  # Debug logging
+            print(f"Updated severity cache: {severity_data}")
             return severity_data
         
         # Return cached data
-        cached_data = severity_cache['data'].get(cache_key) if severity_cache['data'] else None
+        cached_data = severity_cache['data'].get(cache_key)
         if cached_data:
-            print(f"Using cached severity data: {cached_data}")  # Debug logging
+            print(f"Using cached severity data: {cached_data}")
             return cached_data
         
         # Fallback: calculate fresh data
         if year and month:
-            fresh_cves = get_all_cves(year=year, month=month, force_refresh=True)
+            fresh_cves = get_all_cves(year=year, month=month)
         elif year:
-            fresh_cves = get_all_cves(year=year, force_refresh=True)
+            fresh_cves = get_all_cves(year=year)
         else:
-            fresh_cves = get_all_cves(days=30, force_refresh=True)
+            fresh_cves = get_all_cves(days=30)
         
         return calculate_severity_metrics_fresh(fresh_cves)
 
@@ -157,13 +159,12 @@ def calculate_severity_metrics_fresh(cves):
                     else:
                         counts['LOW'] += 1
                 except (ValueError, TypeError):
-                    counts['LOW'] += 1  # Default unknown to LOW
+                    counts['LOW'] += 1
             else:
-                counts['LOW'] += 1  # Default unknown to LOW
+                counts['LOW'] += 1
     
     # Ensure all severity levels are present
     result = {level: counts.get(level, 0) for level in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']}
-    print(f"Fresh severity metrics calculated: {result}")  # Debug logging
     return result
 
 def generate_timeline_data():
@@ -178,7 +179,7 @@ def generate_timeline_data():
     month_labels = [f"{y}-{m:02d}" for y, m in months]
     month_counts = {k: 0 for k in month_labels}
     
-    recent_cves = get_all_cves(days=30, force_refresh=True)
+    recent_cves = get_all_cves(days=30)  # Remove force_refresh
     for cve in recent_cves:
         published_str = cve.get('Published', '')
         if published_str and len(published_str) >= 7:
@@ -305,11 +306,9 @@ def warm_dashboard_cache_if_needed():
         _warmed_up = True
         def _warm():
             try:
-                get_all_cves(days=30, force_refresh=True)
+                get_all_cves(days=30)  # Remove force_refresh
                 refresh_timeline_cache_background()
                 warm_cwe_cache()
-                # Warm severity cache
-                get_cached_severity_metrics(force_refresh=True)
             except Exception:
                 pass
         Thread(target=_warm, daemon=True).start()
@@ -418,7 +417,7 @@ def get_cwe_radar_descriptions():
     return desc
 
 def get_cve_trends_30_days():
-    cves = get_all_cves(days=30, force_refresh=True)
+    cves = get_all_cves(days=30)  # Remove force_refresh
     today = datetime.now(timezone.utc).date()
     start_day = today - timedelta(days=29)
     
@@ -468,8 +467,8 @@ def index():
     now_date = datetime.now(timezone.utc).date()
     daily_start = now_date - timedelta(days=fetch_days - 1)
     
-    # Force refresh CVE data to ensure we get latest counts
-    all_cves = get_all_cves(year=year, month=month, force_refresh=True)
+    # Get CVE data without force refresh
+    all_cves = get_all_cves(year=year, month=month)
     
     all_cves_with_dates = []
     for cve in all_cves:
@@ -480,8 +479,8 @@ def index():
     
     all_cves_with_dates.sort(key=lambda cve: cve.get('_parsed_published', datetime.min), reverse=True)
     
-    # Get fresh severity metrics with forced refresh
-    metrics = get_cached_severity_metrics(year=year, month=month, force_refresh=True)
+    # Get cached severity metrics (will refresh if cache expired)
+    metrics = get_cached_severity_metrics(year=year, month=month)
     total_cves = sum(metrics.values())
     
     timeline_daily = get_cve_trends_30_days()
@@ -528,8 +527,6 @@ def index():
         if k not in metrics:
             metrics[k] = 0
     
-    print(f"Index route - Final metrics being sent to template: {metrics}")  # Debug logging
-    
     return render_template(
         "index.html",
         year_filter=year,
@@ -566,7 +563,7 @@ def learn_topic(topic):
     if topic not in valid_topics:
         return redirect(url_for('learn_topic', topic='what-is-cve'))
     
-    cves = get_all_cves(force_refresh=True)
+    cves = get_all_cves()  # Remove force_refresh
     cwe_dict = get_cwe_dict()
     selected_cwes = list(CWE_TITLES.keys())
     cwe_severity = get_cwe_severity_chart_data(cves, selected_cwes)
@@ -627,7 +624,7 @@ def vulnerabilities():
         months_diff = (current_date.year - year) * 12 + (current_date.month - month)
         
         if months_diff <= 2:
-            all_cves = get_all_cves(year=year, month=month, force_refresh=True)
+            all_cves = get_all_cves(year=year, month=month)  # Remove force_refresh
         else:
             timeline_data = get_cached_timeline_data()
             month_key = f"{year}-{month:02d}"
@@ -637,7 +634,7 @@ def vulnerabilities():
                 all_cves = generate_sample_cves_for_month(year, month, count)
     elif year and not month:
         if year == current_date.year:
-            all_cves = get_all_cves(year=year, force_refresh=True)
+            all_cves = get_all_cves(year=year)  # Remove force_refresh
         else:
             all_cves = []
             timeline_data = get_cached_timeline_data()
@@ -651,7 +648,7 @@ def vulnerabilities():
                     sample_count = random.randint(600, 1200)
                     all_cves.extend(generate_sample_cves_for_month(year, m, sample_count))
     else:
-        all_cves = get_all_cves(days=30, force_refresh=True)
+        all_cves = get_all_cves(days=30)  # Remove force_refresh
     
     all_cves_with_dates = []
     for cve in all_cves:
