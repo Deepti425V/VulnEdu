@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, url_for, redirect, jsonify
-from services.fetch_CVE import get_all_cves
+from services.fetch_CVE import get_all_cves, _fetch_from_nvd
 from services.nvd_api import get_cve_detail
 from services.cwe_data import get_cwe_dict, get_single_cwe, warm_cwe_cache
 from services.cwe_map import CWE_TITLES, cwe_title
@@ -28,6 +28,41 @@ severity_cache = {
 TIMELINE_CACHE_HOURS = 6
 SEVERITY_CACHE_MINUTES = 10  # 10 minutes cache for severity data
 _warmed_up = False
+
+@app.route("/debug/force-refresh")
+def force_refresh():
+    """Debug route to force fresh data and clear all caches"""
+    try:
+        # Clear severity cache
+        global severity_cache
+        severity_cache['data'] = None
+        severity_cache['last_updated'] = None
+        
+        # Clear timeline cache
+        global timeline_cache
+        timeline_cache['data'] = None
+        timeline_cache['last_updated'] = None
+        
+        # Delete cache file if it exists
+        cache_path = "data/cache/cve_cache.json"
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
+            
+        # Force fresh CVE fetch for today only (fast test)
+        fresh_cves = _fetch_from_nvd(days=1)
+        
+        # Get sample publish dates
+        sample_dates = [cve.get("Published") for cve in fresh_cves[:10]]
+        
+        return {
+            "status": "success",
+            "message": "All caches cleared and fresh data fetched",
+            "today_cves_count": len(fresh_cves),
+            "sample_publish_dates": sample_dates,
+            "cache_file_deleted": not os.path.exists(cache_path)
+        }
+    except Exception as e:
+        return {"error": str(e)}, 500
 
 @app.route("/health")
 def health_check():
@@ -82,7 +117,7 @@ def get_cached_timeline_data():
         timeline_cache['last_updated'] = now
         return timeline_data
 
-def get_cached_severity_metrics(year=None, month=None):
+def get_cached_severity_metrics(year=None, month=None, force_clear=False):
     """Get cached severity metrics with reasonable cache time"""
     global severity_cache
     with severity_cache['lock']:
@@ -91,6 +126,7 @@ def get_cached_severity_metrics(year=None, month=None):
         
         # Check if we need to refresh cache
         needs_refresh = (
+            force_clear or
             severity_cache['data'] is None or 
             cache_key not in (severity_cache['data'] or {}) or
             severity_cache['last_updated'] is None or
@@ -348,7 +384,7 @@ def get_cwe_severity_chart_data(cves, selected_cwe_list):
         'indices': selected_cwe_list,
         'data': {
             'CRITICAL': [cwe_severity[cwe].get('CRITICAL', 0) for cwe in selected_cwe_list],
-            'HIGH': [cwe_severity[cwe].get('HIGH', 0) for cwe in selected_cwe_list],
+            'HIGH': [cwe_severity[cve].get('HIGH', 0) for cwe in selected_cwe_list],
             'MEDIUM': [cwe_severity[cwe].get('MEDIUM', 0) for cwe in selected_cwe_list],
             'LOW': [cwe_severity[cwe].get('LOW', 0) for cwe in selected_cwe_list],
         }
