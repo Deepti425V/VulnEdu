@@ -1,15 +1,17 @@
-<!-- VulnEdu brand logo - scalable vector graphic -->
 <svg width="140" height="36" viewBox="0 0 140 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-
-<!-- Left icon group - abstract data visualization elements -->
-<rect x="4" y="8" width="24" height="8" rx="4" fill="#2071de"/> <!-- Primary rectangle - darker brand blue -->
-<rect x="15" y="18" width="18" height="8" rx="4" fill="#3799f7"/> <!-- Secondary rectangle - lighter blue, overlapping for depth -->
-
-<!-- Central brand wordmark -->
-<text x="42" y="26" fill="#3799f7" font-size="20" font-family="Inter, Arial, sans-serif" font-weight="bold">VulnEdu</text>
-
-<!-- Right accent group - balancing elements -->
-<rect x="110" y="18" width="12" height="6" rx="3" fill="#2071de"/> <!-- Horizontal accent - darker blue -->
-<rect x="125" y="22" width="4" height="8" rx="2" fill="#3799f7"/>  <!-- Vertical accent - lighter blue -->
-
+  
+  <!-- Main blue block on the left (dashboard style) -->
+  <rect x="4" y="8" width="24" height="8" rx="4" fill="#2071de"/>
+  
+  <!-- Slightly lighter blue block below/right, nestled next to main block -->
+  <rect x="15" y="18" width="18" height="8" rx="4" fill="#3799f7"/>
+  
+  <!-- Brand name: VulnEdu, in bold Inter font, matching lighter blue highlight -->
+  <text x="42" y="26" fill="#3799f7" font-size="20" font-family="Inter, Arial, sans-serif" font-weight="bold">VulnEdu</text>
+  
+  <!-- Smaller accent block on the far right, another piece of dashboard style -->
+  <rect x="110" y="18" width="12" height="6" rx="3" fill="#2071de"/>
+  
+  <!-- Slim vertical bar at the end for extra flavor -->
+  <rect x="125" y="22" width="4" height="8" rx="2" fill="#3799f7"/>
 </svg>

@@ -1,314 +1,283 @@
 {% extends "base.html" %}
 {% block head %}
 <style>
-/* ===== Custom styling for scrollbars and CWE list ===== */
-
-/* Bounding box for CWE list on the left sidebar */
+/* Custom scrollbar styling for dark theme */
 .cwe-list-scroll {
-  max-height: 550px;
-  overflow-y: auto;   /* Scroll vertically if too long */
-  list-style: none;
-  padding: 0;
-  margin: 0;
+    max-height: 550px;
+    overflow-y: auto;
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
 
-/* Scrollbar styling (Chrome, Safari, Edge) */
+/* Webkit browsers (Chrome, Safari, Edge) */
 .cwe-list-scroll::-webkit-scrollbar {
-  width: 8px;
+    width: 8px;
 }
+
 .cwe-list-scroll::-webkit-scrollbar-track {
-  background: #1a2236;
-  border-radius: 4px;
+    background: #1a2236;
+    border-radius: 4px;
 }
+
 .cwe-list-scroll::-webkit-scrollbar-thumb {
-  background: #63a4ff;
-  border-radius: 4px;
-  border: 1px solid #263159;
+    background: #63a4ff;
+    border-radius: 4px;
+    border: 1px solid #263159;
 }
+
 .cwe-list-scroll::-webkit-scrollbar-thumb:hover {
-  background: #5292e6;
+    background: #5292e6;
 }
+
 .cwe-list-scroll::-webkit-scrollbar-thumb:active {
-  background: #4a80cc;
+    background: #4a80cc;
 }
 
-/* Scrollbar tweak for Firefox */
+/* Firefox */
 .cwe-list-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: #63a4ff #1a2236;
+    scrollbar-width: thin;
+    scrollbar-color: #63a4ff #1a2236;
 }
 
-/* CWE list items (interactive visual states) */
+/* CWE list item styling */
 .cwe-list-item {
-  padding: 8px 24px;
-  cursor: pointer;
-  font-weight: 500;
-  color: #e3e7f2;
-  user-select: none;
-  border-left: 4px solid transparent;
-  transition: background 0.13s, border-left 0.13s, color 0.13s;
+    padding: 8px 24px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #e3e7f2;
+    user-select: none;
+    border-left: 4px solid transparent;
+    transition: background 0.13s, border-left 0.13s, color 0.13s;
 }
+
 .cwe-list-item:hover {
-  background: #212d46;
-  color: #ffffff;
+    background: #212d46;
+    color: #ffffff;
 }
+
 .cwe-list-item.selected {
-  background: #212d46;
-  border-left: 4px solid #63a4ff;
-  color: #63a4ff;
+    background: #212d46;
+    border-left: 4px solid #63a4ff;
+    color: #63a4ff;
 }
 
-/* CWE code (small text beside CWE name) */
 .cwe-code {
-  color: #94a3b8;
-  font-size: 0.9em;
+    color: #94a3b8;
+    font-size: 0.9em;
 }
 
-/* Toggle button to expand full CWE list */
+/* Enhanced button styling */
 .toggle-button {
-  margin: 16px 0 0 24px;
-  background: #263159;
-  color: #63a4ff;
-  padding: 8px 18px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.97em;
-  transition: background 0.2s, transform 0.1s;
+    margin: 16px 0 0 24px;
+    background: #263159;
+    color: #63a4ff;
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.97em;
+    transition: background 0.2s, transform 0.1s;
 }
+
 .toggle-button:hover {
-  background: #2d3d6b;
-  transform: translateY(-1px);
+    background: #2d3d6b;
+    transform: translateY(-1px);
 }
+
 .toggle-button:active {
-  transform: translateY(0);
+    transform: translateY(0);
 }
 </style>
 {% endblock %}
 
 {% block content %}
 <div style="max-width:1400px;margin:0 auto 32px auto;padding-top:20px;">
-  
-  <!-- Page Title -->
-  <h1 style="color:#63a4ff;">What is a CWE?</h1>
-
-  <!-- Introductory explanation about Concept of CWEs -->
-  <p style="color:#e2e8f0;font-size:1.13em;">
-    <strong>CWE</strong> stands for <em><span style="color:#63a4ff">Common Weakness Enumeration</span></em>.<br>
-    In technology and computer science, we learn by identifying patterns—not just memorizing a list of past mistakes.
-    The <b>CWE catalog</b> is a map of the <span style="color:#fca311;">most common error patterns</span> that lead to
-    vulnerabilities in software.<br><br>
-
-    <b>If you spot the pattern, you can prevent the problem:</b>
-    <ul style="color:#e2e8f0;margin-left:20px;">
-      <li>Like a math book teaches types of mistakes, CWE teaches you <span style="color:#42d392;">recurring
-      security problems</span>.</li>
-      <li><b>CWE entries</b> = chapters in a textbook (each one a type of software weakness).</li>
-      <li>You'll see real-world <b>CVEs</b>, but CWE gives you the abstract problem pattern.</li>
-    </ul>
-  </p>
-
-  <!-- Section: Structure Guide -->
-  <h2 style="color:#cdd7ff;">CWE Structure: How Weakness Types Are Organized</h2>
-  <ul style="color:#e3e8f0;margin-left:20px;">
-    <li><b>ID format:</b> <code>CWE-Number – Name</code></li>
-    <li><b>Name:</b> Concise label for the weakness</li>
-    <li><b>Description:</b> Explains what goes wrong and why</li>
-    <li><b>Example:</b> Shows typical triggering case</li>
-    <li><b>Mitigations:</b> How to avoid the mistake when coding</li>
-    <li><b>Hierarchy:</b> Broad vs. subtype relationships (e.g., Injection → SQL Injection)</li>
-  </ul>
-
-  <!-- Section: CWE Severity Distribution Chart -->
-  <h2 style="color:#cdd7ff;margin-top:26px;">CWEs by Severity</h2>
-  <div style="background:#1a2236;border-radius:12px;padding:28px 18px 25px 18px;margin-bottom:18px;">
-    
-    <!-- Small caption about data source -->
-    <div style="color:#94a3b8; font-size:0.98em; margin-bottom:9px;">
-      <span>Showing data from <b>{% if key_cwes|length > 0 %}recent cache/fallback{% else %}demo fallback{% endif %}</b>.
-            Click any CWE below for live MITRE data.</span>
-    </div>
-
-    <!-- Dropdown filter for top-N CWE selection -->
-    <div style="display:flex;align-items:center; justify-content:space-between;margin-bottom:18px;">
-      <label style="color:#e2e8f0;font-size:1.07em; font-weight:600;">
-        Show:
-        <select id="cweSeverityFilter"
-          style="background:#232b45;color:#63a4ff;padding:7px 14px;border-radius:6px;border:none;margin-left:7px;">
-          <option value="10" selected>Top 10 CWEs</option>
-          <option value="5">Top 5 CWEs</option>
-        </select>
-      </label>
-    </div>
-
-    <!-- Chart rendering area or fallback if none -->
-    <div style="max-width:1400PX;width:100%;overflow-x:auto;">
-      {% if cwe_severity.labels|length > 0 %}
-        <canvas id="cwesBySeverityChart" width="700" height="235"></canvas>
-      {% else %}
-        <div style="color:#f47174;text-align:center;padding:30px 0;">
-          No CWE data available in the catalog.
-        </div>
-      {% endif %}
-    </div>
-  </div>
-
-  <!-- JavaScript Logic -->
-  <script>
-  document.addEventListener('DOMContentLoaded', function(){
-
-    /* Function: Navigate to vulnerabilities filtered by CWE */
-    function goToVulnsForCWE(idx) {
-      const cwe_key = window.cweSeverityData.indices[idx];
-      if (cwe_key) {
-        window.location.href = "/vulnerabilities?q=" + encodeURIComponent(cwe_key);
-      }
-    }
-
-    /* Function: Render severity bar chart */
-    function renderChart(topN) {
-      const data = window.cweSeverityData.data || {};
-      const labels = window.cweSeverityData.labels.slice(0, topN);
-      const chartData = {
-        labels: labels,
-        datasets: [
-          {label:'Critical', data: data.CRITICAL.slice(0, topN), backgroundColor:'#f55855'},
-          {label:'High', data: data.HIGH.slice(0, topN), backgroundColor:'#f8a541'},
-          {label:'Medium', data: data.MEDIUM.slice(0, topN), backgroundColor:'#3b8ded'},
-          {label:'Low', data: data.LOW.slice(0, topN), backgroundColor:'#42d392'}
-        ]
-      };
-
-      // If old chart exists, destroy before recreating
-      if (window.cwesSeverityChart) {
-        window.cwesSeverityChart.destroy();
-      }
-
-      // Create new Chart.js stacked bar chart
-      window.cwesSeverityChart = new Chart(
-        document.getElementById('cwesBySeverityChart').getContext('2d'),
-        {
-          type: 'bar',
-          data: chartData,
-          options:{
-            responsive:true,
-            maintainAspectRatio:false,
-            plugins:{ 
-              legend:{display:true, position:"bottom"},
-              title:{display:true, text:`CWEs by Severity — Top ${topN}`} 
-            },
-            scales:{
-              x:{stacked:true, ticks:{color:'#cdd7ff', font:{size:11}}},
-              y:{stacked:true, beginAtZero:true, ticks:{color:'#cdd7ff'}}
-            },
-            onClick: (evt, activeEls) => {
-              if (activeEls && activeEls.length > 0) {
-                goToVulnsForCWE(activeEls[0].index);
-              }
-            }
-          }
-        }
-      );
-
-      // Alt click binding for bars
-      document.getElementById('cwesBySeverityChart').onclick = function(evt) {
-        const points = window.cwesSeverityChart.getElementsAtEventForMode(
-          evt,'nearest',{intersect:true},true);
-        if(points && points.length){
-          goToVulnsForCWE(points[0].index);
-        }
-      };
-    }
-
-    // Expose Flask-provided JSON into JS env
-    window.cweSeverityData = {{ cwe_severity|tojson }};
-    
-    // Default render top 10 on page load
-    renderChart(10);
-
-    // Re-render chart when user switches filter
-    document.getElementById('cweSeverityFilter')
-      .addEventListener('change', function(){
-         renderChart(parseInt(this.value,10));
-      });
-  });
-  </script>
-
-  <!-- Section: CWE Explorer -->
-  <h2 style="color:#cdd7ff;margin-top:34px;">CWE List &amp; Explorer</h2>
-  <div style="color:#94a3b8; font-size:0.95em; margin-bottom:12px;">
-    <strong>How it works:</strong> Click any CWE to fetch live details from MITRE database.
-  </div>
-
-  <div style="display:grid; grid-template-columns: 300px 1fr; gap:36px;">
-    
-    <!-- Sidebar list of CWE IDs -->
-    <aside style="background:#1a2236; border-radius:14px; padding:18px 0; height: fit-content;">
-      <div style="padding-left:24px;font-weight:700;color:#63a4ff;margin-bottom:10px;">
-        CWE List <span id="cweListModeTip" style="color:#94a3b8;font-size:0.93em;font-weight:400;">
-        (Your Key Set)</span>
-      </div>
-      
-      <!-- Key curated CWEs -->
-      <ul id="cweListColumn" class="cwe-list-scroll">
-        {% for cwe in key_cwes %}
-          <li data-cwe="{{ cwe }}" class="cwe-list-item">
-            {{ key_cwe_titles[cwe] }} <span class="cwe-code">({{ cwe }})</span>
-          </li>
-        {% endfor %}
-      </ul>
-      
-      <!-- Full CWE list (hidden initially) -->
-      <ul id="cweListFull" class="cwe-list-scroll" style="display:none;">
-        {% for code, entry in cwe_dict.items() %}
-          <li data-cwe="{{ code }}" class="cwe-list-item">
-            {{ entry.name }} <span class="cwe-code">({{ code }})</span>
-          </li>
-        {% endfor %}
-      </ul>
-      
-      <!-- Toggle button to switch lists -->
-      <button id="toggleShowAllCwe" class="toggle-button">
-        Show All CWEs
-      </button>
-    </aside>
-
-    <!-- Detail panel for selected CWE -->
-    <section style="background:#1a2236; border-radius:14px; padding:28px 26px;min-height:390px;">
-      <div id="cweDetailPanel">
-        {% if cwe_dict|length == 0 %}
-          <p style="color:#f47174;">No CWE data found in catalog or fallback.</p>
-        {% else %}
-          <!-- Placeholder message when no CWE selected -->
-          <div style="text-align: center; padding: 40px; color: #a9adc1;">
-            <div style="font-size: 2.5rem; margin-bottom: 16px;">🔍</div>
-            <div style="font-size: 1.1rem; margin-bottom: 8px;">Select a CWE to explore</div>
-            <div style="margin-top: 12px; font-size: 0.9em;">
-              Click any CWE from the list to see detailed information, mitigations, examples, and relationships.
-            </div>
-          </div>
-        {% endif %}
-      </div>
-    </section>
-  </div>
-
-  <!-- Pass Jinja dicts/arrays into JS env for learn.js -->
-  <script>
-    window.learnCweDict = {{ cwe_dict|tojson }};
-    window.key_cwes = {{ key_cwes|tojson }};
-    window.key_cwe_titles = {{ key_cwe_titles|tojson }};
-  </script>
-
-  <!-- Load supporting script to handle live CWE fetching -->
-  <script src="{{ url_for('static', filename='js/learn.js') }}"></script>
+    <h1 style="color:#63a4ff;">What is a CWE?</h1>
+    <p style="color:#e2e8f0;font-size:1.13em;">
+        <strong>CWE</strong> stands for <em><span style="color:#63a4ff">Common Weakness Enumeration</span></em>.<br> In technology and computer science, we learn by identifying patterns—not just memorizing a list of past mistakes. The <b>CWE catalog</b> is a map of the <span style="color:#fca311;">most common error patterns</span> that lead to
+vulnerabilities in software.<br><br>
+<b>If you spot the pattern, you can prevent the problem:</b>
+<ul style="color:#e2e8f0;margin-left:20px;">
+    <li>Just like a math book teaches "types of mistakes" (e.g., sign error,
+division by zero), CWE teaches you <span style="color:#42d392;">recurring
+security problems</span>.</li>
+<li><b>CWE entries</b> are like chapters in a textbook—each describes a
+different kind of software weakness.</li>
+<li>You'll see real-world examples (<b>CVEs</b>), but you'll learn the general
+idea with CWE.</li>
+</ul>
+</p>
+<h2 style="color:#cdd7ff;">CWE Structure: How Weakness Types Are
+Organized</h2>
+<ul style="color:#e3e8f0;margin-left:20px;">
+<li><b>ID format:</b> <code>CWE-&lt;Number&gt; – &lt;Name&gt;</code> (e.g.,
+<code>CWE-79 – Cross-Site Scripting</code>)</li>
+<li><b>Name:</b> A concise label for the type of mistake (e.g., "Buffer
+Overflow")</li>
+<li><b>Description:</b> Explains what usually goes wrong—and why</li>
+<li><b>Example:</b> Shows a typical code or configuration that triggers this
+weakness</li>
+<li><b>Mitigations:</b> Teaches you practical ways to avoid making this
+mistake when writing software</li>
+<li><b>Hierarchy:</b> Shows if a weakness is broad ("Injection") or a sub-type
+("SQL Injection")</li>
+</ul>
+<h2 style="color:#cdd7ff;margin-top:26px;">CWEs by Severity</h2>
+<div style="background:#1a2236;border-radius:12px;padding:28px 18px 25px 18px;
+margin-bottom:18px;">
+<div style="color:#94a3b8; font-size:0.98em; margin-bottom:9px;">
+<span>Showing data from <b>{% if key_cwes|length > 0 %}recent cache/fallback{%
+else %}demo fallback{% endif %}</b>. Click any CWE below for live MITRE data.</span>
+</div>
+<div style="display:flex;align-items:center; justify-content:space-between;
+margin-bottom:18px;">
+<label style="color:#e2e8f0;font-size:1.07em; font-weight:600;">
+Show:
+<select id="cweSeverityFilter"
+style="background:#232b45;color:#63a4ff;padding:7px 14px;border-
+radius:6px;border:none;margin-left:7px;">
+<option value="10" selected>Top 10 CWEs</option>
+<option value="5">Top 5 CWEs</option>
+</select>
+</label>
+</div>
+<div style="max-width:1400PX;width:100%;overflow-x:auto;">
+{% if cwe_severity.labels|length > 0 %}
+<canvas id="cwesBySeverityChart" width="700" height="235"></canvas>
+{% else %}
+<div style="color:#f47174;text-align:center;padding:30px 0;">
+No CWE data available in the catalog. (Check that CWE_Catalog.xml exists, or
+fallback data is used.)
+</div>
+{% endif %}
+</div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+function goToVulnsForCWE(idx) {
+const cwe_key = window.cweSeverityData.indices[idx];
+if (cwe_key) {
+window.location.href = "/vulnerabilities?q=" +
+encodeURIComponent(cwe_key);
+}
+}
+function renderChart(topN) {
+const data = window.cweSeverityData.data || {};
+const labels = window.cweSeverityData.labels.slice(0, topN);
+const chartData = {
+labels: labels,
+datasets: [
+{label:'Critical', data: data.CRITICAL.slice(0, topN),
+backgroundColor:'#f55855'},
+{label:'High', data: data.HIGH.slice(0, topN),
+backgroundColor:'#f8a541'},
+{label:'Medium', data: data.MEDIUM.slice(0, topN),
+backgroundColor:'#3b8ded'},
+{label:'Low', data: data.LOW.slice(0, topN),
+backgroundColor:'#42d392'}
+]
+};
+if (window.cwesSeverityChart) {
+window.cwesSeverityChart.destroy();
+}
+window.cwesSeverityChart = new
+Chart(document.getElementById('cwesBySeverityChart').getContext('2d'), {
+type: 'bar',
+data: chartData,
+options:{
+responsive:true,
+maintainAspectRatio:false,
+plugins:{
+legend:{display:true, position:"bottom"},
+title:{display:true, text:`CWEs by Severity — Top ${topN}`}
+},
+scales:{
+x:{stacked:true, ticks:{color:'#cdd7ff', font:{size:11}}},
+y:{stacked:true, beginAtZero:true, ticks:{color:'#cdd7ff'}}
+},
+onClick: (evt, activeEls) => {
+if (activeEls && activeEls.length > 0) {
+goToVulnsForCWE(activeEls[0].index);
+}
+}
+}
+});
+document.getElementById('cwesBySeverityChart').onclick = function(evt) {
+const points =
+window.cwesSeverityChart.getElementsAtEventForMode(evt,'nearest',
+{intersect:true},true);
+if(points && points.length){
+goToVulnsForCWE(points[0].index);
+}
+};
+}
+window.cweSeverityData = {{ cwe_severity|tojson }};
+renderChart(10); // Default to Top 10
+document.getElementById('cweSeverityFilter').addEventListener('change',
+function(){
+renderChart(parseInt(this.value,10));
+});
+});
+</script>
+<h2 style="color:#cdd7ff;margin-top:34px;">CWE List &amp; Explorer</h2>
+<div style="color:#94a3b8; font-size:0.95em; margin-bottom:12px;">
+<strong>How it works:</strong> Click any CWE below to fetch live, detailed information from the official MITRE database. The first click may take a few seconds to load.
+</div>
+<div style="display:grid; grid-template-columns: 300px 1fr; gap:36px;">
+<aside style="background:#1a2236; border-radius:14px; padding:18px 0 18px 0; height: fit-content;">
+<div style="padding-left:24px;font-weight:700;color:#63a4ff;margin-
+bottom:10px;">
+CWE List <span id="cweListModeTip" style="color:#94a3b8;font-size:0.93em;font-
+weight:400;">
+(Your Key Set)</span>
+</div>
+<ul id="cweListColumn" class="cwe-list-scroll">
+{% for cwe in key_cwes %}
+<li data-cwe="{{ cwe }}" class="cwe-list-item">
+{{ key_cwe_titles[cwe] }} <span class="cwe-code">({{ cwe }})</span>
+</li>
+{% endfor %}
+</ul>
+<ul id="cweListFull" class="cwe-list-scroll" style="display:none;">
+{% for code, entry in cwe_dict.items() %}
+<li data-cwe="{{ code }}" class="cwe-list-item">
+{{ entry.name }} <span class="cwe-code">({{ code }})</span>
+</li>
+{% endfor %}
+</ul>
+<button id="toggleShowAllCwe" class="toggle-button">
+Show All CWEs
+</button>
+</aside>
+<section style="background:#1a2236; border-radius:14px; padding:28px 26px;min-
+height:390px;">
+<div id="cweDetailPanel">
+{% if cwe_dict|length == 0 %}
+<p style="color:#f47174;">No CWE data found in catalog or fallback.</p>
+{% else %}
+<div style="text-align: center; padding: 40px; color: #a9adc1;">
+<div style="font-size: 2.5rem; margin-bottom: 16px;">🔍</div>
+<div style="font-size: 1.1rem; margin-bottom: 8px;">Select a CWE to explore</div>
+<div style="margin-top: 12px; font-size: 0.9em;">Click any CWE from the list to see detailed information, mitigations, examples, and relationships.</div>
+</div>
+{% endif %}
+</div>
+</section>
+</div>
+<script>
+window.learnCweDict = {{ cwe_dict|tojson }};
+window.key_cwes = {{ key_cwes|tojson }};
+window.key_cwe_titles = {{ key_cwe_titles|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/learn.js') }}"></script>
 </div>
 
-<!-- Footer navigation -->
 <div style="text-align:center; margin:2.5em 0 1em 0;">
-  <a href="{{ url_for('index') }}" style="color:#63a4ff; padding:0.8em 2em;
-    border-radius:6px; font-weight:600; text-decoration:none;">
+  <a href="{{ url_for('index') }}" style="color:#63a4ff; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
     ← Back to Dashboard
   </a>
 </div>
+
 {% endblock %}

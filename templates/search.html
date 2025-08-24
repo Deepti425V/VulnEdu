@@ -1,77 +1,37 @@
-<!-- Search Results Template - Displays filtered CVE search results -->
 {% extends "base.html" %}
-
 {% block content %}
-<!-- Page header for search results context -->
 <h2>Search Results</h2>
-
-<!-- Search form with state preservation - uses GET method for bookmarkable URLs -->
 <form method="get" class="topbar-search">
-    
-    <!-- Text search input with preserved value from URL parameters -->
-    <input type="text" name="q" placeholder="Search" value="{{ q }}">
-    
-    <!-- Severity filter dropdown with dynamic selection preservation -->
-    <select name="severity">
-        <!-- Default "All" option with empty value for no filtering -->
-        <option value="">All</option>
-        
-        <!-- Critical severity option - preserves selection state -->
-        <option value="CRITICAL" {% if severity == 'CRITICAL' %}selected{% endif %}>Critical</option>
-        
-        <!-- High severity option - preserves selection state -->
-        <option value="HIGH" {% if severity == 'HIGH' %}selected{% endif %}>High</option>
-        
-        <!-- Medium severity option - preserves selection state -->
-        <option value="MEDIUM" {% if severity == 'MEDIUM' %}selected{% endif %}>Medium</option>
-        
-        <!-- Low severity option - preserves selection state -->
-        <option value="LOW" {% if severity == 'LOW' %}selected{% endif %}>Low</option>
-    </select>
-    
-    <!-- Form submission button -->
-    <button type="submit">Filter</button>
+  <input type="text" name="q" placeholder="Search" value="{{ q }}">
+  <select name="severity">
+    <option value="">All</option>
+    <option value="CRITICAL" {% if severity == 'CRITICAL' %}selected{% endif %}>Critical</option>
+    <option value="HIGH" {% if severity == 'HIGH' %}selected{% endif %}>High</option>
+    <option value="MEDIUM" {% if severity == 'MEDIUM' %}selected{% endif %}>Medium</option>
+    <option value="LOW" {% if severity == 'LOW' %}selected{% endif %}>Low</option>
+  </select>
+  <button type="submit">Filter</button>
 </form>
-
-<!-- Conditional rendering based on search results availability -->
 {% if results %}
-    
-    <!-- Results table with semantic HTML structure -->
-    <table class="vuln-table">
-        <!-- Table header with column definitions -->
-        <thead>
-            <tr>
-                <th>CVE ID</th>           <!-- Vulnerability identifier column -->
-                <th>Description</th>      <!-- Vulnerability description column -->
-                <th>Severity</th>         <!-- Severity level column -->
-            </tr>
-        </thead>
-        
-        <!-- Table body with dynamic content -->
-        <tbody>
-            <!-- Loop through each CVE in search results -->
-            {% for cve in results %}
-                <tr>
-                    <!-- CVE ID with link to detailed page -->
-                    <td>
-                        <a href="{{ url_for('cve_detail', cve_id=cve.id) }}">{{ cve.id }}</a>
-                    </td>
-                    
-                    <!-- CVE description text -->
-                    <td>{{ cve.description }}</td>
-                    
-                    <!-- Severity badge with dynamic CSS class for styling -->
-                    <td>
-                        <span class="cve-badge {{ cve.severity }}">{{ cve.severity }}</span>
-                    </td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    
+<table class="vuln-table">
+  <thead>
+    <tr>
+      <th>CVE ID</th>
+      <th>Description</th>
+      <th>Severity</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for cve in results %}
+    <tr>
+      <td><a href="{{ url_for('cve_detail', cve_id=cve.id) }}">{{ cve.id }}</a></td>
+      <td>{{ cve.description }}</td>
+      <td><span class="cve-badge {{ cve.severity }}">{{ cve.severity }}</span></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
 {% else %}
-    <!-- Empty state message when no search results found -->
-    <p>No CVEs found for your query.</p>
+<p>No CVEs found for your query.</p>
 {% endif %}
-
 {% endblock %}

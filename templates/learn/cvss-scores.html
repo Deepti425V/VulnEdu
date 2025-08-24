@@ -1,584 +1,444 @@
-<!-- Educational page for CVSS scores with interactive calculator -->
 {% extends "base.html" %}
-
 {% block content %}
-<!-- Main content container with responsive max-width -->
 <div style="max-width:1400px;margin:0 auto 32px auto;padding-top:20px;">
-    
-    <!-- Page title and introduction -->
-    <h1 style="color:#63a4ff;">Understanding CVSS Scores</h1>
-    <div style="color:#e2e8f0; font-size:1.07em; margin-bottom:28px; margin-top:9px; line-height:1.66;">
-        CVSS scores help you measure, compare, and prioritize vulnerabilities. Use the range and severity to decide: Patch now, or monitor?
-    </div>
-
-    <!-- CVSS Score Reference Table Section -->
-    <h2 style="color:#cdd7ff;">Score Breakdown</h2>
-    
-    <!-- Interactive table showing CVSS score ranges and meanings -->
-    <table id="cvss-score-table" style="color:#e3e8f0;background:linear-gradient(135deg, #232b45 0%, #1e2640 100%);border-radius:12px;width:75%;margin-bottom:18px; border-collapse:collapse;border: 1px solid rgba(99, 164, 255, 0.1);box-shadow: 0 6px 24px rgba(0,0,0,0.3);">
-        
-        <!-- Table header row -->
-        <tr style="background:#232b45;">
-            <th style="text-align:center;padding:12px 8px;border-radius:12px 0 0 0;">Score Range</th>
-            <th style="text-align:center;padding:12px 8px;">Severity</th>
-            <th style="text-align:center;padding:12px 8px;">What this means</th>
-            <th style="text-align:center;padding:12px 8px;border-radius:0 12px 0 0;">Examples</th>
-        </tr>
-
-        <!-- Critical severity row (9.0-10.0) -->
-        <tr class="cvss-score-row" data-severity="CRITICAL" tabindex="0" style="background:rgba(38, 49, 89, 0.4);cursor:pointer;">
-            <td style="text-align:center;padding:10px 8px;">9.0 – 10.0</td>
-            <td style="text-align:center;padding:10px 8px;">
-                <!-- Color-coded severity badge -->
-                <span class="cvss-badge" style="background:#f55855;">Critical</span>
-            </td>
-            <td class="cvss-meaning-cell" style="text-align:center;padding:10px 8px;">Immediate action needed.</td>
-            <td style="text-align:center;padding:10px 8px;">
-                <!-- Link to filtered vulnerability view -->
-                <a href="{{ url_for('vulnerabilities', severity='CRITICAL') }}" class="cvss-link-cve" style="color:#f55855;text-decoration:underline;">Show Critical CVEs</a>
-            </td>
-        </tr>
-
-        <!-- High severity row (7.0-8.9) -->
-        <tr class="cvss-score-row" data-severity="HIGH" tabindex="0" style="background:rgba(38, 49, 89, 0.4);cursor:pointer;">
-            <td style="text-align:center;padding:10px 8px;">7.0 – 8.9</td>
-            <td style="text-align:center;padding:10px 8px;">
-                <span class="cvss-badge" style="background:#f8a541;">High</span>
-            </td>
-            <td class="cvss-meaning-cell" style="text-align:center;padding:10px 8px;">Patch as soon as possible.</td>
-            <td style="text-align:center;padding:10px 8px;">
-                <a href="{{ url_for('vulnerabilities', severity='HIGH') }}" class="cvss-link-cve" style="color:#f8a541;text-decoration:underline;">Show High CVEs</a>
-            </td>
-        </tr>
-
-        <!-- Medium severity row (4.0-6.9) -->
-        <tr class="cvss-score-row" data-severity="MEDIUM" tabindex="0" style="background:rgba(38, 49, 89, 0.4);cursor:pointer;">
-            <td style="text-align:center;padding:10px 8px;">4.0 – 6.9</td>
-            <td style="text-align:center;padding:10px 8px;">
-                <span class="cvss-badge" style="background:#3b8ded;">Medium</span>
-            </td>
-            <td class="cvss-meaning-cell" style="text-align:center;padding:10px 8px;">Review and patch soon.</td>
-            <td style="text-align:center;padding:10px 8px;">
-                <a href="{{ url_for('vulnerabilities', severity='MEDIUM') }}" class="cvss-link-cve" style="color:#3b8ded;text-decoration:underline;">Show Medium CVEs</a>
-            </td>
-        </tr>
-
-        <!-- Low severity row (0.1-3.9) -->
-        <tr class="cvss-score-row" data-severity="LOW" tabindex="0" style="background:rgba(38, 49, 89, 0.4);cursor:pointer;">
-            <td style="text-align:center;padding:10px 8px;border-radius:0 0 0 12px;">0.1 – 3.9</td>
-            <td style="text-align:center;padding:10px 8px;">
-                <span class="cvss-badge" style="background:#42d392;">Low</span>
-            </td>
-            <td class="cvss-meaning-cell" style="text-align:center;padding:10px 8px;">Monitor for now.</td>
-            <td style="text-align:center;padding:10px 8px;border-radius:0 0 12px 0;">
-                <a href="{{ url_for('vulnerabilities', severity='LOW') }}" class="cvss-link-cve" style="color:#42d392;text-decoration:underline;">Show Low CVEs</a>
-            </td>
-        </tr>
-    </table>
-
-    <!-- Hidden tooltip div for potential future use -->
-    <div id="cvss-breakdown-tip" style="display:none;position:absolute;background:#101828;color:#eaf4fb;border-radius:8px;padding:13px 15px;font-size:1.01em;min-width:210px;max-width:350px;box-shadow:0 3px 18px #0008;z-index:200;pointer-events:none;">
-    </div>
-
-    <!-- Helpful tip about severity priorities -->
-    <div style="color:#a9adc1;font-size:1em;margin-bottom:18px;">
-        <b>Tip:</b> When you see a <span style="color:#f55855;">Critical</span> or <span style="color:#f8a541;">High</span> CVSS, patch as soon as possible! <span style="color:#3b8ded;">Medium</span> and <span style="color:#42d392;">Low</span> still deserve attention but are less urgent.
-    </div>
-
-    <!-- =============== INTERACTIVE CVSS CALCULATOR SECTION =============== -->
-    <h2 style="color:#cdd7ff;">Try the CVSS Calculator <span style="font-size:0.82em;color:#a9adc1;">(interactive demo)</span></h2>
-    
-    <!-- Main calculator container with three-column grid layout -->
-    <div id="cvss-calc-wrapper" style="background: linear-gradient(135deg,#232b45 0%, #1e2640 100%); padding: 18px; border-radius: 12px; margin-bottom: 28px; display: grid; grid-template-columns: 1fr 1fr 0.5fr; gap: 20px; align-items: start; box-shadow: 0 6px 24px rgba(0,0,0,0.3); border: 1px solid rgba(99, 164, 255, 0.1); width: 80%;">
-        
-        <!-- COLUMN 1: CVSS Input Form Controls -->
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-            <form id="cvss-calc-form" autocomplete="off" style="display: flex; flex-direction: column; gap: 8px;">
-                
-                <!-- Attack Vector selection -->
-                <div class="cvss-input-group">
-                    <label class="cvss-label">Attack Vector <span class="cvss-info" title="How far does the attacker need to be?">?</span></label>
-                    <select name="AV" class="cvss-select">
-                        <option value="N">🌐 Network</option>    <!-- Remotely exploitable -->
-                        <option value="A">📡 Adjacent</option>   <!-- Same network segment -->
-                        <option value="L">💻 Local</option>      <!-- Local system access -->
-                        <option value="P">🔌 Physical</option>   <!-- Physical access required -->
-                    </select>
-                </div>
-
-                <!-- Attack Complexity selection -->
-                <div class="cvss-input-group">
-                    <label class="cvss-label">Attack Complexity <span class="cvss-info" title="Is attack easy or requires trick?">?</span></label>
-                    <select name="AC" class="cvss-select">
-                        <option value="L">⚡ Low</option>         <!-- Easy to exploit -->
-                        <option value="H">🧩 High</option>       <!-- Requires specialized knowledge -->
-                    </select>
-                </div>
-
-                <!-- Privileges Required selection -->
-                <div class="cvss-input-group">
-                    <label class="cvss-label">Privileges Required <span class="cvss-info" title="Do they need a login?">?</span></label>
-                    <select name="PR" class="cvss-select">
-                        <option value="N">🚫 None</option>       <!-- No authentication needed -->
-                        <option value="L">👤 Low</option>        <!-- Basic user privileges -->
-                        <option value="H">👑 High</option>       <!-- Admin/root privileges -->
-                    </select>
-                </div>
-
-                <!-- User Interaction requirement -->
-                <div class="cvss-input-group">
-                    <label class="cvss-label">User Interaction <span class="cvss-info" title="Must a user click something?">?</span></label>
-                    <select name="UI" class="cvss-select">
-                        <option value="N">🤖 None</option>       <!-- Fully automated attack -->
-                        <option value="R">👆 Required</option>   <!-- Requires user action -->
-                    </select>
-                </div>
-
-                <!-- Impact level selection -->
-                <div class="cvss-input-group">
-                    <label class="cvss-label">Impact <span class="cvss-info" title="What kind of damage?">?</span></label>
-                    <select name="Impact" class="cvss-select">
-                        <option value="H">💥 High (e.g. Code Exec)</option>  <!-- Complete compromise -->
-                        <option value="L">📋 Low (e.g. Info Leak)</option>   <!-- Limited compromise -->
-                    </select>
-                </div>
-
-                <!-- Scope change indicator -->
-                <div class="cvss-input-group">
-                    <label class="cvss-label">Scope <span class="cvss-info" title="Does compromise spread?">?</span></label>
-                    <select name="S" class="cvss-select">
-                        <option value="U">📍 Unchanged</option>   <!-- Impact contained -->
-                        <option value="C">🔄 Changed</option>     <!-- Impact spreads -->
-                    </select>
-                </div>
-
-                <!-- Calculate button with gradient styling -->
-                <button type="submit" class="cvss-calculate-btn">
-                    <span>⚡ Calculate Score</span>
-                </button>
-            </form>
-        </div>
-
-        <!-- COLUMN 2: Score Display with Animated Gauge -->
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 5px;">
-            
-            <!-- Dynamic severity badge showing calculated score -->
-            <div id="cvss-calc-badge" aria-live="polite" style="margin-bottom: 2px;"></div>
-            
-            <!-- Container for Chart.js gauge visualization -->
-            <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-                <!-- HTML5 canvas for Chart.js doughnut gauge -->
-                <canvas id="cvssScoreGauge" width="150" height="100" aria-label="CVSS Score Gauge" style="background: none;"></canvas>
-            </div>
-            
-            <!-- Label below gauge showing score and severity -->
-            <div id="cvssGaugeLabel" style="text-align: center; margin-top: -3px; color: #a9adc1; font-size: 0.95em;"></div>
-        </div>
-
-        <!-- COLUMN 3: Preset Scenario Buttons -->
-        <div style="display: flex; flex-direction: column; gap: 8px; padding: 2px; width: 300px;">
-            <!-- Section title for preset scenarios -->
-            <div style="font-weight: 700; color: #63a4ff; margin-bottom: 6px; font-size: 1em;">
-                🎯 Common Scenarios
-            </div>
-
-            <!-- Remote Code Execution preset button -->
-            <button class="cvss-preset-btn" data-preset="rce">
-                <span class="preset-icon">🌐</span>
-                <div class="preset-content">
-                    <div class="preset-title">Remote Code Execution</div>
-                    <div class="preset-desc">Network-based, no auth needed</div>
-                </div>
-            </button>
-
-            <!-- Privilege Escalation preset button -->
-            <button class="cvss-preset-btn" data-preset="privesc">
-                <span class="preset-icon">🔒</span>
-                <div class="preset-content">
-                    <div class="preset-title">Privilege Escalation</div>
-                    <div class="preset-desc">Local access, scope change</div>
-                </div>
-            </button>
-
-            <!-- Information Disclosure preset button -->
-            <button class="cvss-preset-btn" data-preset="infoleak">
-                <span class="preset-icon">🔍</span>
-                <div class="preset-content">
-                    <div class="preset-title">Information Disclosure</div>
-                    <div class="preset-desc">Data leak, limited impact</div>
-                </div>
-            </button>
-        </div>
-    </div>
-    <!-- =============== END CVSS CALCULATOR SECTION =============== -->
-
-    <!-- Load Chart.js library from CDN for gauge visualization -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <script>
-    /* =============== JAVASCRIPT CALCULATOR ENGINE =============== */
-
-    // Initialize help tooltips with hover effects
-    document.querySelectorAll('.cvss-info').forEach(function(el){
-        el.setAttribute('tabindex','0');           // Enable keyboard focus
-        el.style.display = 'inline-block';        // Proper layout
-        el.style.transition = 'color 0.18s';      // Smooth color transitions
-        el.style.color = '#63a4ff';               // Default blue color
-        el.style.borderRadius = '50%';            // Circular appearance
-        el.style.fontWeight = '900';              // Bold weight
-        // Hover effect - change to orange
-        el.addEventListener('mouseover',function(){el.style.color='#fca311'});
-        // Mouse out effect - return to blue
-        el.addEventListener('mouseout',function(){el.style.color='#63a4ff'});
-    });
-
-    // Global variable to track Chart.js gauge instance
-    let gaugeChart = null;
-
-    // Severity-based advice and color mappings
-    const scoreAdvice = {
-        'CRITICAL': { msg: "Critical severity. Immediate action required – patch now or take system offline if not fixable.", color: "#f55855" },
-        'HIGH': { msg: "High severity. Patch quickly (ideally within days to a week) to avoid active exploitation.", color: "#f8a541" },
-        'MEDIUM': { msg: "Medium severity. Review and patch soon, especially if combined with other risks.", color: "#3b8ded" },
-        'LOW': { msg: "Low severity. Monitor and patch in next cycle, unless actively targeted.", color: "#42d392" }
-    };
-
-    /**
-     * Creates/updates the animated gauge chart showing CVSS score
-     * @param {number} score - CVSS score (0-10)
-     * @param {string} label - Severity label (e.g., "Critical")
-     * @param {string} severity - Severity level for color coding
-     */
-    function drawScoreGauge(score, label, severity) {
-        const ctx = document.getElementById("cvssScoreGauge").getContext("2d");
-        
-        // Destroy existing chart to prevent memory leaks
-        if (gaugeChart) gaugeChart.destroy();
-
-        // Create gradient fill based on severity color
-        const gradient = ctx.createLinearGradient(0, 0, 170, 0);
-        gradient.addColorStop(0, scoreAdvice[severity].color);
-        gradient.addColorStop(1, scoreAdvice[severity].color + '80');  // Add transparency
-
-        // Create new Chart.js doughnut chart configured as gauge
-        gaugeChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                datasets: [{
-                    data: [score, 10 - score],                    // Score vs remaining
-                    backgroundColor: [gradient, "rgba(35, 43, 69, 0.3)"],  // Fill vs background
-                    borderWidth: 0,                               // No border
-                    cutout: "75%"                                // Large center hole for gauge effect
-                }]
-            },
-            options: {
-                circumference: 180,                               // Half circle (180 degrees)
-                rotation: 270,                                    // Start from bottom
-                plugins: {
-                    legend: { display: false },                  // Hide legend
-                    tooltip: { enabled: false }                  // Disable tooltips
-                },
-                animation: {
-                    animateRotate: true,                         // Smooth rotation animation
-                    duration: 800                                // 800ms animation duration
-                }
-            }
-        });
-
-        // Update gauge label with score and severity
-        document.getElementById("cvssGaugeLabel").innerHTML = 
-            `<div style="font-size: 2em; font-weight: 800; color: ${scoreAdvice[severity].color}; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">${score.toFixed(1)}</div>
-            <div style="font-weight: 600; color: ${scoreAdvice[severity].color}; font-size: 1em; margin-top: -3px;">${label}</div>`;
-    }
-
-    /**
-     * Updates the severity badge with calculated score
-     * @param {number} score - CVSS score 
-     * @param {string} severity - Severity classification
-     */
-    function updateCalcBadge(score, severity) {
-        const badge = document.getElementById("cvss-calc-badge");
-        if (!severity) { badge.style.display = "none"; return; }
-
-        // Emoji icons for each severity level
-        const icons = { CRITICAL: '🚨', HIGH: '⚠️', MEDIUM: '❗', LOW: 'ℹ️' };
-        
-        // Create gradient badge with score and severity
-        badge.innerHTML = `<div style="background: linear-gradient(135deg, ${scoreAdvice[severity].color}, ${scoreAdvice[severity].color}dd);
-                                    color: white; padding: 6px 14px; border-radius: 16px; font-weight: 700; font-size: 0.95em;
-                                    display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 12px rgba(0,0,0,0.2);
-                                    border: 1px solid rgba(255,255,255,0.2);">
-                          ${icons[severity]} ${score.toFixed(1)} — ${severity.charAt(0) + severity.slice(1).toLowerCase()}
-                          </div>`;
-        badge.style.display = '';
-    }
-
-    // Main calculator form event handling
-    const cvssCalcForm = document.getElementById('cvss-calc-form');
-    cvssCalcForm.addEventListener('submit', function(e){
-        e.preventDefault();  // Prevent form submission/page reload
-
-        // Helper function to map form values to numeric scores
-        function s(v, mapping){return mapping[v]||0;}
-
-        // Extract and convert form values to CVSS numeric metrics
-        const AV = s(this.AV.value, {N:0.85,A:0.62,L:0.55,P:0.2});      // Attack Vector
-        const AC = s(this.AC.value, {L:0.77,H:0.44});                   // Attack Complexity  
-        const PR = s(this.PR.value, {N:0.85,L:0.62,H:0.27});            // Privileges Required
-        const UI = s(this.UI.value, {N:0.85,R:0.62});                   // User Interaction
-        const S = this.S.value;                                         // Scope (U or C)
-        
-        // Convert impact selection to Confidentiality/Integrity/Availability scores
-        const ImpactConf = this.Impact.value === 'H' ? 0.56 : 0.22;
-        const ImpactInteg = this.Impact.value === 'H' ? 0.56 : 0.22;
-        const ImpactAvail = this.Impact.value === 'H' ? 0.56 : 0.22;
-
-        // Calculate impact score using CVSS v3.x formula
-        let impact = 6.42 * ImpactConf * ImpactInteg * ImpactAvail;
-        
-        // Apply scope change formula if scope is Changed
-        if (S === 'C') impact = 7.52 * (ImpactConf - 0.029) - 3.25 * Math.pow(ImpactConf - 0.02, 15);
-        
-        // Calculate exploitability score
-        let exploitability = 8.22 * AV * AC * PR * UI;
-        
-        // Calculate final base score
-        let baseScore = 0;
-        if (impact <= 0) { 
-            baseScore = 0;  // No impact = no score
-        } else { 
-            if (S === 'U') 
-                baseScore = Math.min(impact + exploitability, 10);           // Unchanged scope
-            else 
-                baseScore = Math.min(1.08 * (impact + exploitability), 10);  // Changed scope
-        }
-        
-        // Round to one decimal place (CVSS standard)
-        baseScore = Math.round(baseScore * 10) / 10;
-        
-        // Determine severity classification
-        let sev = "LOW";
-        if(baseScore>=9) sev="CRITICAL"; 
-        else if(baseScore>=7) sev="HIGH"; 
-        else if(baseScore>=4) sev="MEDIUM";
-        
-        // Update UI with calculated results
-        updateCalcBadge(baseScore, sev);
-        drawScoreGauge(baseScore, sev.charAt(0)+sev.slice(1).toLowerCase(), sev);
-    });
-
-    // Run initial calculation with default form values
-    cvssCalcForm.dispatchEvent(new Event('submit'));
-
-    // Preset scenario button handlers
-    document.querySelectorAll('.cvss-preset-btn').forEach(function(btn){
-        btn.onclick = function(){
-            // Remote Code Execution scenario
-            if(btn.dataset.preset==="rce"){
-                cvssCalcForm.AV.value="N";      // Network attack vector
-                cvssCalcForm.AC.value="L";      // Low complexity
-                cvssCalcForm.PR.value="N";      // No privileges required
-                cvssCalcForm.UI.value="N";      // No user interaction
-                cvssCalcForm.Impact.value="H";  // High impact
-                cvssCalcForm.S.value="U";       // Unchanged scope
-            } 
-            // Privilege Escalation scenario
-            else if(btn.dataset.preset==="privesc") {
-                cvssCalcForm.AV.value="L";      // Local attack vector
-                cvssCalcForm.AC.value="L";      // Low complexity
-                cvssCalcForm.PR.value="L";      // Low privileges required
-                cvssCalcForm.UI.value="N";      // No user interaction
-                cvssCalcForm.Impact.value="H";  // High impact
-                cvssCalcForm.S.value="C";       // Changed scope (escalation)
-            } 
-            // Information Disclosure scenario
-            else if(btn.dataset.preset==="infoleak") {
-                cvssCalcForm.AV.value="N";      // Network attack vector
-                cvssCalcForm.AC.value="L";      // Low complexity
-                cvssCalcForm.PR.value="N";      // No privileges required
-                cvssCalcForm.UI.value="N";      // No user interaction
-                cvssCalcForm.Impact.value="L";  // Low impact (info only)
-                cvssCalcForm.S.value="U";       // Unchanged scope
-            }
-            
-            // Trigger recalculation with preset values
-            cvssCalcForm.dispatchEvent(new Event('submit'));
-        };
-    });
-    </script>
-
-    <!-- =============== CSS STYLING FOR CALCULATOR =============== -->
-    <style>
-    /* Existing CVSS badge styling */
-    .cvss-badge { 
-        color:#fff; 
-        border-radius:12px; 
-        padding:3px 13px; 
-        font-size:0.93em; 
-        font-weight:600; 
-        display:inline-block;
-    }
-
-    /* Table row focus and active states for accessibility */
-    .cvss-score-row:focus, .cvss-score-row:active { 
-        outline:none; 
-        background:rgba(35, 43, 69, 0.8) !important; 
-    }
-
-    /* Help tooltip styling */
-    .cvss-info { 
-        cursor:help !important; 
-        border-bottom:1px dotted #63a4ff; 
-        margin-left:2px; 
-        font-size:0.97em; 
-    }
-
-    /* Calculator form input groups */
-    .cvss-input-group {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-    }
-
-    /* Form labels with consistent styling */
-    .cvss-label {
-        font-weight: 600;
-        color: #cdd7ff;
-        font-size: 0.9em;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    /* Select dropdown styling */
-    .cvss-select {
-        background: #232b45;
-        border: 1px solid rgba(99, 164, 255, 0.2);
-        border-radius: 6px;
-        padding: 6px 10px;
-        color: #e3e8f0;
-        font-size: 0.9em;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        outline: none;
-    }
-
-    /* Select hover state */
-    .cvss-select:hover {
-        border-color: rgba(99, 164, 255, 0.4);
-        background: #232b45;
-    }
-
-    /* Select focus state with blue glow */
-    .cvss-select:focus {
-        border-color: #63a4ff;
-        box-shadow: 0 0 0 2px rgba(99, 164, 255, 0.2);
-    }
-
-    /* Dropdown option styling for better visibility */
-    .cvss-select option {
-        background: #1e2640;
-        color: #e3e8f0;
-        padding: 6px;
-    }
-
-    /* Calculate button with gradient and hover effects */
-    .cvss-calculate-btn {
-        background: linear-gradient(135deg, #63a4ff 0%, #4d8ef7 100%);
-        border: none;
-        border-radius: 8px;
-        padding: 8px 16px;
-        color: white;
-        font-weight: 700;
-        font-size: 0.95em;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        margin-top: 4px;
-        box-shadow: 0 3px 12px rgba(99, 164, 255, 0.3);
-    }
-
-    /* Calculate button hover effect */
-    .cvss-calculate-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 16px rgba(99, 164, 255, 0.4);
-    }
-
-    /* Calculate button active state */
-    .cvss-calculate-btn:active {
-        transform: translateY(0);
-    }
-
-    /* Preset scenario button styling */
-    .cvss-preset-btn {
-        background: #232b45;
-        border: 1px solid rgba(99, 164, 255, 0.15);
-        border-radius: 8px;
-        padding: 8px 12px;
-        cursor: pointer;
-        transition: all 0.25s ease;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        text-align: left;
-        width: 100%;
-    }
-
-    /* Preset button hover effects */
-    .cvss-preset-btn:hover {
-        border-color: rgba(99, 164, 255, 0.3);
-        background: #232b45;
-        transform: translateY(-1px);
-        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
-    }
-
-    /* Preset button icon styling */
-    .preset-icon {
-        font-size: 1.2em;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 20px;
-    }
-
-    /* Preset button content layout */
-    .preset-content {
-        display: flex;
-        flex-direction: column;
-        gap: 1px;
-    }
-
-    /* Preset button title styling */
-    .preset-title {
-        color: #63a4ff;
-        font-weight: 600;
-        font-size: 0.9em;
-        line-height: 1.2;
-    }
-
-    /* Preset button description styling */
-    .preset-desc {
-        color: #a9adc1;
-        font-size: 0.75em;
-        line-height: 1.2;
-    }
-
-    /* Responsive layout for smaller screens */
-    @media (max-width: 1024px) {
-        #cvss-calc-wrapper {
-            grid-template-columns: 1fr;  /* Single column layout */
-            gap: 20px;
-            text-align: center;
-        }
-    }
-    </style>
-
-    <!-- Navigation footer - return to main dashboard -->
-    <div style="text-align:center; margin:2.5em 0 1em 0;">
-        <a href="{{ url_for('index') }}" style="color:#63a4ff; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
-            ← Back to Dashboard
-        </a>
-    </div>
+<h1 style="color:#63a4ff;">Understanding CVSS Scores</h1>
+<div style="color:#e2e8f0; font-size:1.07em; margin-bottom:28px; margin-top:9px; line-height:1.66;">
+CVSS scores help you measure, compare, and prioritize vulnerabilities. Use the range and severity to decide: Patch now, or monitor?
 </div>
 
-<!-- End of content block -->
+<h2 style="color:#cdd7ff;">Score Breakdown</h2>
+<table id="cvss-score-table" style="color:#e3e8f0;background:linear-gradient(135deg, #232b45 0%, #1e2640 100%);border-radius:12px;width:75%;margin-bottom:18px; border-collapse:collapse;border: 1px solid rgba(99, 164, 255, 0.1);box-shadow: 0 6px 24px rgba(0,0,0,0.3);">
+<tr style="background:#232b45;">
+<th style="text-align:center;padding:12px 8px;border-radius:12px 0 0 0;">Score Range</th>
+<th style="text-align:center;padding:12px 8px;">Severity</th>
+<th style="text-align:center;padding:12px 8px;">What this means</th>
+<th style="text-align:center;padding:12px 8px;border-radius:0 12px 0 0;">Examples</th>
+</tr>
+<tr class="cvss-score-row" data-severity="CRITICAL" tabindex="0" style="background:rgba(38, 49, 89, 0.4);cursor:pointer;">
+<td style="text-align:center;padding:10px 8px;">9.0 – 10.0</td>
+<td style="text-align:center;padding:10px 8px;">
+<span class="cvss-badge" style="background:#f55855;">Critical</span>
+</td>
+<td class="cvss-meaning-cell" style="text-align:center;padding:10px 8px;">Immediate action needed.</td>
+<td style="text-align:center;padding:10px 8px;"><a href="{{ url_for('vulnerabilities', severity='CRITICAL') }}" class="cvss-link-cve" style="color:#f55855;text-decoration:underline;">Show Critical CVEs</a></td>
+</tr>
+<tr class="cvss-score-row" data-severity="HIGH" tabindex="0" style="background:rgba(38, 49, 89, 0.4);cursor:pointer;">
+<td style="text-align:center;padding:10px 8px;">7.0 – 8.9</td>
+<td style="text-align:center;padding:10px 8px;">
+<span class="cvss-badge" style="background:#f8a541;">High</span>
+</td>
+<td class="cvss-meaning-cell" style="text-align:center;padding:10px 8px;">Patch as soon as possible.</td>
+<td style="text-align:center;padding:10px 8px;"><a href="{{ url_for('vulnerabilities', severity='HIGH') }}" class="cvss-link-cve" style="color:#f8a541;text-decoration:underline;">Show High CVEs</a></td>
+</tr>
+<tr class="cvss-score-row" data-severity="MEDIUM" tabindex="0" style="background:rgba(38, 49, 89, 0.4);cursor:pointer;">
+<td style="text-align:center;padding:10px 8px;">4.0 – 6.9</td>
+<td style="text-align:center;padding:10px 8px;">
+<span class="cvss-badge" style="background:#3b8ded;">Medium</span>
+</td>
+<td class="cvss-meaning-cell" style="text-align:center;padding:10px 8px;">Review and patch soon.</td>
+<td style="text-align:center;padding:10px 8px;"><a href="{{ url_for('vulnerabilities', severity='MEDIUM') }}" class="cvss-link-cve" style="color:#3b8ded;text-decoration:underline;">Show Medium CVEs</a></td>
+</tr>
+<tr class="cvss-score-row" data-severity="LOW" tabindex="0" style="background:rgba(38, 49, 89, 0.4);cursor:pointer;">
+<td style="text-align:center;padding:10px 8px;border-radius:0 0 0 12px;">0.1 – 3.9</td>
+<td style="text-align:center;padding:10px 8px;">
+<span class="cvss-badge" style="background:#42d392;">Low</span>
+</td>
+<td class="cvss-meaning-cell" style="text-align:center;padding:10px 8px;">Monitor for now.</td>
+<td style="text-align:center;padding:10px 8px;border-radius:0 0 12px 0;"><a href="{{ url_for('vulnerabilities', severity='LOW') }}" class="cvss-link-cve" style="color:#42d392;text-decoration:underline;">Show Low CVEs</a></td>
+</tr>
+</table>
+<div id="cvss-breakdown-tip" style="display:none;position:absolute;background:#101828;color:#eaf4fb;border-radius:8px;padding:13px 15px;font-size:1.01em;min-width:210px;max-width:350px;box-shadow:0 3px 18px #0008;z-index:200;pointer-events:none;"></div>
+<div style="color:#a9adc1;font-size:1em;margin-bottom:18px;"><b>Tip:</b> When you see a <span style="color:#f55855;">Critical</span> or <span style="color:#f8a541;">High</span> CVSS, patch as soon as possible! <span style="color:#3b8ded;">Medium</span> and <span style="color:#42d392;">Low</span> still deserve attention but are less urgent.</div>
+
+<!-- ==== BEGIN IMPROVED CVSS CALCULATOR ==== -->
+<h2 style="color:#cdd7ff;">Try the CVSS Calculator <span style="font-size:0.82em;color:#a9adc1;">(interactive demo)</span></h2>
+<div id="cvss-calc-wrapper"
+     style="background: linear-gradient(135deg,#232b45 0%, #1e2640 100%);
+            padding: 18px;
+            border-radius: 12px;
+            margin-bottom: 28px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 0.5fr;
+            gap: 20px;
+            align-items: start;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.3);
+            border: 1px solid rgba(99, 164, 255, 0.1);
+            width: 80%;">
+  
+  <!-- COLUMN 1: Form Controls -->
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <form id="cvss-calc-form" autocomplete="off"
+      style="display: flex; flex-direction: column; gap: 8px;">
+      
+      <div class="cvss-input-group">
+        <label class="cvss-label">Attack Vector <span class="cvss-info" title="How far does the attacker need to be?">?</span></label>
+        <select name="AV" class="cvss-select">
+          <option value="N">🌐 Network</option>
+          <option value="A">📡 Adjacent</option>
+          <option value="L">💻 Local</option>
+          <option value="P">🔌 Physical</option>
+        </select>
+      </div>
+      
+      <div class="cvss-input-group">
+        <label class="cvss-label">Attack Complexity <span class="cvss-info" title="Is attack easy or requires trick?">?</span></label>
+        <select name="AC" class="cvss-select">
+          <option value="L">⚡ Low</option>
+          <option value="H">🧩 High</option>
+        </select>
+      </div>
+      
+      <div class="cvss-input-group">
+        <label class="cvss-label">Privileges Required <span class="cvss-info" title="Do they need a login?">?</span></label>
+        <select name="PR" class="cvss-select">
+          <option value="N">🚫 None</option>
+          <option value="L">👤 Low</option>
+          <option value="H">👑 High</option>
+        </select>
+      </div>
+      
+      <div class="cvss-input-group">
+        <label class="cvss-label">User Interaction <span class="cvss-info" title="Must a user click something?">?</span></label>
+        <select name="UI" class="cvss-select">
+          <option value="N">🤖 None</option>
+          <option value="R">👆 Required</option>
+        </select>
+      </div>
+      
+      <div class="cvss-input-group">
+        <label class="cvss-label">Impact <span class="cvss-info" title="What kind of damage?">?</span></label>
+        <select name="Impact" class="cvss-select">
+          <option value="H">💥 High (e.g. Code Exec)</option>
+          <option value="L">📋 Low (e.g. Info Leak)</option>
+        </select>
+      </div>
+      
+      <div class="cvss-input-group">
+        <label class="cvss-label">Scope <span class="cvss-info" title="Does compromise spread?">?</span></label>
+        <select name="S" class="cvss-select">
+          <option value="U">📍 Unchanged</option>
+          <option value="C">🔄 Changed</option>
+        </select>
+      </div>
+      
+      <button type="submit" class="cvss-calculate-btn">
+        <span>⚡ Calculate Score</span>
+      </button>
+    </form>
+  </div>
+  
+  <!-- COLUMN 2: Score Display -->
+  <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 5px;">
+    <div id="cvss-calc-badge" aria-live="polite" style="margin-bottom: 2px;"></div>
+    <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+      <canvas id="cvssScoreGauge" width="150" height="100" aria-label="CVSS Score Gauge" style="background: none;"></canvas>
+    </div>
+    <div id="cvssGaugeLabel" style="text-align: center; margin-top: -3px; color: #a9adc1; font-size: 0.95em;"></div>
+  </div>
+  
+  <!-- COLUMN 3: Preset Scenarios -->
+  <div style="display: flex; flex-direction: column; gap: 8px; padding: 2px; width: 300px;">
+    <div style="font-weight: 700; color: #63a4ff; margin-bottom: 6px; font-size: 1em;">
+      🎯 Common Scenarios
+    </div>
+    <button class="cvss-preset-btn" data-preset="rce">
+      <span class="preset-icon">🌐</span>
+      <div class="preset-content">
+        <div class="preset-title">Remote Code Execution</div>
+        <div class="preset-desc">Network-based, no auth needed</div>
+      </div>
+    </button>
+    <button class="cvss-preset-btn" data-preset="privesc">
+      <span class="preset-icon">🔒</span>
+      <div class="preset-content">
+        <div class="preset-title">Privilege Escalation</div>
+        <div class="preset-desc">Local access, scope change</div>
+      </div>
+    </button>
+    <button class="cvss-preset-btn" data-preset="infoleak">
+      <span class="preset-icon">🔍</span>
+      <div class="preset-content">
+        <div class="preset-title">Information Disclosure</div>
+        <div class="preset-desc">Data leak, limited impact</div>
+      </div>
+    </button>
+  </div>
+</div>
+<!-- ==== END CVSS CALCULATOR BLOCK ==== -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.querySelectorAll('.cvss-info').forEach(function(el){
+el.setAttribute('tabindex','0');
+el.style.display = 'inline-block';
+el.style.transition = 'color 0.18s';
+el.style.color = '#63a4ff';
+el.style.borderRadius = '50%';
+el.style.fontWeight = '900';
+el.addEventListener('mouseover',function(){el.style.color='#fca311'});
+el.addEventListener('mouseout',function(){el.style.color='#63a4ff'});
+});
+
+let gaugeChart = null;
+const scoreAdvice = {
+'CRITICAL': { msg: "Critical severity. Immediate action required – patch now or take system offline if not fixable.", color: "#f55855" },
+'HIGH':     { msg: "High severity. Patch quickly (ideally within days to a week) to avoid active exploitation.", color: "#f8a541" },
+'MEDIUM':   { msg: "Medium severity. Review and patch soon, especially if combined with other risks.", color: "#3b8ded" },
+'LOW':      { msg: "Low severity. Monitor and patch in next cycle, unless actively targeted.", color: "#42d392" }
+};
+
+function drawScoreGauge(score, label, severity) {
+const ctx = document.getElementById("cvssScoreGauge").getContext("2d");
+if (gaugeChart) gaugeChart.destroy();
+
+// Create gradient for the gauge
+const gradient = ctx.createLinearGradient(0, 0, 170, 0);
+gradient.addColorStop(0, scoreAdvice[severity].color);
+gradient.addColorStop(1, scoreAdvice[severity].color + '80');
+
+gaugeChart = new Chart(ctx, {
+   type: 'doughnut',
+   data: {
+      datasets: [{
+         data: [score, 10 - score],
+         backgroundColor: [gradient, "rgba(35, 43, 69, 0.3)"],
+         borderWidth: 0,
+         cutout: "75%"
+      }]
+   },
+   options: {
+      circumference: 180,
+      rotation: 270,
+      plugins: {
+         legend: { display: false },
+         tooltip: { enabled: false }
+      },
+      animation: {
+         animateRotate: true,
+         duration: 800
+      }
+   }
+});
+
+document.getElementById("cvssGaugeLabel").innerHTML =
+   `<div style="font-size: 2em; font-weight: 800; color: ${scoreAdvice[severity].color}; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">${score.toFixed(1)}</div>
+    <div style="font-weight: 600; color: ${scoreAdvice[severity].color}; font-size: 1em; margin-top: -3px;">${label}</div>`;
+}
+
+function updateCalcBadge(score, severity) {
+   const badge = document.getElementById("cvss-calc-badge");
+   if (!severity) { badge.style.display = "none"; return; }
+   
+   const icons = { CRITICAL: '🚨', HIGH: '⚠️', MEDIUM: '❗', LOW: 'ℹ️' };
+   
+   badge.innerHTML = `<div style="background: linear-gradient(135deg, ${scoreAdvice[severity].color}, ${scoreAdvice[severity].color}dd);
+                                    color: white;
+                                    padding: 6px 14px;
+                                    border-radius: 16px;
+                                    font-weight: 700;
+                                    font-size: 0.95em;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 6px;
+                                    box-shadow: 0 3px 12px rgba(0,0,0,0.2);
+                                    border: 1px solid rgba(255,255,255,0.2);">
+   ${icons[severity]} ${score.toFixed(1)} — ${severity.charAt(0) + severity.slice(1).toLowerCase()}
+   </div>`;
+   badge.style.display = '';
+}
+
+const cvssCalcForm = document.getElementById('cvss-calc-form');
+cvssCalcForm.addEventListener('submit', function(e){
+e.preventDefault();
+function s(v, mapping){return mapping[v]||0;}
+const AV = s(this.AV.value, {N:0.85,A:0.62,L:0.55,P:0.2});
+const AC = s(this.AC.value, {L:0.77,H:0.44});
+const PR = s(this.PR.value, {N:0.85,L:0.62,H:0.27});
+const UI = s(this.UI.value, {N:0.85,R:0.62});
+const S = this.S.value;
+const ImpactConf = this.Impact.value === 'H' ? 0.56 : 0.22;
+const ImpactInteg = this.Impact.value === 'H' ? 0.56 : 0.22;
+const ImpactAvail = this.Impact.value === 'H' ? 0.56 : 0.22;
+let impact = 6.42 * ImpactConf * ImpactInteg * ImpactAvail;
+if (S === 'C') impact = 7.52 * (ImpactConf - 0.029) - 3.25 * Math.pow(ImpactConf - 0.02, 15);
+let exploitability = 8.22 * AV * AC * PR * UI;
+let baseScore = 0;
+if (impact <= 0) { baseScore = 0; }
+else { if (S === 'U') baseScore = Math.min(impact + exploitability, 10); else baseScore = Math.min(1.08 * (impact + exploitability), 10); }
+baseScore = Math.round(baseScore * 10) / 10;
+let sev = "LOW";
+if(baseScore>=9)sev="CRITICAL"; else if(baseScore>=7)sev="HIGH"; else if(baseScore>=4)sev="MEDIUM";
+updateCalcBadge(baseScore, sev);
+drawScoreGauge(baseScore, sev.charAt(0)+sev.slice(1).toLowerCase(), sev);
+});
+cvssCalcForm.dispatchEvent(new Event('submit'));
+
+// Preset buttons
+document.querySelectorAll('.cvss-preset-btn').forEach(function(btn){
+btn.onclick = function(){
+if(btn.dataset.preset==="rce"){
+cvssCalcForm.AV.value="N";
+cvssCalcForm.AC.value="L";
+cvssCalcForm.PR.value="N";
+cvssCalcForm.UI.value="N";
+cvssCalcForm.Impact.value="H";
+cvssCalcForm.S.value="U";
+} else if(btn.dataset.preset==="privesc") {
+cvssCalcForm.AV.value="L";
+cvssCalcForm.AC.value="L";
+cvssCalcForm.PR.value="L";
+cvssCalcForm.UI.value="N";
+cvssCalcForm.Impact.value="H";
+cvssCalcForm.S.value="C";
+} else if(btn.dataset.preset==="infoleak") {
+cvssCalcForm.AV.value="N";
+cvssCalcForm.AC.value="L";
+cvssCalcForm.PR.value="N";
+cvssCalcForm.UI.value="N";
+cvssCalcForm.Impact.value="L";
+cvssCalcForm.S.value="U";
+}
+cvssCalcForm.dispatchEvent(new Event('submit'));
+};
+});
+</script>
+
+<style>
+/* Existing styles */
+.cvss-badge { color:#fff; border-radius:12px; padding:3px 13px; font-size:0.93em; font-weight:600; display:inline-block;}
+.cvss-score-row:focus, .cvss-score-row:active { outline:none; background:rgba(35, 43, 69, 0.8) !important; }
+.cvss-info { cursor:help !important; border-bottom:1px dotted #63a4ff; margin-left:2px; font-size:0.97em; }
+
+/* New improved styles for calculator */
+.cvss-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cvss-label {
+  font-weight: 600;
+  color: #cdd7ff;
+  font-size: 0.9em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cvss-select {
+  background: #232b45;
+  border: 1px solid rgba(99, 164, 255, 0.2);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: #e3e8f0;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.cvss-select:hover {
+  border-color: rgba(99, 164, 255, 0.4);
+  background: #232b45;
+}
+
+.cvss-select:focus {
+  border-color: #63a4ff;
+  box-shadow: 0 0 0 2px rgba(99, 164, 255, 0.2);
+}
+
+/* Fix dropdown options visibility */
+.cvss-select option {
+  background: #1e2640;
+  color: #e3e8f0;
+  padding: 6px;
+}
+
+.cvss-calculate-btn {
+  background: linear-gradient(135deg, #63a4ff 0%, #4d8ef7 100%);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: white;
+  font-weight: 700;
+  font-size: 0.95em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+  box-shadow: 0 3px 12px rgba(99, 164, 255, 0.3);
+}
+
+.cvss-calculate-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(99, 164, 255, 0.4);
+}
+
+.cvss-calculate-btn:active {
+  transform: translateY(0);
+}
+
+.cvss-preset-btn {
+  background: #232b45;
+  border: 1px solid rgba(99, 164, 255, 0.15);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.cvss-preset-btn:hover {
+  border-color: rgba(99, 164, 255, 0.3);
+  background: #232b45;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+}
+
+.preset-icon {
+  font-size: 1.2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+}
+
+.preset-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.preset-title {
+  color: #63a4ff;
+  font-weight: 600;
+  font-size: 0.9em;
+  line-height: 1.2;
+}
+
+.preset-desc {
+  color: #a9adc1;
+  font-size: 0.75em;
+  line-height: 1.2;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  #cvss-calc-wrapper {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    text-align: center;
+  }
+}
+</style>
+
+<div style="text-align:center; margin:2.5em 0 1em 0;">
+  <a href="{{ url_for('index') }}" style="color:#63a4ff; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
+    ← Back to Dashboard
+  </a>
+</div>
+
 {% endblock %}

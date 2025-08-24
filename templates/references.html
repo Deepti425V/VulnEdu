@@ -1,309 +1,324 @@
-<!-- References & Resources Hub - Comprehensive resource collection for VulnEdu users -->
 {% extends "base.html" %}
-
 {% block content %}
-<!-- Main container with wide layout to accommodate comprehensive content -->
 <div style="max-width:1400px;margin:0 auto 32px auto;padding-top:20px;">
-
-    <!-- Page Header with educational context -->
-    <h1 style="color:#63a4ff;">References &amp; Resources</h1>
-    <p style="color:#e2e8f0;font-size:1.1em;line-height:1.6;margin-bottom:32px;">
-        This page contains all the authoritative sources, APIs, documentation, and resources that power VulnEdu.
-        Understanding these resources helps you dive deeper into cybersecurity vulnerability research and build your own security tools.
-    </p>
-
-    <!-- Quick Navigation - Grid-based menu for easy section access -->
-    <div style="background:#1a2236;border-radius:12px;padding:20px;margin-bottom:32px;">
-        <h3 style="color:#63a4ff;margin:0 0 16px 0;">Quick Navigation</h3>
-        <!-- Auto-fitting grid adapts to screen size, minimum 200px per item -->
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
-            <!-- Navigation buttons with emoji icons for visual identification -->
-            <a href="#primary-data" style="color:#63a4ff;text-decoration:none;padding:8px 12px;background:#263159;border-radius:6px;font-weight:500;">🗄 Primary Data Sources</a>
-            <a href="#apis-feeds" style="color:#63a4ff;text-decoration:none;padding:8px 12px;background:#263159;border-radius:6px;font-weight:500;">🔌 APIs &amp; Data Feeds</a>
-            <a href="#technical-docs" style="color:#63a4ff;text-decoration:none;padding:8px 12px;background:#263159;border-radius:6px;font-weight:500;">⚙️ Technical Documentation</a>
-            <a href="#tools-frameworks" style="color:#63a4ff;text-decoration:none;padding:8px 12px;background:#263159;border-radius:6px;font-weight:500;">🛠 Development Tools</a>
-        </div>
-    </div>
-
-    <!-- Primary Data Sources Section - Government and official vulnerability databases -->
-    <section id="primary-data" style="background:#1a2236;border-radius:14px;padding:28px;margin-bottom:32px;">
-        <h2 style="color:#63a4ff;margin:0 0 20px 0;display:flex;align-items:center;">
-            <span style="margin-right:12px;">🗄</span> Primary Data Sources
-        </h2>
-        <p style="color:#a9adc1;margin-bottom:24px;">The foundational databases and organizations that provide the core vulnerability data used in VulnEdu.</p>
-        
-        <div style="display:grid;gap:20px;">
-            
-            <!-- National Vulnerability Database (NVD) - Primary US government source -->
-            <div style="border-left:4px solid #f8a541;padding-left:20px;">
-                <h3 style="color:#fca311;margin:0 0 8px 0;">National Vulnerability Database (NVD)</h3>
-                <div style="color:#e2e8f0;margin-bottom:12px;">
-                    <!-- Educational format: What, Why, How we use it -->
-                    <strong>What:</strong> The U.S. government repository of vulnerability data based on CVE identifiers.<br>
-                    <strong>Why:</strong> Provides comprehensive CVSS scoring, detailed analysis, and machine-readable data feeds.<br>
-                    <strong>How we use it:</strong> Primary source for CVE details, severity scores, and real-time vulnerability data via API.
-                </div>
-                <!-- Multiple access points for comprehensive resource coverage -->
-                <div style="display:flex;gap:16px;flex-wrap:wrap;">
-                    <a href="https://nvd.nist.gov/" target="_blank" style="color:#63a4ff;text-decoration:underline;">Official Website</a>
-                    <a href="https://nvd.nist.gov/developers" target="_blank" style="color:#63a4ff;text-decoration:underline;">API Documentation</a>
-                    <a href="https://nvd.nist.gov/developers/vulnerabilities" target="_blank" style="color:#63a4ff;text-decoration:underline;">Vulnerability API</a>
-                    <a href="https://nvd.nist.gov/general/faq" target="_blank" style="color:#63a4ff;text-decoration:underline;">FAQ &amp; Usage Guidelines</a>
-                </div>
-            </div>
-
-            <!-- MITRE CVE Program - Authoritative CVE identifier source -->
-            <div style="border-left:4px solid #42d392;padding-left:20px;">
-                <h3 style="color:#42d392;margin:0 0 8px 0;">MITRE CVE Program</h3>
-                <div style="color:#e2e8f0;margin-bottom:12px;">
-                    <strong>What:</strong> The authoritative source for CVE identifiers and the CVE naming standard.<br>
-                    <strong>Why:</strong> CVE IDs provide universal references for vulnerabilities across all security tools.<br>
-                    <strong>How we use it:</strong> CVE ID validation, cross-referencing, and understanding vulnerability disclosure processes.
-                </div>
-                <div style="display:flex;gap:16px;flex-wrap:wrap;">
-                    <a href="https://www.cve.org/" target="_blank" style="color:#63a4ff;text-decoration:underline;">CVE Main Site</a>
-                </div>
-            </div>
-
-            <!-- MITRE CWE - Common Weakness Enumeration catalog -->
-            <div style="border-left:4px solid #3b8ded;padding-left:20px;">
-                <h3 style="color:#3b8ded;margin:0 0 8px 0;">MITRE Common Weakness Enumeration (CWE)</h3>
-                <div style="color:#e2e8f0;margin-bottom:12px;">
-                    <strong>What:</strong> A comprehensive catalog of software and hardware weakness types.<br>
-                    <strong>Why:</strong> Provides classification framework for understanding root causes of vulnerabilities.<br>
-                    <strong>How we use it:</strong> CWE mapping, weakness analysis, and educational content about vulnerability patterns.
-                </div>
-                <div style="display:flex;gap:16px;flex-wrap:wrap;">
-                    <a href="https://cwe.mitre.org/" target="_blank" style="color:#63a4ff;text-decoration:underline;">CWE Main Site</a>
-                    <a href="https://cwe.mitre.org/data/index.html" target="_blank" style="color:#63a4ff;text-decoration:underline;">CWE Data Downloads</a>
-                    <a href="https://cwe.mitre.org/top25/" target="_blank" style="color:#63a4ff;text-decoration:underline;">CWE Top 25</a>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- APIs & Data Feeds Section - Technical integration information -->
-    <section id="apis-feeds" style="background:#1a2236;border-radius:14px;padding:28px;margin-bottom:32px;">
-        <h2 style="color:#63a4ff;margin:0 0 20px 0;display:flex;align-items:center;">
-            <span style="margin-right:12px;">🔌</span> APIs &amp; Data Feeds
-        </h2>
-        <p style="color:#a9adc1;margin-bottom:24px;">Technical interfaces and data formats used to programmatically access vulnerability information.</p>
-        
-        <div style="display:grid;gap:20px;">
-            
-            <!-- NVD API 2.0 - Detailed technical specifications -->
-            <div style="background:#232b45;border-radius:8px;padding:20px;">
-                <h3 style="color:#63a4ff;margin:0 0 12px 0;">NVD API 2.0</h3>
-                <div style="color:#e2e8f0;margin-bottom:16px;">
-                    RESTful API providing JSON responses for CVE data, CVSS metrics, and vulnerability details.
-                </div>
-                
-                <!-- Example API endpoint in code format -->
-                <div style="background:#1a2236;padding:16px;border-radius:6px;margin-bottom:16px;">
-                    <code style="color:#42d392;font-family:monospace;">
-                        GET https://services.nvd.nist.gov/rest/json/cves/2.0
-                    </code>
-                </div>
-                
-                <!-- Technical specifications in responsive grid -->
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
-                    <div>
-                        <strong style="color:#fca311;">Rate Limits:</strong><br>
-                        <span style="color:#a9adc1;">5 requests/30 sec (no key)<br>50 requests/30 sec (with key)</span>
-                    </div>
-                    <div>
-                        <strong style="color:#fca311;">Response Format:</strong><br>
-                        <span style="color:#a9adc1;">JSON with CVE objects</span>
-                    </div>
-                    <div>
-                        <strong style="color:#fca311;">Key Parameters:</strong><br>
-                        <span style="color:#a9adc1;">cveId, pubStartDate, lastModStartDate</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Data Formats & Standards - Industry standard formats -->
-            <div style="background:#232b45;border-radius:8px;padding:20px;">
-                <h3 style="color:#63a4ff;margin:0 0 12px 0;">Data Formats &amp; Standards</h3>
-                <!-- Grid layout for standard format descriptions -->
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;">
-                    <div>
-                        <strong style="color:#42d392;">CVE JSON 5.0</strong><br>
-                        <span style="color:#a9adc1;">Standard format for CVE vulnerability data</span>
-                    </div>
-                    <div>
-                        <strong style="color:#42d392;">CVSS v3.1</strong><br>
-                        <span style="color:#a9adc1;">Vulnerability scoring methodology</span>
-                    </div>
-                    <div>
-                        <strong style="color:#42d392;">CWE XML</strong><br>
-                        <span style="color:#a9adc1;">Machine-readable weakness catalog</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Technical Documentation & Standards Section -->
-    <section id="technical-docs" style="background:#1a2236;border-radius:14px;padding:28px;margin-bottom:32px;">
-        <h2 style="color:#63a4ff;margin:0 0 20px 0;display:flex;align-items:center;">
-            <span style="margin-right:12px;">⚙️</span> Technical Documentation &amp; Standards
-        </h2>
-        
-        <div style="display:grid;gap:20px;">
-            
-            <!-- Common Vulnerability Scoring System (CVSS) -->
-            <div style="background:#232b45;border-radius:8px;padding:20px;">
-                <h3 style="color:#63a4ff;margin:0 0 12px 0;">Common Vulnerability Scoring System (CVSS)</h3>
-                <div style="color:#e2e8f0;margin-bottom:16px;">
-                    Industry standard for assessing the severity of computer system security vulnerabilities.
-                </div>
-                <!-- Multiple CVSS resource links -->
-                <div style="display:flex;gap:16px;flex-wrap:wrap;">
-                    <a href="https://www.first.org/cvss/" target="_blank" style="color:#63a4ff;text-decoration:underline;">CVSS Official Site</a>
-                    <a href="https://www.first.org/cvss/v3.1/specification-document" target="_blank" style="color:#63a4ff;text-decoration:underline;">CVSS v3.1 Specification</a>
-                    <a href="https://www.first.org/cvss/calculator/3.1" target="_blank" style="color:#63a4ff;text-decoration:underline;">CVSS Calculator</a>
-                </div>
-            </div>
-
-            <!-- Security Standards & Guidelines -->
-            <div style="background:#232b45;border-radius:8px;padding:20px;">
-                <h3 style="color:#63a4ff;margin:0 0 12px 0;">Security Standards &amp; Guidelines</h3>
-                <!-- Grid layout for different security standards -->
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;">
-                    <div>
-                        <strong style="color:#42d392;">ISO 27001/27002</strong><br>
-                        <span style="color:#a9adc1;">Information security management standards</span><br>
-                        <a href="https://www.iso.org/isoiec-27001-information-security.html" target="_blank" style="color:#63a4ff;text-decoration:underline;">Learn More</a>
-                    </div>
-                    <div>
-                        <strong style="color:#42d392;">NIST SP 800-53</strong><br>
-                        <span style="color:#a9adc1;">Security controls for federal information systems</span><br>
-                        <a href="https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final" target="_blank" style="color:#63a4ff;text-decoration:underline;">Publication</a>
-                    </div>
-                    <div>
-                        <strong style="color:#42d392;">PCI DSS</strong><br>
-                        <span style="color:#a9adc1;">Payment card industry data security standard</span><br>
-                        <a href="https://www.pcisecuritystandards.org/" target="_blank" style="color:#63a4ff;text-decoration:underline;">Official Site</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Development Tools & Frameworks Section -->
-    <section id="tools-frameworks" style="background:#1a2236;border-radius:14px;padding:28px;margin-bottom:32px;">
-        <h2 style="color:#63a4ff;margin:0 0 20px 0;display:flex;align-items:center;">
-            <span style="margin-right:12px;">🛠</span> Development Tools &amp; Frameworks
-        </h2>
-        
-        <div style="display:grid;gap:20px;">
-            
-            <!-- Web Development Stack - Technologies used in VulnEdu -->
-            <div style="background:#232b45;border-radius:8px;padding:20px;">
-                <h3 style="color:#63a4ff;margin:0 0 16px 0;">Web Development Stack</h3>
-                <!-- Grid layout for technology stack components -->
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
-                    <div>
-                        <strong style="color:#42d392;">Flask</strong><br>
-                        <span style="color:#a9adc1;">Python web framework</span><br>
-                        <a href="https://flask.palletsprojects.com/" target="_blank" style="color:#63a4ff;text-decoration:underline;">Documentation</a>
-                    </div>
-                    <div>
-                        <strong style="color:#42d392;">Chart.js</strong><br>
-                        <span style="color:#a9adc1;">JavaScript charting library</span><br>
-                        <a href="https://www.chartjs.org/" target="_blank" style="color:#63a4ff;text-decoration:underline;">Documentation</a>
-                    </div>
-                    <div>
-                        <strong style="color:#42d392;">Pandas</strong><br>
-                        <span style="color:#a9adc1;">Python data analysis library</span><br>
-                        <a href="https://pandas.pydata.org/docs/" target="_blank" style="color:#63a4ff;text-decoration:underline;">Documentation</a>
-                    </div>
-                    <div>
-                        <strong style="color:#42d392;">Requests</strong><br>
-                        <span style="color:#a9adc1;">Python HTTP library</span><br>
-                        <a href="https://requests.readthedocs.io/" target="_blank" style="color:#63a4ff;text-decoration:underline;">Documentation</a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Security Analysis Tools - Professional and open-source tools -->
-            <div style="background:#232b45;border-radius:8px;padding:20px;">
-                <h3 style="color:#63a4ff;margin:0 0 16px 0;">Security Analysis Tools</h3>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;">
-                    <div>
-                        <strong style="color:#f47174;">OpenVAS</strong><br>
-                        <span style="color:#a9adc1;">Open-source vulnerability scanner</span><br>
-                        <a href="https://www.openvas.org/" target="_blank" style="color:#63a4ff;text-decoration:underline;">Project Site</a>
-                    </div>
-                    <div>
-                        <strong style="color:#f47174;">Nessus</strong><br>
-                        <span style="color:#a9adc1;">Professional vulnerability scanner</span><br>
-                        <a href="https://www.tenable.com/products/nessus" target="_blank" style="color:#63a4ff;text-decoration:underline;">Product Page</a>
-                    </div>
-                    <div>
-                        <strong style="color:#f47174;">OWASP ZAP</strong><br>
-                        <span style="color:#a9adc1;">Web application security scanner</span><br>
-                        <a href="https://zaproxy.org/" target="_blank" style="color:#63a4ff;text-decoration:underline;">Project Site</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Attribution & Acknowledgments Section - Legal and ethical attributions -->
-    <section style="background:#1a2236;border-radius:14px;padding:28px;">
-        <h2 style="color:#63a4ff;margin:0 0 20px 0;">Attribution &amp; Acknowledgments</h2>
-        <div style="color:#e2e8f0;line-height:1.6;">
-            <p>VulnEdu is built using publicly available data from government and nonprofit organizations dedicated to improving cybersecurity. We acknowledge:</p>
-            
-            <!-- List of acknowledged organizations and contributions -->
-            <ul style="margin-left:20px;color:#a9adc1;">
-                <li><strong>NIST</strong> for maintaining the National Vulnerability Database</li>
-                <li><strong>MITRE Corporation</strong> for the CVE and CWE programs</li>
-                <li><strong>FIRST.org</strong> for the CVSS scoring methodology</li>
-                <li><strong>OWASP</strong> for educational resources and best practices</li>
-                <li>The global <strong>cybersecurity research community</strong> for continuous improvements to vulnerability disclosure and management</li>
-            </ul>
-            
-            <!-- Legal disclaimer and educational context -->
-            <p style="margin-top:20px;padding:16px;background:#232b45;border-radius:6px;font-size:0.95em;">
-                <strong>Disclaimer:</strong> This educational tool is provided for learning purposes. Vulnerability data should always be verified against official sources before making security decisions. VulnEdu is not affiliated with NIST, MITRE, or any government agency.
-            </p>
-        </div>
-    </section>
+<!-- Page Header -->
+<h1 style="color:#63a4ff;">References &amp; Resources</h1>
+<p style="color:#e2e8f0;font-size:1.1em;line-height:1.6;margin-bottom:32px;">
+This page contains all the authoritative sources, APIs, documentation,
+and resources that power VulnEdu.
+Understanding these resources helps you dive deeper into cybersecurity
+vulnerability research and build your own security tools.
+</p>
+<!-- Quick Navigation -->
+<div style="background:#1a2236;border-radius:12px;padding:20px;margin-bottom:32px;">
+<h3 style="color:#63a4ff;margin:0 0 16px 0;">Quick Navigation</h3>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+<a href="#primary-data" style="color:#63a4ff;text-decoration:none;padding:8px 12px;background:#263159;border-radius:6px;font-weight:500;">🗄️ Primary Data Sources</a>
+<a href="#apis-feeds" style="color:#63a4ff;text-decoration:none;padding:8px 12px;background:#263159;border-radius:6px;font-weight:500;">🔌 APIs &amp; Data Feeds</a>
+<a href="#technical-docs" style="color:#63a4ff;text-decoration:none;padding:8px 12px;background:#263159;border-radius:6px;font-weight:500;">⚙️ Technical Documentation</a>
+<a href="#tools-frameworks" style="color:#63a4ff;text-decoration:none;padding:8px 12px;background:#263159;border-radius:6px;font-weight:500;">🛠️ Development Tools</a>
 </div>
-
-<!-- JavaScript enhancements for improved user experience -->
+</div>
+<!-- Primary Data Sources -->
+<section id="primary-data" style="background:#1a2236;border-radius:14px;padding:28px;margin-bottom:32px;">
+<h2 style="color:#63a4ff;margin:0 0 20px 0;display:flex;align-items:center;">
+<span style="margin-right:12px;">🗄️</span> Primary Data Sources
+</h2>
+<p style="color:#a9adc1;margin-bottom:24px;">The foundational
+databases and organizations that provide the core vulnerability data used in
+VulnEdu.</p>
+<div style="display:grid;gap:20px;">
+<!-- NVD -->
+<div style="border-left:4px solid #f8a541;padding-left:20px;">
+<h3 style="color:#fca311;margin:0 0 8px 0;">National
+Vulnerability Database (NVD)</h3>
+<div style="color:#e2e8f0;margin-bottom:12px;">
+<strong>What:</strong> The U.S. government repository of
+vulnerability data based on CVE identifiers.<br>
+<strong>Why:</strong> Provides comprehensive CVSS scoring,
+detailed analysis, and machine-readable data feeds.<br>
+<strong>How we use it:</strong> Primary source for CVE
+details, severity scores, and real-time vulnerability data via API.
+</div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;">
+<a href="https://nvd.nist.gov/" target="_blank"
+style="color:#63a4ff;text-decoration:underline;">Official Website</a>
+<a href="https://nvd.nist.gov/developers" target="_blank"
+style="color:#63a4ff;text-decoration:underline;">API Documentation</a>
+<a href="https://nvd.nist.gov/developers/vulnerabilities"
+target="_blank" style="color:#63a4ff;text-decoration:underline;">Vulnerability
+API</a>
+<a href="https://nvd.nist.gov/general/faq" target="_blank"
+style="color:#63a4ff;text-decoration:underline;">FAQ &amp; Usage Guidelines</a>
+</div>
+</div>
+<!-- MITRE CVE -->
+<div style="border-left:4px solid #42d392;padding-left:20px;">
+<h3 style="color:#42d392;margin:0 0 8px 0;">MITRE CVE
+Program</h3>
+<div style="color:#e2e8f0;margin-bottom:12px;">
+<strong>What:</strong> The authoritative source for CVE
+identifiers and the CVE naming standard.<br>
+<strong>Why:</strong> CVE IDs provide universal references
+for vulnerabilities across all security tools.<br>
+<strong>How we use it:</strong> CVE ID validation, cross-referencing, and understanding vulnerability disclosure processes.
+</div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;">
+<a href="https://www.cve.org/" target="_blank"
+style="color:#63a4ff;text-decoration:underline;">CVE Main Site</a>
+</div>
+</div>
+<!-- MITRE CWE -->
+<div style="border-left:4px solid #3b8ded;padding-left:20px;">
+<h3 style="color:#3b8ded;margin:0 0 8px 0;">MITRE Common
+Weakness Enumeration (CWE)</h3>
+<div style="color:#e2e8f0;margin-bottom:12px;">
+<strong>What:</strong> A comprehensive catalog of software
+and hardware weakness types.<br>
+<strong>Why:</strong> Provides classification framework 
+for understanding root causes of vulnerabilities.<br>
+<strong>How we use it:</strong> CWE mapping, weakness
+analysis, and educational content about vulnerability patterns.
+</div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;">
+<a href="https://cwe.mitre.org/" target="_blank"
+style="color:#63a4ff;text-decoration:underline;">CWE Main Site</a>
+<a href="https://cwe.mitre.org/data/index.html"
+target="_blank" style="color:#63a4ff;text-decoration:underline;">CWE Data
+Downloads</a>
+<a href="https://cwe.mitre.org/top25/" target="_blank"
+style="color:#63a4ff;text-decoration:underline;">CWE Top 25</a>
+</div>
+</div>
+</div>
+</section>
+<!-- APIs & Data Feeds -->
+<section id="apis-feeds" style="background:#1a2236;border-radius:14px;padding:28px;margin-bottom:32px;">
+<h2 style="color:#63a4ff;margin:0 0 20px 0;display:flex;align-items:center;">
+<span style="margin-right:12px;">🔌</span> APIs &amp; Data Feeds
+</h2>
+<p style="color:#a9adc1;margin-bottom:24px;">Technical interfaces and
+data formats used to programmatically access vulnerability information.</p>
+<div style="display:grid;gap:20px;">
+<!-- NVD API 2.0 -->
+<div style="background:#232b45;border-radius:8px;padding:20px;">
+<h3 style="color:#63a4ff;margin:0 0 12px 0;">NVD API 2.0</h3>
+<div style="color:#e2e8f0;margin-bottom:16px;">
+RESTful API providing JSON responses for CVE data, CVSS
+metrics, and vulnerability details.
+</div>
+<div style="background:#1a2236;padding:16px;border-radius:6px;margin-bottom:16px;">
+<code style="color:#42d392;font-family:monospace;">
+GET https://services.nvd.nist.gov/rest/json/cves/2.0
+</code>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+<div>
+<strong style="color:#fca311;">Rate Limits:</strong>
+<br>
+<span style="color:#a9adc1;">5 requests/30 sec (no
+key)<br>50 requests/30 sec (with key)</span>
+</div>
+<div>
+<strong style="color:#fca311;">Response Format:</strong><br>
+<span style="color:#a9adc1;">JSON with CVE objects</span>
+</div>
+<div>
+<strong style="color:#fca311;">Key Parameters:</strong><br>
+<span style="color:#a9adc1;">cveId, pubStartDate,
+lastModStartDate</span>
+</div>
+</div>
+</div>
+<!-- Data Formats -->
+<div style="background:#232b45;border-radius:8px;padding:20px;">
+<h3 style="color:#63a4ff;margin:0 0 12px 0;">Data Formats &amp;
+Standards</h3>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;">
+<div>
+<strong style="color:#42d392;">CVE JSON 5.0</strong>
+<br>
+<span style="color:#a9adc1;">Standard format for CVE
+vulnerability data</span>
+</div>
+<div>
+<strong style="color:#42d392;">CVSS v3.1</strong><br>
+<span style="color:#a9adc1;">Vulnerability scoring
+methodology</span>
+</div>
+<div>
+<strong style="color:#42d392;">CWE XML</strong><br>
+<span style="color:#a9adc1;">Machine-readable weakness
+catalog</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Technical Documentation -->
+<section id="technical-docs" style="background:#1a2236;border-radius:14px;padding:28px;margin-bottom:32px;">
+<h2 style="color:#63a4ff;margin:0 0 20px 0;display:flex;align-items:center;">
+<span style="margin-right:12px;">⚙️</span> Technical Documentation &amp; Standards
+</h2>
+<div style="display:grid;gap:20px;">
+<!-- CVSS -->
+<div style="background:#232b45;border-radius:8px;padding:20px;">
+<h3 style="color:#63a4ff;margin:0 0 12px 0;">Common
+Vulnerability Scoring System (CVSS)</h3>
+<div style="color:#e2e8f0;margin-bottom:16px;">
+Industry standard for assessing the severity of computer
+system security vulnerabilities.
+</div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;">
+<a href="https://www.first.org/cvss/" target="_blank"
+style="color:#63a4ff;text-decoration:underline;">CVSS Official Site</a>
+<a href="https://www.first.org/cvss/v3.1/specification-document" target="_blank" style="color:#63a4ff;text-decoration:underline;">CVSS v3.1 Specification</a>
+<a href="https://www.first.org/cvss/calculator/3.1" target="_blank" style="color:#63a4ff;text-decoration:underline;">CVSS Calculator</a>
+</div>
+</div>
+<!-- Security Standards -->
+<div style="background:#232b45;border-radius:8px;padding:20px;">
+<h3 style="color:#63a4ff;margin:0 0 12px 0;">Security
+Standards &amp; Guidelines</h3>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;">
+<div>
+<strong style="color:#42d392;">ISO 27001/27002</strong><br>
+<span style="color:#a9adc1;">Information security
+management standards</span><br>
+<a href="https://www.iso.org/isoiec-27001-information-security.html" target="_blank" style="color:#63a4ff;text-decoration:underline;">Learn More</a>
+</div>
+<div>
+<strong style="color:#42d392;">NIST SP 800-53</strong><br>
+<span style="color:#a9adc1;">Security controls for federal information systems</span><br>
+<a href="https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final" target="_blank" style="color:#63a4ff;text-decoration:underline;">Publication</a>
+</div>
+<div>
+<strong style="color:#42d392;">PCI DSS</strong><br>
+<span style="color:#a9adc1;">Payment card industry
+data security standard</span><br>
+<a href="https://www.pcisecuritystandards.org/" target="_blank" style="color:#63a4ff;text-decoration:underline;">Official Site</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Development Tools & Frameworks -->
+<section id="tools-frameworks" style="background:#1a2236;border-radius:14px;padding:28px;margin-bottom:32px;">
+<h2 style="color:#63a4ff;margin:0 0 20px 0;display:flex;align-items:center;">
+<span style="margin-right:12px;">🛠️</span> Development Tools &amp; Frameworks
+</h2>
+<div style="display:grid;gap:20px;">
+<!-- Web Technologies -->
+<div style="background:#232b45;border-radius:8px;padding:20px;">
+<h3 style="color:#63a4ff;margin:0 0 16px 0;">Web Development
+Stack</h3>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+<div>
+<strong style="color:#42d392;">Flask</strong><br>
+<span style="color:#a9adc1;">Python web framework</span><br>
+<a href="https://flask.palletsprojects.com/" target="_blank" style="color:#63a4ff;text-decoration:underline;">Documentation</a>
+</div>
+<div>
+<strong style="color:#42d392;">Chart.js</strong><br>
+<span style="color:#a9adc1;">JavaScript charting library</span><br>
+<a href="https://www.chartjs.org/" target="_blank" style="color:#63a4ff;text-decoration:underline;">Documentation</a>
+</div>
+<div>
+<strong style="color:#42d392;">Pandas</strong><br>
+<span style="color:#a9adc1;">Python data analysis library</span><br>
+<a href="https://pandas.pydata.org/docs/" target="_blank" style="color:#63a4ff;text-decoration:underline;">Documentation</a>
+</div>
+<div>
+<strong style="color:#42d392;">Requests</strong><br>
+<span style="color:#a9adc1;">Python HTTP library</span><br>
+<a href="https://requests.readthedocs.io/" target="_blank" style="color:#63a4ff;text-decoration:underline;">Documentation</a>
+</div>
+</div>
+</div>
+<!-- Security Tools -->
+<div style="background:#232b45;border-radius:8px;padding:20px;">
+<h3 style="color:#63a4ff;margin:0 0 16px 0;">Security Analysis
+Tools</h3>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;">
+<div>
+<strong style="color:#f47174;">OpenVAS</strong><br>
+<span style="color:#a9adc1;">Open-source vulnerability
+scanner</span><br>
+<a href="https://www.openvas.org/" target="_blank" style="color:#63a4ff;text-decoration:underline;">Project Site</a>
+</div>
+<div>
+<strong style="color:#f47174;">Nessus</strong><br>
+<span style="color:#a9adc1;">Professional
+vulnerability scanner</span><br>
+<a href="https://www.tenable.com/products/nessus" target="_blank" style="color:#63a4ff;text-decoration:underline;">Product
+Page</a>
+</div>
+<div>
+<strong style="color:#f47174;">OWASP ZAP</strong><br>
+<span style="color:#a9adc1;">Web application security
+scanner</span><br>
+<a href="https://zaproxy.org/" target="_blank" style="color:#63a4ff;text-decoration:underline;">Project Site</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Contact & Attribution -->
+<section style="background:#1a2236;border-radius:14px;padding:28px;">
+<h2 style="color:#63a4ff;margin:0 0 20px 0;">Attribution &amp;
+Acknowledgments</h2>
+<div style="color:#e2e8f0;line-height:1.6;">
+<p>VulnEdu is built using publicly available data from government 
+and nonprofit organizations dedicated to improving cybersecurity. We
+acknowledge:</p>
+<ul style="margin-left:20px;color:#a9adc1;">
+<li><strong>NIST</strong> for maintaining the National
+Vulnerability Database</li>
+<li><strong>MITRE Corporation</strong> for the CVE and CWE
+programs</li>
+<li><strong>FIRST.org</strong> for the CVSS scoring
+methodology</li>
+<li><strong>OWASP</strong> for educational resources and best
+practices</li>
+<li>The global <strong>cybersecurity research
+community</strong> for continuous improvements to vulnerability disclosure and
+management</li>
+</ul>
+<p style="margin-top:20px;padding:16px;background:#232b45;border-radius:6px;font-size:0.95em;">
+<strong>Disclaimer:</strong> This educational tool is provided
+for learning purposes. Vulnerability data should always be verified against
+official sources before making security decisions. VulnEdu is not affiliated 
+with NIST, MITRE, or any government agency.
+</p>
+</div>
+</section>
+</div>
 <script>
-    // Smooth scrolling for navigation links - enhances UX for internal page navigation
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function (e) {
-            e.preventDefault();
-            const target = document.querySelector(this.getAttribute('href'));
-            if (target) {
-                target.scrollIntoView({
-                    behavior: 'smooth',    // Smooth scrolling animation
-                    block: 'start'        // Align to top of viewport
-                });
-            }
-        });
-    });
-
-    // Add visual feedback for external links - helps users understand navigation
-    document.querySelectorAll('a[target="_blank"]').forEach(link => {
-        // Only add icon if not already present (prevents duplicates)
-        if (!link.innerHTML.includes('↗')) {
-            link.innerHTML += ' <span style="font-size:0.8em;">↗</span>';
-        }
-    });
+// Smooth scrolling for navigation links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+anchor.addEventListener('click', function (e) {
+e.preventDefault();
+const target = document.querySelector(this.getAttribute('href'));
+if (target) {
+target.scrollIntoView({
+behavior: 'smooth',
+block: 'start'
+});
+}
+});
+});
+// Add visual feedback for external links
+document.querySelectorAll('a[target="_blank"]').forEach(link => {
+if (!link.innerHTML.includes('↗')) {
+link.innerHTML += ' <span style="font-size:0.8em;">↗</span>';
+}
+});
 </script>
 
-<!-- Back to Dashboard navigation - maintains application flow -->
 <div style="text-align:center; margin:2.5em 0 1em 0;">
-    <a href="{{ url_for('index') }}" style="color:#63a4ff; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
-        ← Back to Dashboard
-    </a>
+  <a href="{{ url_for('index') }}" style="color:#63a4ff; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
+    ← Back to Dashboard
+  </a>
 </div>
 
 {% endblock %}

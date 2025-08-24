@@ -1,86 +1,49 @@
-<!-- CWE Learning Interface - Educational exploration of Common Weakness Enumeration data -->
 {% extends "base.html" %}
-
 {% block content %}
-<!-- Main container with reasonable max-width for readability -->
 <div style="max-width:1100px;margin:0 auto 30px auto;padding-top:20px;">
-    
-    <!-- Page header with educational context -->
-    <h1 style="color:#63a4ff;">CWEs by Severity – Explore Common Weaknesses</h1>
-    
-    <!-- CWE Severity Chart Section - Visual overview of weakness distribution -->
-    <div style="margin:32px 0 48px 0; background:#1a2236; border-radius:14px; padding:30px;">
-        <div style="font-weight:700; color:#63a4ff; font-size:1.02rem; margin-bottom:10px;">
-            CWEs by Severity
-        </div>
-        
-        <!-- Chart container with fixed height for consistent layout -->
-        <div style="position:relative;height:320px;width:100%;">
-            <!-- Conditional chart rendering - only show if data available -->
-            {% if cwe_severity.labels|length > 0 %}
-                <!-- Chart.js canvas for severity distribution visualization -->
-                <canvas id="learnCweSeverityChart"></canvas>
-            {% else %}
-                <!-- Fallback message when no CWE data is available -->
-                <div style="color:#a9adc1;text-align:center;padding:30px 0;">
-                    No CWE data available. Please check your CWE XML or try again later.
-                </div>
-            {% endif %}
-        </div>
+  <h1 style="color:#63a4ff;">CWEs by Severity – Explore Common Weaknesses</h1>
+  <div style="margin:32px 0 48px 0; background:#1a2236; border-radius:14px; padding:30px;">
+    <div style="font-weight:700; color:#63a4ff; font-size:1.02rem; margin-bottom:10px;">
+      CWEs by Severity
     </div>
-    
-    <!-- Two-column layout: CWE list sidebar + detail panel -->
-    <div style="display:grid; grid-template-columns: 300px 1fr; gap:36px;">
-        
-        <!-- Left sidebar: Scrollable list of all CWEs -->
-        <aside style="background:#1a2236; border-radius:14px; padding:18px 0 18px 0;">
-            <!-- Sidebar header -->
-            <div style="padding-left:24px;font-weight:700;color:#63a4ff;margin-bottom:10px;">CWE List</div>
-            
-            <!-- Conditional CWE list rendering -->
-            {% if cwe_dict|length > 0 %}
-                <!-- Scrollable container for potentially hundreds of CWE entries -->
-                <ul id="cweListColumn" style="list-style:none;padding:0;margin:0;max-height:550px;overflow-y:auto;">
-                    <!-- Loop through all CWE entries from MITRE database -->
-                    {% for code, entry in cwe_dict.items() %}
-                        <!-- Individual CWE list item with click interaction -->
-                        <li data-cwe="{{ code }}" 
-                            style="padding:8px 24px;cursor:pointer;font-weight:500;color:#e3e7f2;
-                                   user-select:none;border-left:4px solid transparent;
-                                   transition: background 0.13s;">
-                            {{ code }}  <!-- Display CWE identifier (e.g., CWE-79) -->
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <!-- Fallback message when CWE dictionary is empty -->
-                <div style="padding:18px 22px;color:#a9adc1;">
-                    No CWE data loaded from MITRE XML file.
-                </div>
-            {% endif %}
-        </aside>
-        
-        <!-- Right panel: Dynamic content area for selected CWE details -->
-        <section style="background:#1a2236; border-radius:14px; padding:28px 26px; min-height:390px;">
-            <!-- Content panel that gets updated by JavaScript on CWE selection -->
-            <div id="cweDetailPanel">
-                <!-- Initial placeholder content with user instructions -->
-                <p style="color:#a9adc1;">Select a CWE code to see its official description, examples, and mitigations.</p>
-            </div>
-        </section>
-        
+    <div style="position:relative;height:320px;width:100%;">
+      {% if cwe_severity.labels|length > 0 %}
+        <canvas id="learnCweSeverityChart"></canvas>
+      {% else %}
+        <div style="color:#a9adc1;text-align:center;padding:30px 0;">
+          No CWE data available. Please check your CWE XML or try again later.
+        </div>
+      {% endif %}
     </div>
+  </div>
+  <div style="display:grid; grid-template-columns: 300px 1fr; gap:36px;">
+    <aside style="background:#1a2236; border-radius:14px; padding:18px 0 18px 0;">
+      <div style="padding-left:24px;font-weight:700;color:#63a4ff;margin-bottom:10px;">CWE List</div>
+      {% if cwe_dict|length > 0 %}
+      <ul id="cweListColumn" style="list-style:none;padding:0;margin:0;max-height:550px;overflow-y:auto;">
+        {% for code, entry in cwe_dict.items() %}
+        <li data-cwe="{{ code }}"
+            style="padding:8px 24px;cursor:pointer;font-weight:500;color:#e3e7f2;user-select:none;border-left:4px solid transparent;transition: background 0.13s;">
+          {{ code }}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div style="padding:18px 22px;color:#a9adc1;">
+        No CWE data loaded from MITRE XML file.
+      </div>
+      {% endif %}
+    </aside>
+    <section style="background:#1a2236; border-radius:14px; padding:28px 26px; min-height:390px;">
+      <div id="cweDetailPanel">
+        <p style="color:#a9adc1;">Select a CWE code to see its official description, examples, and mitigations.</p>
+      </div>
+    </section>
+  </div>
 </div>
-
-<!-- JavaScript data injection - Flask backend data serialized for client-side use -->
 <script>
-    // CWE severity chart data for Chart.js visualization
-    window.learnCweSeverityData = {{ cwe_severity | tojson }};
-    // Complete CWE dictionary for detail panel population
-    window.learnCweDict = {{ cwe_dict | tojson }};
+  window.learnCweSeverityData = {{ cwe_severity | tojson }};
+  window.learnCweDict = {{ cwe_dict | tojson }};
 </script>
-
-<!-- Load external JavaScript for CWE interactions and chart management -->
 <script src="{{ url_for('static', filename='js/learn.js') }}"></script>
-
 {% endblock %}

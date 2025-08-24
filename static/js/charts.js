@@ -1,30 +1,27 @@
-// Run only after HTML document has fully loaded
-document.addEventListener('DOMContentLoaded', function() {
-
-    // Ensure vulnerability metrics data from backend is available
-    if (typeof metricsData !== 'undefined') {
-
+document.addEventListener('DOMContentLoaded', function() 
+{
+    //Grab stats & metrics
+    if (typeof metricsData !== 'undefined') 
+        {
         // === Severity Pie Chart ===
         const severityCtx = document.getElementById('severityPie');
         if (severityCtx) {
             new Chart(severityCtx, {
-                type: 'pie', // simple pie chart for severity categories
+                type: 'pie',
                 data: {
-                    // Labels for severity levels
-                    labels: ['Critical', 'High', 'Medium', 'Low'],
+                    labels: ['Critical', 'High', 'Medium', 'Low'],  //severity buckets we care about
                     datasets: [{
-                        // Values pulled from global metricsData
                         data: [
                             metricsData.severity.critical,
                             metricsData.severity.high,
                             metricsData.severity.medium,
                             metricsData.severity.low
-                        ],
+                        ], //matches labels above, in order
                         backgroundColor: [
-                            '#f94144', // Critical - red
-                            '#f8961e', // High - orange
-                            '#43aa8b', // Medium - green
-                            '#90be6d'  // Low - light green
+                            '#f94144', //critical-red
+                            '#f8961e', //high-orange
+                            '#43aa8b', //medium-green
+                            '#90be6d'  //low-light-green
                         ],
                         borderWidth: 1
                     }]
@@ -33,11 +30,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     responsive: true,
                     plugins: {
                         legend: {
-                            position: 'right' // place legends outside for readability
+                            position: 'right' //keep legend beside pie for quick reading
                         },
                         title: {
                             display: true,
-                            text: 'Severity Distribution'
+                            text: 'Severity Distribution' //dashboard headline
                         }
                     }
                 }
@@ -48,36 +45,35 @@ document.addEventListener('DOMContentLoaded', function() {
         if (metricsData.cweStats && Object.keys(metricsData.cweStats).length > 0) {
             const cweCtx = document.getElementById('cweBar');
             if (cweCtx) {
-                // Extract CWE names & counts from dataset
-                const cweLabels = Object.keys(metricsData.cweStats);
-                const cweData = Object.values(metricsData.cweStats);
-
+                const cweLabels = Object.keys(metricsData.cweStats); // CWE names/codes
+                const cweData = Object.values(metricsData.cweStats); // their counts
+                
                 new Chart(cweCtx, {
-                    type: 'bar', // default vertical, but changed via indexAxis
+                    type: 'bar',
                     data: {
-                        labels: cweLabels,
+                        labels: cweLabels, //bar labels = CWE types
                         datasets: [{
-                            label: 'Count',
+                            label: 'Count', //count of each type
                             data: cweData,
-                            backgroundColor: '#4361ee', // consistent blue color
+                            backgroundColor: '#4361ee', //unified color for bars
                             borderWidth: 1
                         }]
                     },
                     options: {
-                        indexAxis: 'y', // horizontal orientation improves readability
+                        indexAxis: 'y', //horizontal bars (easier for wide lists)
                         responsive: true,
                         plugins: {
                             legend: {
-                                display: false // no legend, single dataset only
+                                display: false //don't show legend (single dataset)
                             },
                             title: {
                                 display: true,
-                                text: 'Top Vulnerability Types'
+                                text: 'Top Vulnerability Types' //dashboard headline
                             }
                         },
                         scales: {
                             x: {
-                                beginAtZero: true // X-axis starts at 0 for counts
+                                beginAtZero: true //bar count always starts at 0
                             }
                         }
                     }
@@ -87,12 +83,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // === CWE by Severity Stacked Bar Chart ===
         if (metricsData.cweSeverity && Object.keys(metricsData.cweSeverity).length > 0) {
-
-            // Try to get existing canvas element
             const severityTrendCtx = document.getElementById('severityTrendChart');
-            
-            // If not found, create canvas dynamically
             if (!severityTrendCtx) {
+                //If the canvas doesn't exist, add it into the DOM
                 const trendParent = document.getElementById('trendChart');
                 if (trendParent) {
                     const newCanvas = document.createElement('canvas');
@@ -101,39 +94,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            // Now retrieve final canvas reference
+            //Now fetch actual canvas we want to chart onto
             const severityCtx = document.getElementById('severityTrendChart');
             if (severityCtx) {
-                const cweLabels = Object.keys(metricsData.cweSeverity);
+                const cweLabels = Object.keys(metricsData.cweSeverity); //CWE types/codes
+                const severityLevels = ['critical', 'high', 'medium', 'low'];  //order matters for stacks
+                const colors = ['#f94144', '#f8961e', '#43aa8b', '#90be6d']; //matching pie chart colors
 
-                // Severities handled in consistent order (critical → low)
-                const severityLevels = ['critical', 'high', 'medium', 'low'];
-                const colors = ['#f94144', '#f8961e', '#43aa8b', '#90be6d'];
-
-                // Build one dataset per severity level
+                // Build the severity breakdown for each CWE (one dataset per severity level)
                 const datasets = severityLevels.map((sev, i) => ({
-                    label: sev.charAt(0).toUpperCase() + sev.slice(1),
-                    data: cweLabels.map(cwe => metricsData.cweSeverity[cwe][sev] || 0),
+                    label: sev.charAt(0).toUpperCase() + sev.slice(1), //"Critical", "High", "Meidum", "Low".
+                    data: cweLabels.map(cwe => metricsData.cweSeverity[cwe][sev] || 0), //value for each cwe
                     backgroundColor: colors[i]
                 }));
 
                 new Chart(severityCtx, {
                     type: 'bar',
                     data: {
-                        labels: cweLabels,
-                        datasets: datasets
+                        labels: cweLabels, //x-axis: CWE types
+                        datasets: datasets //stacks: severity per type
                     },
                     options: {
                         responsive: true,
                         plugins: {
                             title: {
                                 display: true,
-                                text: 'Vulnerability Types by Severity'
+                                text: 'Vulnerability Types by Severity' //dashboard headline
                             }
                         },
                         scales: {
-                            x: { stacked: true }, // stack severities side by side
-                            y: { stacked: true }  // enable vertical stacking
+                            x: {
+                                stacked: true //stack severity segments next to each CWE
+                            },
+                            y: {
+                                stacked: true //enable stacking vertically (standard for bar chart)
+                            }
                         }
                     }
                 });
@@ -141,3 +136,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
+
+

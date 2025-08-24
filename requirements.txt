@@ -1,7 +1,7 @@
-flask>=2.0.0          # Flask web microframework for routing and server logic
-pandas>=1.3.0         # Data analysis library, great for CSV/JSON/dataset wrangling
-requests>=2.26.0      # For making HTTP requests to APIs like NVD/MITRE
-flask-caching>=2.0.0  # Adds caching layer to Flask, speeds up repeated queries
-beautifulsoup4>=4.9.0 # Used to parse/scrape HTML or XML feeds, often with lxml
-lxml>=4.6.0           # High-performance parser backend for HTML/XML; powers BeautifulSoup
-gunicorn>=21.0.0      # Production WSGI web server to run Flask app (multi-worker, stable)
+flask>=2.0.0
+pandas>=1.3.0
+requests>=2.26.0
+flask-caching>=2.0.0
+beautifulsoup4>=4.9.0
+lxml>=4.6.0
+gunicorn>=21.0.0
