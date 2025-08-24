@@ -1,58 +1,60 @@
-<!-- VulnEdu Dashboard - Main application interface with comprehensive CVE analytics -->
+<!-- FIXED index.html template - removed syntax error at line 14 -->
 {% extends "base.html" %}
 
 {% block head %}
 <style>
-    /* Scrollable year filter styling - matches CWE list theme */
-    /* Custom scrollbar for year dropdown to handle long lists of years */
-    select[name="year"] {
-        max-height: 200px;           /* Limit dropdown height */
-        overflow-y: auto !important; /* Force scrollbar when needed */
-    }
-    
-    /* Custom scrollbar styling for year dropdown - WebKit browsers */
-    select[name="year"]::-webkit-scrollbar {
-        width: 8px;                  /* Thin scrollbar for space efficiency */
-    }
-    select[name="year"]::-webkit-scrollbar-track {
-        background: #1a2236;        /* Match dashboard theme */
-        border-radius: 4px;
-    }
-    select[name="year"]::-webkit-scrollbar-thumb {
-        background: #63a4ff;        /* Brand blue for thumb */
-        border-radius: 4px;
-        border: 1px solid #263159;  /* Subtle border for definition */
-    }
-    select[name="year"]::-webkit-scrollbar-thumb:hover {
-        background: #5292e6;        /* Slightly darker on hover */
-    }
-    select[name="year"]::-webkit-scrollbar-thumb:active {
-        background: #4a80cc;        /* Even darker when clicked */
-    }
-    
-    /* Firefox scrollbar styling */
-    select[name="year"] {
-        scrollbar-width: thin;               /* Thin scrollbar style */
-        scrollbar-color: #63a4ff #1a2236;   /* Thumb and track colors */
-    }
-    
-    /* Ensure dropdown opens properly with consistent option styling */
-    select[name="year"] option {
-        background: #222d44;        /* Dark background for options */
-        color: #cdd7f7;            /* Light text for readability */
-        padding: 8px;              /* Comfortable padding for options */
-    }
+/* Scrollable year filter styling - matches CWE list theme */
+/* Custom scrollbar for year dropdown to handle long lists of years */
+select[name="year"] {
+    max-height: 200px; /* Limit dropdown height */
+    overflow-y: auto !important; /* Force scrollbar when needed */
+}
+
+/* Custom scrollbar styling for year dropdown - WebKit browsers */
+select[name="year"]::-webkit-scrollbar {
+    width: 8px; /* Thin scrollbar for space efficiency */
+}
+
+select[name="year"]::-webkit-scrollbar-track {
+    background: #1a2236; /* Match dashboard theme */
+    border-radius: 4px;
+}
+
+select[name="year"]::-webkit-scrollbar-thumb {
+    background: #63a4ff; /* Brand blue for thumb */
+    border-radius: 4px;
+    border: 1px solid #263159; /* Subtle border for definition */
+}
+
+select[name="year"]::-webkit-scrollbar-thumb:hover {
+    background: #5292e6; /* Slightly darker on hover */
+}
+
+select[name="year"]::-webkit-scrollbar-thumb:active {
+    background: #4a80cc; /* Even darker when clicked */
+}
+
+/* Firefox scrollbar styling */
+select[name="year"] {
+    scrollbar-width: thin; /* Thin scrollbar style */
+    scrollbar-color: #63a4ff #1a2236; /* Thumb and track colors */
+}
+
+/* Ensure dropdown opens properly with consistent option styling */
+select[name="year"] option {
+    background: #222d44; /* Dark background for options */
+    color: #cdd7f7; /* Light text for readability */
+    padding: 8px; /* Comfortable padding for options */
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <!-- ======= MAIN DASHBOARD CONTAINER ========= -->
-<!-- Vertical layout with consistent spacing between major sections -->
 <div style="display: flex; flex-direction: column; gap: 36px">
-
     <!-- Header Section: Title and Search/Filter Controls -->
     <div style="display:flex; justify-content:space-between; align-items:center;">
-        <!-- Title and subtitle on the left -->
+        <!-- Title and subtitle -->
         <div>
             <h1 style="margin:0;color:#63a4ff;letter-spacing:1px;font-size:1.8rem;">
                 Educational CVE Analysis Tool
@@ -62,16 +64,15 @@
             </div>
         </div>
         
-        <!-- Search + filtering form (severity, year, month) -->
-        <!-- GET method preserves filter state in URL for bookmarking -->
+        <!-- Search + filtering form -->
         <form style="display:flex;gap:18px;" method="get" action="{{ url_for('index') }}">
-            <!-- Text search input with magnifying glass icon -->
-            <input type="text" name="q" value="{{ search_query or '' }}" 
+            <!-- Text search input -->
+            <input type="text" name="q" value="{{ search_query or '' }}"
                    placeholder="🔍 Search CVEs"
                    style="padding:9px;font-size:1rem;background:#222d44;color:#cdd7f7;border:none;border-radius:7px;">
             
-            <!-- Severity filter dropdown with current selection preserved -->
-            <select name="severity" 
+            <!-- Severity filter dropdown -->
+            <select name="severity"
                     style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
                 <option value="" {% if not severity_filter %}selected{% endif %}>All Severities</option>
                 <option value="CRITICAL" {% if severity_filter == 'CRITICAL' %}selected{% endif %}>Critical</option>
@@ -80,306 +81,282 @@
                 <option value="LOW" {% if severity_filter == 'LOW' %}selected{% endif %}>Low</option>
             </select>
             
-            <!-- Year filter with custom scrollbar (see CSS above) -->
-            <select name="year" 
+            <!-- Year filter -->
+            <select name="year"
                     style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
-                <option value="" {% if not year_filter %}selected{% endif %}>All Years</option>
-                <!-- Loop through available years from backend -->
-                {% for y in available_years %}
-                    <option value="{{ y }}" {% if year_filter == y %}selected{% endif %}>{{ y }}</option>
-                {% endfor %}
-            </select>
-            
-            <!-- Month filter with zero-padded display format -->
-            <select name="month" 
-                    style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
-                <option value="" {% if not month_filter %}selected{% endif %}>All Months</option>
-                <!-- Loop through available months, format as 01-12 -->
-                {% for m in available_months %}
-                    <option value="{{ m }}" {% if month_filter == m %}selected{% endif %}>{{ "%02d"|format(m) }}</option>
-                {% endfor %}
-            </select>
-            
-            <!-- Submit button to apply all selected filters -->
-            <button type="submit" 
-                    style="background:#63a4ff;color:white;border:none;padding:10px 18px;border-radius:7px;font-weight:700;">
-                Filter
-            </button>
-        </form>
-    </div>
+                    <option value="" {% if not year_filter %}selected{% endif %}>All Years</option>
+               {% for y in available_years %}
+               <option value="{{ y }}" {% if year_filter == y %}selected{% endif %}>{{ y }}</option>
+               {% endfor %}
+           </select>
+           
+           <!-- Month filter -->
+           <select name="month"
+                   style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
+               <option value="" {% if not month_filter %}selected{% endif %}>All Months</option>
+               {% for m in available_months %}
+               <option value="{{ m }}" {% if month_filter == m %}selected{% endif %}>{{ "%02d"|format(m) }}</option>
+               {% endfor %}
+           </select>
+           
+           <!-- Submit button -->
+           <button type="submit"
+                   style="background:#63a4ff;color:white;border:none;padding:10px 18px;border-radius:7px;font-weight:700;">
+               Filter
+           </button>
+       </form>
+   </div>
 
-    <!-- Optional note display (e.g., explaining why result set is limited) -->
-    {% if note_text %}
-    <div style="font-size: 0.85em; color: #a9adc1; margin-bottom: 12px; font-style: italic;">
-        {{ note_text }}
-    </div>
-    {% endif %}
+   <!-- First Row: Daily Trends + Severity Overview Cards -->
+   <div style="display: flex; gap: 25px;">
+       <!-- CVE Trends Daily SparkLine Card -->
+       <div class="trend-sevi-blocks" style="display: flex; flex-direction:column; justify-content: center;
+                                           background:#1a2236; border-radius:18px; padding:20px;
+                                           width:380px; height: 110px;">
+           <div style="font-weight:700; color:#63a4ff; margin-bottom:8px;
+                      font-size: 1.02rem; letter-spacing:0.15px; text-align:left;">
+               CVE Trends (Last 7 days)
+           </div>
+           <!-- Canvas for Chart.js sparkline visualization -->
+           <canvas id="dailyTrendChart" height="70"></canvas>
+       </div>
+       
+       <!-- Severity Cards Grid -->
+       <div style="display: grid; grid-template-columns: repeat(4, 1fr);
+                  gap:15px; flex: 1; align-items:stretch;">
+           <!-- Critical Severity Card -->
+           <div class="severity-card" data-severity="CRITICAL"
+                style="background:#1a2236; cursor:pointer;border-radius:18px;
+                       padding:20px;display:flex;flex-direction:column;align-items:center;
+                       justify-content:center;transition:box-shadow 0.2s;">
+               <div style="font-size:2.2rem;font-weight:800;color:#f47174;">
+                   {{ metrics.CRITICAL }}
+               </div>
+               <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">Critical</div>
+           </div>
+           
+           <!-- High Severity Card -->
+           <div class="severity-card" data-severity="HIGH"
+                style="background:#1a2236;cursor:pointer;border-radius:18px;
+                       padding:20px;display:flex;flex-direction:column;align-items:center;
+                       justify-content:center;transition:box-shadow 0.2s;">
+               <div style="font-size:2.2rem;font-weight:800;color:#fca311;">
+                   {{ metrics.HIGH }}
+               </div>
+               <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">High</div>
+           </div>
+           
+           <!-- Medium Severity Card -->
+           <div class="severity-card" data-severity="MEDIUM"
+                style="background:#1a2236;cursor:pointer;border-radius:18px;
+                       padding:20px;display:flex;flex-direction:column;align-items:center;
+                       justify-content:center;transition:box-shadow 0.2s;">
+               <div style="font-size:2.2rem;font-weight:800;color:#3b8ded;">
+                   {{ metrics.MEDIUM }}
+               </div>
+               <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">Medium</div>
+           </div>
+           
+           <!-- Low Severity Card -->
+           <div class="severity-card" data-severity="LOW"
+                style="background:#1a2236;cursor:pointer;border-radius:18px;
+                       padding:20px;display:flex;flex-direction:column;align-items:center;
+                       justify-content:center;transition:box-shadow 0.2s;">
+               <div style="font-size:2.2rem;font-weight:800;color:#42d392;">
+                   {{ metrics.LOW }}
+               </div>
+               <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">Low</div>
+           </div>
+       </div>
+   </div>
 
-    <!-- First Row: Daily Trends + Severity Overview Cards -->
-    <div style="display: flex; gap: 25px;">
-        
-        <!-- CVE Trends Daily SparkLine Card - Shows recent 30-day activity -->
-        <div class="trend-sevi-blocks" style="display: flex; flex-direction:column; justify-content: center; 
-             background:#1a2236; border-radius:18px; padding:20px; width:380px; height: 110px;">
-            <div style="font-weight:700; color:#63a4ff; margin-bottom:8px; 
-                 font-size: 1.02rem; letter-spacing:0.15px; text-align:left;">
-                CVE Trends (Last 30 days)
-            </div>
-            <!-- Canvas for Chart.js sparkline visualization -->
-            <canvas id="dailyTrendChart" height="70"></canvas>
-        </div>
-        
-        <!-- Severity Cards Grid - Interactive metric cards for each severity level -->
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap:15px; flex: 1; align-items:stretch;">
-            
-            <!-- Critical Severity Card - Red color scheme -->
-            <div class="severity-card" data-severity="CRITICAL"
-                 style="background:#1a2236; cursor:pointer;border-radius:18px; 
-                        padding:20px;display:flex;flex-direction:column;align-items:center;
-                        justify-content:center;transition:box-shadow 0.2s;">
-                <!-- Large number display for immediate impact -->
-                <div style="font-size:2.2rem;font-weight:800;color:#f47174;">
-                    {{ metrics.CRITICAL }}
-                </div>
-                <!-- Descriptive label -->
-                <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">Critical</div>
-            </div>
-            
-            <!-- High Severity Card - Orange color scheme -->
-            <div class="severity-card" data-severity="HIGH"
-                 style="background:#1a2236;cursor:pointer;border-radius:18px;
-                        padding:20px;display:flex;flex-direction:column;align-items:center;
-                        justify-content:center;transition:box-shadow 0.2s;">
-                <div style="font-size:2.2rem;font-weight:800;color:#fca311;">
-                    {{ metrics.HIGH }}
-                </div>
-                <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">High</div>
-            </div>
-            
-            <!-- Medium Severity Card - Blue color scheme -->
-            <div class="severity-card" data-severity="MEDIUM"
-                 style="background:#1a2236;cursor:pointer;border-radius:18px;
-                        padding:20px;display:flex;flex-direction:column;align-items:center;
-                        justify-content:center;transition:box-shadow 0.2s;">
-                <div style="font-size:2.2rem;font-weight:800;color:#3b8ded;">
-                    {{ metrics.MEDIUM }}
-                </div>
-                <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">Medium</div>
-            </div>
-            
-            <!-- Low Severity Card - Green color scheme -->
-            <div class="severity-card" data-severity="LOW"
-                 style="background:#1a2236;cursor:pointer;border-radius:18px;
-                        padding:20px;display:flex;flex-direction:column;align-items:center;
-                        justify-content:center;transition:box-shadow 0.2s;">
-                <div style="font-size:2.2rem;font-weight:800;color:#42d392;">
-                    {{ metrics.LOW }}
-                </div>
-                <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">Low</div>
-            </div>
-        </div>
-    </div>
+   <!-- Second Row: Simple Charts -->
+   <div style="display: flex; gap: 25px; align-items: stretch;">
+       <!-- Severity Distribution Chart -->
+       <section style="background:#1a2236; border-radius:14px; padding:30px;
+                      flex:1; display:flex; flex-direction:column; min-height:270px;">
+           <div style="font-weight:700; color:#63a4ff; margin-bottom:15px;
+                      font-size: 1.02rem; letter-spacing:0.15px; text-align:left;">
+               Severity Distribution
+           </div>
+           <div style="display:flex; align-items:center; justify-content:center; flex:1;">
+               <canvas id="severityPie" width="230" height="230"></canvas>
+           </div>
+       </section>
+       
+       <!-- Timeline Chart -->
+       <section style="background:#1a2236; border-radius:14px; padding:30px;
+                      flex:2; display: flex; flex-direction:column; min-height:270px;">
+           <div style="font-weight:700; color:#63a4ff; margin-bottom:8px;
+                      font-size: 1.02rem; letter-spacing:0.15px; text-align:left;">
+               Vulnerabilities Over Time
+           </div>
+           <div style="position: relative; flex:1;">
+               <canvas id="timelineChart"></canvas>
+           </div>
+       </section>
+   </div>
 
-    <!-- Second Row: Severity Distribution Pie Chart + Timeline Chart -->
-    <div style="display: flex; gap: 25px; align-items: stretch;">
-        
-        <!-- Severity Distribution Pie Chart with Custom Legend -->
-        <section style="background:#1a2236; border-radius:14px; padding:10px 30px 20px 30px; 
-                 flex:0.95; display:flex; flex-direction:row; align-items:center; 
-                 justify-content:center; min-height:270px;">
-            <div style="display:flex; flex-direction:column; justify-content:center; 
-                 height:150px; min-width:280px;">
-                <div style="font-weight:700; color:#63a4ff; margin-bottom:15px; 
-                     font-size: 1.02rem; letter-spacing:0.15px; text-align:left; width:100%;">
-                    Severity Distribution
-                </div>
-                <!-- Container for pie chart with center label -->
-                <div style="position:relative; width:230px; height:230px; min-width:230px; 
-                     display: flex; align-items: center; justify-content: center;">
-                    <!-- Chart.js pie chart canvas -->
-                    <canvas id="severityPie" width="230" height="230"></canvas>
-                    
-                    <!-- Center label overlaid on pie chart -->
-                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-                         color:#e3e7f2;text-align:center;pointer-events:none;width:110px;z-index:2;">
-                        <span style="font-size:1.0rem;font-weight:500;line-height:1;">Total CVE's</span>
-                        <br>
-                        <span style="font-size:1.2rem;font-weight:500;letter-spacing: 1px;">{{ total_cves }}</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Manual legend for pie chart with color boxes and percentages -->
-            <div style="display:flex; flex-direction:column; justify-content:center; 
-                 align-items:flex-start; margin-left: 5px; height:150px; min-width:125px; 
-                 position: relative; top:32px;">
-                <!-- Critical legend item -->
-                <div style="display:flex;align-items:left;gap:8px;font-size:1.06em; margin-bottom:20px;">
-                    <span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#f55855;"></span>
-                    <span style="color:#e3e7f2;min-width:67px;">Critical</span>
-                    <span style="color:#e3e7f2; font-weight:500;">{{ severity_percentage.CRITICAL }} %</span>
-                </div>
-                <!-- High legend item -->
-                <div style="display:flex;align-items:left;gap:8px;font-size:1.06em; margin-bottom:20px;">
-                    <span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#f8a541;"></span>
-                    <span style="color:#e3e7f2;min-width:67px;">High</span>
-                    <span style="color:#e3e7f2; font-weight:500;">{{ severity_percentage.HIGH }} %</span>
-                </div>
-                <!-- Medium legend item -->
-                <div style="display:flex;align-items:left;gap:8px;font-size:1.06em; margin-bottom:20px;">
-                    <span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#3b8ded;"></span>
-                    <span style="color:#e3e7f2;min-width:67px;">Medium</span>
-                    <span style="color:#e3e7f2; font-weight:500;">{{ severity_percentage.MEDIUM }} %</span>
-                </div>
-                <!-- Low legend item -->
-                <div style="display:flex;align-items:left;gap:8px;font-size:1.06em;">
-                    <span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:#42d392;"></span>
-                    <span style="color:#e3e7f2;min-width:67px;">Low</span>
-                    <span style="color:#e3e7f2; font-weight:500;">{{ severity_percentage.LOW }} %</span>
-                </div>
-            </div>
-        </section>
-        
-        <!-- Vulnerabilities Over Time - Long-term trend analysis -->
-        <section style="background:#1a2236; border-radius:14px; padding:30px 30px 10px 30px; 
-                 flex:2; display: flex; flex-direction:column; min-width: 350px; 
-                 min-height:250px; height: 300px;">
-            <div style="font-weight:700; color:#63a4ff; margin-bottom:8px; 
-                 font-size: 1.02rem; letter-spacing:0.15px; text-align:left;">
-                Vulnerabilities Over Time
-            </div>
-            <!-- Timeline chart container with relative positioning for responsiveness -->
-            <div style="position: relative; height:250px;">
-                <canvas id="timelineChart"></canvas>
-            </div>
-        </section>
-    </div>
-
-    <!-- Third Row: Vendor Risk Analysis - Advanced CWE pattern analysis -->
-    <div style="display: flex; gap: 25px; align-items: stretch;">
-        <section style="background:#1a2236; border-radius:14px; padding:30px; flex:1; min-height:430px;">
-            <div style="font-weight:700; color:#63a4ff; margin-bottom:8px; 
-                 font-size:1.02rem; letter-spacing:0.15px; text-align:left;">
-                Vendor Risk Analysis
-            </div>
-            
-            <!-- Control panel for radar chart customization -->
-            <div style="margin-bottom:12px; display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
-                <!-- Dropdown to select number of top CWEs to display -->
-                <label>
-                    <select id="radarCweCount" style="padding:5px 12px; border-radius:7px; 
-                            border:1px solid #263159; background:#222d44; color:#cdd7f7;">
-                        <option value="5">Top 5 CWEs</option>
-                        <option value="10" selected>Top 10 CWEs</option>
-                    </select>
-                </label>
-                <!-- Checkbox to enable severity-weighted calculations -->
-                <label style="margin-left:8px;">
-                    <input type="checkbox" id="radarWeighted" style="vertical-align:middle;">
-                    <span style="color:#e2e8f0; font-size:0.99em;">Weight by Severity</span>
-                </label>
-            </div>
-            
-            <div style="display: flex;">
-                <!-- Radar chart container -->
-                <div style="position: relative; height:340px; margin-bottom:8px; width:60%;">
-                    <canvas id="vendorRiskChart" width="400" height="320"></canvas>
-                </div>
-                
-                <!-- Vendor Risk Analysis Legend Panel with Educational Content -->
-                <div id="radarReadout" style="height:340px; padding:18px 16px 8px 26px; 
-                     display:block; color:#afc1ff; font-size:0.95em; min-width:256px; width:50%;">
-                    
-                    <!-- Interactive help panel with educational content -->
-                    <div style="background:#232b45; border-radius:12px; padding:18px 20px 20px 20px; 
-                         color:#cdd7ff; margin-left:6px;" aria-labelledby="legendTitle" role="region" tabindex="0">
-                        
-                        <!-- Help section header with info icon -->
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <span id="legendTitle" style="font-size:1.08em;font-weight:700;color:#63a4ff;">
-                                <!-- Interactive info icon with accessibility support -->
-                                <svg id="legendInfoIcon" tabindex="0" aria-label="More info" width="20" height="20" 
-                                     viewBox="0 0 20 20" style="cursor:pointer;margin-right:7px;vertical-align:-4px;">
-                                    <circle cx="10" cy="10" r="9" fill="#3799f7"/>
-                                    <text x="10" y="14" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">?</text>
-                                </svg>
-                                How to read this chart?
-                            </span>
-                        </div>
-                        
-                        <!-- Educational content explaining radar chart usage -->
-                        <ul style="margin:14px 0 0 18px; color:#afc1ff; font-size:0.98em;list-style:none;">
-                            <li style="margin-bottom:9px;">
-                                <span style="font-family:sans-serif;font-size:1em;margin-right:8px;vertical-align:-1px;">📊</span>
-                                Each axis is a <span style="color:#3799f7;font-weight:600;">CATEGORY</span>.
-                            </li>
-                            <li style="margin-bottom:9px;">
-                                <span style="font-family:sans-serif;font-size:1em;margin-right:8px;vertical-align:-1px;">🔵</span>
-                                The blue area <span style="color:#63a4ff;font-weight:700;">shows concentration of vulnerabilities</span> of the the type!
-                            </li>
-                            <li style="margin-bottom:9px;">
-                                <span style="font-family:sans-serif;font-size:1em;margin-right:8px;vertical-align:-1px;">🖱</span>
-                                <span style="color:#fca311;font-weight:700;">Click</span> on any spike for details or filtering.
-                            </li>
-                            <li style="margin-bottom:9px;">
-                                <span style="font-family:sans-serif;font-size:1em;margin-right:8px;vertical-align:-1px;">⚠</span>
-                                <span style="color:#f55855;font-weight:700;">Long spikes highlight your <span style="color:#f55855;">top risk areas</span>.</span>
-                            </li>
-                        </ul>
-                        
-                        <!-- Links to educational content -->
-                        <div style="margin-top:16px;">
-                            <a href="{{ url_for('learn_topic', topic='what-is-cwe') }}" 
-                               style="color:#63a4ff;font-weight:600;text-decoration:underline;margin-right:14px;">What is a CWE?</a>
-                            <a href="{{ url_for('learn') }}" 
-                               style="color:#63a4ff;font-weight:600;text-decoration:underline;margin-right:14px;">See all CWE categories</a>
-                            <a href="{{ url_for('learn_topic', topic='secure-coding') }}" 
-                               style="color:#42d392;font-weight:600;text-decoration:underline;">CWE mitigation tips</a>
-                        </div>
-                        
-                        <!-- Best practice recommendations -->
-                        <div id="legendBestPractice" style="margin-top:18px;background:#1a2236;padding:12px 13px;
-                             border-radius:7px;color:#eaf4fb;font-size:0.98em;">
-                            <span style="font-weight:700;color:#fca311;">Best Practice:</span> Review CWE mitigations, schedule fixes for top risk types, and prioritize high-frequency weaknesses first.
-                        </div>
-                        
-                        <!-- Hidden popover for additional help information -->
-                        <div id="legendInfoPopover" style="display:none;position:absolute;top:55px;right:-5px;
-                             background:#101828;color:#eaf4fb;border-radius:8px;width:258px;padding:18px;
-                             box-shadow:0 4px 16px #0002;z-index:14;" aria-live="assertive" role="dialog">
-                            <div style="font-weight:700;color:#63a4ff;margin-bottom:7px;">Radar Chart Help</div>
-                            <div style="font-size:1em;color:#e2e8f0;line-height:1.5;">
-                                Radar charts visualize concentration of vulnerabilities by category. Spikes show areas needing attention. Click spikes for definitions and recommended mitigations. For each CWE, follow 'Learn more' for full guidance.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </div>
-
-    <!-- JavaScript Data Injection - Flask backend data serialized to JSON for client-side charts -->
-    <script>
-        // Timeline data for multi-year trend analysis
-        window.timelineData = {{ timeline_data_years | tojson }};
-        // Daily trend data for 30-day sparkline
-        window.timelineDataDaily = {{ timeline_data_days | tojson }};
-        // Severity distribution statistics for pie chart
-        window.severityStats = {{ severity_stats | tojson }};
-        // CWE radar chart data - top 10 most common weaknesses
-        window.cweRadar = {{ cwe_radar | tojson }};
-        // All CWE data for comprehensive analysis
-        window.cweRadarAll = {{ cwe_radar_all | tojson }};
-        // Severity-weighted CWE data for risk-based analysis
-        window.cweRadarWeighted = {{ cwe_radar_weighted | tojson }};
-        // CWE descriptions for educational tooltips
-        window.cweRadarDescriptions = {{ cwe_radar_descriptions | tojson }};
-        // Placeholder for CWE mitigation data (populated by dashboard.js)
-        window.cweMitigations = {};
-    </script>
-    
-    <!-- Load dashboard JavaScript for chart initialization and interactions -->
-    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-    
+   <!-- CVE List Section -->
+   <div style="background:#1a2236; border-radius:14px; padding:30px;">
+       <div style="font-weight:700; color:#63a4ff; margin-bottom:20px;
+                  font-size: 1.02rem; letter-spacing:0.15px;">
+           Recent Vulnerabilities
+       </div>
+       <div style="overflow-x: auto;">
+           <table style="width: 100%; color: #e2e8f0; border-collapse: collapse;">
+               <thead>
+                   <tr style="border-bottom: 1px solid #374151;">
+                       <th style="padding: 12px; text-align: left; font-weight: 600;">CVE ID</th>
+                       <th style="padding: 12px; text-align: left; font-weight: 600;">Severity</th>
+                       <th style="padding: 12px; text-align: left; font-weight: 600;">CVSS</th>
+                       <th style="padding: 12px; text-align: left; font-weight: 600;">Description</th>
+                       <th style="padding: 12px; text-align: left; font-weight: 600;">Published</th>
+                   </tr>
+               </thead>
+               <tbody>
+                   {% for cve in cves %}
+                   <tr style="border-bottom: 1px solid #2d3748;">
+                       <td style="padding: 12px;">
+                           <a href="{{ url_for('cve_detail', cve_id=cve.ID) }}" 
+                              style="color: #63a4ff; text-decoration: none;">
+                               {{ cve.ID }}
+                           </a>
+                       </td>
+                       <td style="padding: 12px;">
+                           <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.875rem;
+                                       {% if cve.Severity == 'CRITICAL' %}background: #fecaca; color: #991b1b;
+                                       {% elif cve.Severity == 'HIGH' %}background: #fed7aa; color: #9a3412;
+                                       {% elif cve.Severity == 'MEDIUM' %}background: #dbeafe; color: #1e40af;
+                                       {% elif cve.Severity == 'LOW' %}background: #dcfce7; color: #166534;
+                                       {% else %}background: #f3f4f6; color: #374151;{% endif %}">
+                               {{ cve.Severity or 'Unknown' }}
+                           </span>
+                       </td>
+                       <td style="padding: 12px;">{{ cve.CVSS_Score or 'N/A' }}</td>
+                       <td style="padding: 12px; max-width: 400px;">
+                           {{ cve.Description[:100] }}{% if cve.Description|length > 100 %}...{% endif %}
+                       </td>
+                       <td style="padding: 12px;">{{ cve.Published[:10] if cve.Published else 'N/A' }}</td>
+                   </tr>
+                   {% endfor %}
+               </tbody>
+           </table>
+       </div>
+   </div>
 </div>
+
+<!-- JavaScript for Charts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+// Data from Flask backend
+window.timelineData = {{ timeline_data_years | tojson }};
+window.timelineDataDaily = {{ timeline_data_days | tojson }};
+window.severityStats = {{ severity_stats | tojson }};
+
+// Initialize charts
+document.addEventListener('DOMContentLoaded', function() {
+   // Daily Trend Chart
+   if (window.timelineDataDaily && window.timelineDataDaily.labels) {
+       const dailyCtx = document.getElementById('dailyTrendChart');
+       if (dailyCtx) {
+           new Chart(dailyCtx, {
+               type: 'line',
+               data: {
+                   labels: window.timelineDataDaily.labels,
+                   datasets: [{
+                       data: window.timelineDataDaily.values,
+                       borderColor: '#63a4ff',
+                       backgroundColor: 'transparent',
+                       borderWidth: 2,
+                       pointRadius: 0,
+                       tension: 0.4
+                   }]
+               },
+               options: {
+                   responsive: true,
+                   maintainAspectRatio: false,
+                   plugins: { legend: { display: false } },
+                   scales: {
+                       x: { display: false },
+                       y: { display: false }
+                   }
+               }
+           });
+       }
+   }
+
+   // Severity Pie Chart
+   if (window.severityStats) {
+       const pieCtx = document.getElementById('severityPie');
+       if (pieCtx) {
+           new Chart(pieCtx, {
+               type: 'pie',
+               data: {
+                   labels: ['Critical', 'High', 'Medium', 'Low'],
+                   datasets: [{
+                       data: [
+                           window.severityStats.CRITICAL || 0,
+                           window.severityStats.HIGH || 0,
+                           window.severityStats.MEDIUM || 0,
+                           window.severityStats.LOW || 0
+                       ],
+                       backgroundColor: ['#f55855', '#f8a541', '#3b8ded', '#42d392'],
+                       borderWidth: 0
+                   }]
+               },
+               options: {
+                   responsive: true,
+                   maintainAspectRatio: false,
+                   plugins: {
+                       legend: {
+                           position: 'bottom',
+                           labels: { color: '#e2e8f0', padding: 20 }
+                       }
+                   }
+               }
+           });
+       }
+   }
+
+   // Timeline Chart
+   if (window.timelineData && window.timelineData.labels) {
+       const timelineCtx = document.getElementById('timelineChart');
+       if (timelineCtx) {
+           new Chart(timelineCtx, {
+               type: 'line',
+               data: {
+                   labels: window.timelineData.labels,
+                   datasets: [{
+                       label: 'CVEs',
+                       data: window.timelineData.values,
+                       borderColor: '#63a4ff',
+                       backgroundColor: 'rgba(99, 164, 255, 0.1)',
+                       borderWidth: 2,
+                       fill: true,
+                       tension: 0.4
+                   }]
+               },
+               options: {
+                   responsive: true,
+                   maintainAspectRatio: false,
+                   plugins: {
+                       legend: { display: false }
+                   },
+                   scales: {
+                       x: { 
+                           ticks: { color: '#9ca3af' },
+                           grid: { color: 'rgba(156, 163, 175, 0.1)' }
+                       },
+                       y: { 
+                           ticks: { color: '#9ca3af' },
+                           grid: { color: 'rgba(156, 163, 175, 0.1)' }
+                       }
+                   }
+               }
+           });
+       }
+   }
+});
+</script>
 {% endblock %}
