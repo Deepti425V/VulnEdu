@@ -1,212 +1,134 @@
-<!-- VulnEdu Base Template - Master layout for all pages -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Standard meta tags for modern web compatibility -->
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
-    <!-- Dynamic title - defaults to VulnEdu if APP_NAME not set in Flask context -->
     <title>{{ APP_NAME or "VulnEdu" }}</title>
-    
-    <!-- Main CSS: handles theme/colors/layout -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
-    
-    <!-- Chart.js for all dashboard visualizations - loaded from fast CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- Inline CSS for critical above-the-fold styling -->
     <style>
-        /* Basic body & overall theme settings - dark theme for professional security app */
         body {
             margin: 0;
-            font-family: 'Segoe UI', 'Arial', 'sans-serif'; /* System font stack for fast loading */
-            background-color: #101828; /* Dark navy background */
-            color: #f8fafc; /* Off-white text for good contrast */
+            font-family: 'Segoe UI', 'Arial', 'sans-serif';
+            background-color: #101828;
+            color: #f8fafc;
         }
-        
-        /* Sidebar: fixed, full-height, with dark theme blues */
         .sidebar {
-            width: 250px; /* Fixed width to prevent layout shifts */
-            background: #1a2236; /* Darker blue-gray for depth */
+            width: 250px;
+            background: #1a2236;
             color: #fff;
-            padding: 30px 0 0 0; /* Top padding for header space */
-            height: 100vh; /* Full viewport height */
-            position: fixed; /* Stays in place during scroll */
-            left: 0; top: 0; bottom: 0; /* Pin to left edge */
-            box-shadow: 2px 0 14px rgba(0,0,0,0.1); /* Subtle depth shadow */
+            padding: 30px 0 0 0;
+            height: 100vh;
+            position: fixed;
+            left: 0; top: 0; bottom: 0;
+            box-shadow: 2px 0 14px rgba(0,0,0,0.1);
         }
-        
-        /* VulnEdu brand header in sidebar */
         .sidebar-header {
             font-weight: 700;
             font-size: 1.5rem;
-            color: #63a4ff; /* Brand blue highlight */
+            color: #63a4ff;
             text-align: center;
-            margin-bottom: 30px; /* Space before navigation links */
+            margin-bottom: 30px;
         }
-        
-        /* Container for all navigation links */
         .sidebar-links {
-            padding-left: 24px; /* Indent from sidebar edge */
+            padding-left: 24px;
             display: flex;
-            flex-direction: column; /* Vertical stack of links */
-            gap: 12px; /* Consistent spacing between links */
+            flex-direction: column;
+            gap: 12px;
         }
-        
-        /* Sidebar navigation links styling - both regular links and parent items */
         .sidebar-links a,
         .sidebar-links .sidebar-parent {
-            color: #a9adc1; /* Light gray default text */
+            color: #a9adc1;
             text-decoration: none;
             font-weight: 600;
             padding: 8px 6px;
-            border-radius: 4px; /* Rounded corners for modern look */
-            transition: background 0.2s, color 0.2s; /* Smooth hover animations */
+            border-radius: 4px;
+            transition: background 0.2s, color 0.2s;
         }
-        
-        /* Active and hover states - highlight current page and provide feedback */
         .sidebar-links a.active, .sidebar-links a:hover {
-            background: #263159; /* Darker blue background */
-            color: #fff; /* Pure white text for emphasis */
+            background: #263159;
+            color: #fff;
         }
-        
-        /* Parent menu items (like "Learn") styling */
         .sidebar-links .sidebar-parent {
-            padding-bottom: 4px; /* Slightly less bottom padding */
+            padding-bottom: 4px;
         }
-        
-        /* Learn submenu for educational content/topics */
         .sidebar-submenu {
             display: flex;
             flex-direction: column;
-            gap: 4px; /* Tighter spacing for submenu items */
-            margin-left: 20px; /* Indent to show hierarchy */
-            margin-top: 3px; /* Small gap after parent item */
+            gap: 4px;
+            margin-left: 20px;
+            margin-top: 3px;
         }
-        
-        /* Submenu link styling - smaller and more subtle than main links */
         .sidebar-submenu a {
-            font-weight: 520; /* Slightly lighter than main links */
-            font-size: 0.97em; /* Slightly smaller text */
-            padding: 7px 7px 7px 18px; /* Extra left padding for further indentation */
+            font-weight: 520;
+            font-size: 0.97em;
+            padding: 7px 7px 7px 18px;
             color: #a9adc1;
             border-radius: 3px;
             transition: background 0.2s, color 0.2s;
         }
-        
-        /* Submenu active/hover states - uses brand blue for accent */
         .sidebar-submenu a.active, .sidebar-submenu a:hover {
             background: #263159;
-            color: #63a4ff; /* Brand blue to show this is a sub-item */
+            color: #63a4ff;
         }
-        
-        /* Main content wrapper: shifted over so sidebar doesn't overlap */
         .mainwrap {
-            margin-left: 250px; /* Exactly matches sidebar width */
-            min-height: 100vh; /* Full height to push footer down */
-            background: #101828; /* Match body background */
+            margin-left: 250px;
+            min-height: 100vh;
+            background: #101828;
             box-sizing: border-box;
         }
-        
-        /* Header section - empty by default but available for customization */
         header {
             padding: 0;
             background: transparent;
             color: inherit;
         }
-        
-        /* Content area (centered, padded) - where page content goes */
         main {
-            max-width: 1500px; /* Prevent super-wide layouts on large screens */
-            margin: 0 auto; /* Center content horizontally */
-            padding: 36px 40px; /* Generous padding for readability */
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 36px 40px;
         }
-        
-        /* Simple footer: low contrast, right-aligned */
         footer {
             padding: 16px;
-            background: #151e37; /* Slightly different shade for distinction */
-            color: #94a3b8; /* Muted text color */
-            font-size: 0.91em; /* Smaller text for footer */
-            text-align: right; /* Right-align copyright info */
+            background: #151e37;
+            color: #94a3b8;
+            font-size: 0.91em;
+            text-align: right;
         }
     </style>
-    
-    <!-- Block for additional head content - pages can add custom CSS/meta tags here -->
     {% block head %}{% endblock %}
 </head>
 <body>
-    <!-- === Sidebar: Main Navigation === -->
     <aside class="sidebar">
-        <!-- Brand/app name header -->
         <div class="sidebar-header">VulnEdu</div>
-        
         <div class="sidebar-links">
-            <!-- Primary nav items; highlights active page using Flask request context -->
-            <a href="{{ url_for('index') }}" 
+            <a href="{{ url_for('index') }}"
                class="{% if request.endpoint == 'index' %}active{% endif %}">Dashboard</a>
-            
-            <a href="{{ url_for('vulnerabilities') }}" 
+            <a href="{{ url_for('vulnerabilities') }}"
                class="{% if request.endpoint == 'vulnerabilities' %}active{% endif %}">Vulnerabilities</a>
             
-            <!-- Learn section parent - not clickable, just a label -->
+            <!-- Learn section - simplified since we don't have learn_topic route -->
             <div class="sidebar-parent" style="font-size:1.05em; color:#a9adc1;">Learn</div>
-            
-            <!-- Educational content submenu, with highlighting for current topic -->
             <div class="sidebar-submenu">
-                <!-- Each learn topic checks both endpoint AND the topic parameter -->
-                <a href="{{ url_for('learn_topic', topic='what-is-cwe') }}" 
-                   class="{% if request.endpoint == 'learn_topic' and request.view_args.topic == 'what-is-cwe' %}active{% endif %}">
-                    What is a CWE?
-                </a>
-                
-                <a href="{{ url_for('learn_topic', topic='what-is-cve') }}" 
-                   class="{% if request.endpoint == 'learn_topic' and request.view_args.topic == 'what-is-cve' %}active{% endif %}">
-                    What is a CVE?
-                </a>
-                
-                <a href="{{ url_for('learn_topic', topic='cvss-scores') }}" 
-                   class="{% if request.endpoint == 'learn_topic' and request.view_args.topic == 'cvss-scores' %}active{% endif %}">
-                    Understanding CVSS Scores
-                </a>
-                
-                <a href="{{ url_for('learn_topic', topic='what-is-nvd-mitre') }}" 
-                   class="{% if request.endpoint == 'learn_topic' and request.view_args.topic == 'what-is-nvd-mitre' %}active{% endif %}">
-                    What is NVD &amp; MITRE?
-                </a>
-                
-                <a href="{{ url_for('learn_topic', topic='cve-vs-cwe-vs-cvss') }}" 
-                   class="{% if request.endpoint == 'learn_topic' and request.view_args.topic == 'cve-vs-cwe-vs-cvss' %}active{% endif %}">
-                    CVE vs CWE vs CVSS
-                </a>
+                <a href="{{ url_for('learn') }}"
+                   class="{% if request.endpoint == 'learn' %}active{% endif %}">Educational Content</a>
             </div>
             
-            <!-- References section - external resources and documentation -->
-            <a href="{{ url_for('references') }}" 
-               class="{% if request.endpoint == 'references' %}active{% endif %}">References &amp; Resources</a>
+            <!-- About section -->
+            <a href="{{ url_for('about') }}"
+               class="{% if request.endpoint == 'about' %}active{% endif %}">About</a>
         </div>
     </aside>
-    
-    <!-- === Main Content Area (shifted for sidebar) === -->
+
     <div class="mainwrap">
-        <!-- Empty header - available for page-specific headers -->
         <header></header>
-        
-        <!-- Main content area - this is where extending templates put their content -->
         <main>
             {% block content %}{% endblock %}
         </main>
-        
-        <!-- Simple copyright footer -->
         <footer>© 2025 VulnEdu · Educational CVE Analysis Tool</footer>
     </div>
-    
-    <!-- Main application JS - loaded after DOM is ready -->
+
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    
-    <!-- Block for additional JavaScript - pages can add custom scripts here -->
     {% block scripts %}{% endblock %}
 </body>
 </html>
