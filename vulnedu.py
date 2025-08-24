@@ -10,13 +10,8 @@ from datetime import datetime, timedelta, timezone
 from calendar import monthrange
 import os
 from threading import Thread, Lock
-import logging
 
 app = Flask(__name__)
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 timeline_cache = {
     'data': None,
@@ -27,11 +22,6 @@ timeline_cache = {
 TIMELINE_CACHE_HOURS = 6
 _warmed_up = False
 
-# Add health check endpoint
-@app.route('/health')
-def health_check():
-    return {'status': 'healthy', 'timestamp': datetime.now(timezone.utc).isoformat()}, 200
-
 def get_cached_timeline_data():
     global timeline_cache
     with timeline_cache['lock']:
@@ -41,19 +31,10 @@ def get_cached_timeline_data():
             (now - timeline_cache['last_updated']).total_seconds() <
                 TIMELINE_CACHE_HOURS * 3600):
             return timeline_cache['data']
-        
-        try:
-            timeline_data = generate_timeline_data()
-            timeline_cache['data'] = timeline_data
-            timeline_cache['last_updated'] = now
-            return timeline_data
-        except Exception as e:
-            logger.error(f"Error generating timeline data: {e}")
-            # Return cached data if available, even if stale
-            if timeline_cache['data'] is not None:
-                return timeline_cache['data']
-            # Return empty data as fallback
-            return {'labels': [], 'values': []}
+        timeline_data = generate_timeline_data()
+        timeline_cache['data'] = timeline_data
+        timeline_cache['last_updated'] = now
+        return timeline_data
 
 def generate_timeline_data():
     now = datetime.now(timezone.utc)
@@ -64,20 +45,13 @@ def generate_timeline_data():
         months.append((dt.year, dt.month))
     month_labels = [f"{y}-{m:02d}" for y, m in months]
     month_counts = {k: 0 for k in month_labels}
-    
-    try:
-        # Use shorter timeout for recent CVEs to avoid blocking
-        recent_cves = get_all_cves(days=30)
-        for cve in recent_cves:
-            published_str = cve.get('Published', '')
-            if published_str and len(published_str) >= 7:
-                month_key = published_str[:7]
-                if month_key in month_counts:
-                    month_counts[month_key] += 1
-    except Exception as e:
-        logger.error(f"Error fetching recent CVEs for timeline: {e}")
-        # Continue with simulated data
-    
+    recent_cves = get_all_cves(days=30)
+    for cve in recent_cves:
+        published_str = cve.get('Published', '')
+        if published_str and len(published_str) >= 7:
+            month_key = published_str[:7]
+            if month_key in month_counts:
+                month_counts[month_key] += 1
     current_year = now.year
     current_month = now.month
     for (y, m), label in zip(months, month_labels):
@@ -114,7 +88,7 @@ def generate_sample_cves_for_month(year, month, count):
         day = random.randint(1, days_in_month)
         cve_number = random.randint(10000, 99999)
         cve_id = f"CVE-{year}-{cve_number:05d}"
-        severity = random.choices(severities, weights=severity_weights)[0]
+        severity = random.choices(severities, weights=severity_weights)
         cwe = random.choice(common_cwes)
         product = random.choice(products)
         descriptions = {
@@ -177,8 +151,8 @@ def refresh_timeline_cache_background():
     def refresh_task():
         try:
             get_cached_timeline_data()
-        except Exception as e:
-            logger.error(f"Background timeline refresh failed: {e}")
+        except Exception:
+            pass
     Thread(target=refresh_task, daemon=True).start()
 
 def warm_dashboard_cache_if_needed():
@@ -187,12 +161,11 @@ def warm_dashboard_cache_if_needed():
         _warmed_up = True
         def _warm():
             try:
-                # Use cached data first, don't force refresh on startup
-                get_all_cves(days=30, force_refresh=False)
+                get_all_cves(days=30, force_refresh=True)
                 refresh_timeline_cache_background()
                 warm_cwe_cache()
-            except Exception as e:
-                logger.error(f"Dashboard cache warming failed: {e}")
+            except Exception:
+                pass
         Thread(target=_warm, daemon=True).start()
 
 def calculate_severity_metrics(cves):
@@ -208,10 +181,10 @@ def parse_published_date(cve):
     if not published_str:
         return None
     try:
-        return datetime.fromisoformat(published_str.replace('Z', '+00:00'))
+        return datetime.fromisoformat(published_str)
     except Exception:
         try:
-            return datetime.strptime(published_str[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            return datetime.strptime(published_str[:10], "%Y-%m-%d")
         except Exception:
             return None
 
@@ -270,7 +243,7 @@ def get_cwe_radar_weighted(cves):
             severity = cve.get('Severity', 'UNKNOWN').upper()
             if severity in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
                 weight = {'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1}[severity]
-                cwe_severity[cve]['W'] = cwe_severity[cwe].get('W', 0) + weight
+                cwe_severity[cwe]['W'] = cwe_severity[cwe].get('W', 0) + weight
     sorted_cwes = sorted(cwe_severity.items(), key=lambda x: x[1].get('W', 0), reverse=True)
     codes = [code for code, _ in sorted_cwes]
     names = [CWE_TITLES.get(code, code) for code, _ in sorted_cwes]
@@ -290,33 +263,21 @@ def get_cwe_radar_descriptions():
     }
     return desc
 
-def get_cve_trends_30_days_safe():
-    """Safe version of get_cve_trends_30_days with error handling"""
-    try:
-        cves = get_all_cves(days=30)
-        today = datetime.now(timezone.utc).date()
-        start_day = today - timedelta(days=29)
-        date_counts = {start_day + timedelta(days=i): 0 for i in range(30)}
-        for cve in cves:
-            dt = parse_published_date(cve)
-            if dt:
-                dt_date = dt.date()
-                if dt_date in date_counts:
-                    date_counts[dt_date] += 1
-        return {
-            'labels': [d.strftime('%Y-%m-%d') for d in sorted(date_counts.keys())],
-            'values': [date_counts[d] for d in sorted(date_counts.keys())]
-        }
-    except Exception as e:
-        logger.error(f"Error getting CVE trends: {e}")
-        # Return empty data structure
-        today = datetime.now(timezone.utc).date()
-        start_day = today - timedelta(days=29)
-        date_range = [start_day + timedelta(days=i) for i in range(30)]
-        return {
-            'labels': [d.strftime('%Y-%m-%d') for d in date_range],
-            'values': [0] * 30
-        }
+def get_cve_trends_30_days():
+    cves = get_all_cves(days=30)
+    today = datetime.now(timezone.utc).date()
+    start_day = today - timedelta(days=29)
+    date_counts = {start_day + timedelta(days=i): 0 for i in range(30)}
+    for cve in cves:
+        dt = parse_published_date(cve)
+        if dt:
+            dt_date = dt.date()
+            if dt_date in date_counts:
+                date_counts[dt_date] += 1
+    return {
+        'labels': [d.strftime('%Y-%m-%d') for d in sorted(date_counts.keys())],
+        'values': [date_counts[d] for d in sorted(date_counts.keys())]
+    }
 
 @app.route("/api/cwe/<cwe_id>")
 def api_get_cwe(cwe_id):
@@ -327,7 +288,6 @@ def api_get_cwe(cwe_id):
             'data': cwe_data
         })
     except Exception as e:
-        logger.error(f"Error fetching CWE {cwe_id}: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -340,118 +300,80 @@ def references():
 
 @app.route("/", methods=["GET"])
 def index():
-    try:
-        warm_dashboard_cache_if_needed()
-        year = request.args.get('year', type=int)
-        month = request.args.get('month', type=int)
-        severity_filter = request.args.get('severity')
-        search_query = request.args.get('q')
-        fetch_days = 30
-        now_date = datetime.now(timezone.utc).date()
-        daily_start = now_date - timedelta(days=fetch_days - 1)
-
-        # Use error handling for CVE fetching
-        try:
-            all_cves = get_all_cves(year=year, month=month)
-        except Exception as e:
-            logger.error(f"Error fetching CVEs in index route: {e}")
-            all_cves = []
-
-        all_cves_with_dates = []
-        for cve in all_cves:
-            parsed_date = parse_published_date(cve)
-            if parsed_date:
-                cve['_parsed_published'] = parsed_date
-                all_cves_with_dates.append(cve)
-        all_cves_with_dates.sort(key=lambda cve: cve.get('_parsed_published', datetime.min), reverse=True)
-        
-        metrics = calculate_severity_metrics(all_cves_with_dates)
-        total_cves = sum(metrics.values())
-        
-        # Use safe timeline functions
-        timeline_daily = get_cve_trends_30_days_safe()
-        timeline_months = get_cached_timeline_data()
-        
-        # Safe CWE radar data
-        try:
-            cwe_radar_full = get_cwe_radar_data_full(all_cves_with_dates)
-            cwe_radar_weighted = get_cwe_radar_weighted(all_cves_with_dates)
-        except Exception as e:
-            logger.error(f"Error generating CWE radar data: {e}")
-            cwe_radar_full = {
-                'all': {'indices': [], 'labels': [], 'values': []},
-                'top5': {'indices': [], 'labels': [], 'values': []},
-                'top10': {'indices': [], 'labels': [], 'values': []},
-            }
-            cwe_radar_weighted = {'indices': [], 'labels': [], 'values': []}
-        
-        cwe_radar_descriptions = get_cwe_radar_descriptions()
-        display_metrics = metrics
-        
-        if severity_filter and severity_filter.upper() in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
-            filtered_cves = [cve for cve in all_cves_with_dates if cve.get('Severity', '').upper() == severity_filter.upper()]
-            display_metrics = calculate_severity_metrics(filtered_cves)
-        
-        available_years = get_all_years()
-        available_months = list(range(1, 13))
-        note_text = None
-        
-        if year and month:
-            days_in_month = monthrange(year, month)[1]
-            note_start_date = datetime(year, month, 1).date()
-            note_end_date = datetime(year, month, days_in_month).date()
-        elif year and not month:
-            note_start_date = datetime(year, 1, 1).date()
-            note_end_date = datetime(year, 12, 31).date()
+    warm_dashboard_cache_if_needed()
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+    severity_filter = request.args.get('severity')
+    search_query = request.args.get('q')
+    fetch_days = 30
+    now_date = datetime.now(timezone.utc).date()
+    daily_start = now_date - timedelta(days=fetch_days - 1)
+    all_cves = get_all_cves(year=year, month=month)
+    all_cves_with_dates = []
+    for cve in all_cves:
+        parsed_date = parse_published_date(cve)
+        if parsed_date:
+            cve['_parsed_published'] = parsed_date
+            all_cves_with_dates.append(cve)
+    all_cves_with_dates.sort(key=lambda cve: cve.get('_parsed_published', datetime.min), reverse=True)
+    metrics = calculate_severity_metrics(all_cves_with_dates)
+    total_cves = sum(metrics.values())
+    timeline_daily = get_cve_trends_30_days()
+    timeline_months = get_cached_timeline_data()
+    cwe_radar_full = get_cwe_radar_data_full(all_cves_with_dates)
+    cwe_radar_weighted = get_cwe_radar_weighted(all_cves_with_dates)
+    cwe_radar_descriptions = get_cwe_radar_descriptions()
+    display_metrics = metrics
+    if severity_filter and severity_filter.upper() in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
+        filtered_cves = [cve for cve in all_cves_with_dates if cve.get('Severity', '').upper() == severity_filter.upper()]
+        display_metrics = calculate_severity_metrics(filtered_cves)
+    available_years = get_all_years()
+    available_months = list(range(1, 13))
+    note_text = None
+    if year and month:
+        days_in_month = monthrange(year, month)[1]
+        note_start_date = datetime(year, month, 1).date()
+        note_end_date = datetime(year, month, days_in_month).date()
+    elif year and not month:
+        note_start_date = datetime(year, 1, 1).date()
+        note_end_date = datetime(year, 12, 31).date()
+    else:
+        note_start_date = daily_start
+        note_end_date = now_date
+    if note_start_date and note_end_date:
+        if note_start_date == note_end_date:
+            note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')}"
         else:
-            note_start_date = daily_start
-            note_end_date = now_date
-        
-        if note_start_date and note_end_date:
-            if note_start_date == note_end_date:
-                note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')}"
-            else:
-                note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')} to {note_end_date.strftime('%Y-%m-%d')}"
-        
-        if total_cves == 0:
-            severity_percentage = {k: "0" for k in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']}
-        else:
-            severity_percentage = {
-                k: f"{(metrics.get(k, 0) * 100 // total_cves)}" for k in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
-            }
-        
-        for k in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
-            if k not in metrics:
-                metrics[k] = 0
-        
-        return render_template(
-            "index.html",
-            year_filter=year,
-            month_filter=month,
-            severity_filter=severity_filter,
-            search_query=search_query,
-            metrics=display_metrics,
-            available_years=available_years,
-            available_months=available_months,
-            timeline_data_days=timeline_daily,
-            timeline_data_years=timeline_months,
-            severity_stats=metrics,
-            severity_percentage=severity_percentage,
-            cwe_radar=cwe_radar_full['top10'],
-            cwe_radar_all=cwe_radar_full,
-            cwe_radar_weighted=cwe_radar_weighted,
-            cwe_radar_descriptions=cwe_radar_descriptions,
-            note_text=note_text,
-            total_cves=total_cves
-        )
-    except Exception as e:
-        logger.error(f"Error in index route: {e}")
-        # Return minimal working page on error
-        return render_template("index.html", 
-                             metrics={'CRITICAL': 0, 'HIGH': 0, 'MEDIUM': 0, 'LOW': 0},
-                             timeline_data_days={'labels': [], 'values': []},
-                             timeline_data_years={'labels': [], 'values': []},
-                             error_message="Service temporarily unavailable. Please try again later.")
+            note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')} to {note_end_date.strftime('%Y-%m-%d')}"
+    if total_cves == 0:
+        severity_percentage = {k: "0" for k in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']}
+    else:
+        severity_percentage = {
+            k: f"{(metrics.get(k, 0) * 100 // total_cves)}" for k in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
+        }
+    for k in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
+        if k not in metrics:
+            metrics[k] = 0
+    return render_template(
+        "index.html",
+        year_filter=year,
+        month_filter=month,
+        severity_filter=severity_filter,
+        search_query=search_query,
+        metrics=display_metrics,
+        available_years=available_years,
+        available_months=available_months,
+        timeline_data_days=timeline_daily,
+        timeline_data_years=timeline_months,
+        severity_stats=metrics,
+        severity_percentage=severity_percentage,
+        cwe_radar=cwe_radar_full['top10'],
+        cwe_radar_all=cwe_radar_full,
+        cwe_radar_weighted=cwe_radar_weighted,
+        cwe_radar_descriptions=cwe_radar_descriptions,
+        note_text=note_text,
+        total_cves=total_cves
+    )
 
 @app.route("/learn")
 def learn():
@@ -466,24 +388,12 @@ def learn_topic(topic):
     ]
     if topic not in valid_topics:
         return redirect(url_for('learn_topic', topic='what-is-cve'))
-    
-    try:
-        cves = get_all_cves()
-        cwe_dict = get_cwe_dict()
-        selected_cwes = list(CWE_TITLES.keys())
-        cwe_severity = get_cwe_severity_chart_data(cves, selected_cwes)
-        latest_cves = sorted(cves, key=lambda x: x.get('Published', ''), reverse=True)[:25]
-        now = datetime.now(timezone.utc)
-    except Exception as e:
-        logger.error(f"Error in learn route: {e}")
-        # Provide defaults on error
-        cves = []
-        cwe_dict = {}
-        selected_cwes = []
-        cwe_severity = {'labels': [], 'indices': [], 'data': {}}
-        latest_cves = []
-        now = datetime.now(timezone.utc)
-    
+    cves = get_all_cves()
+    cwe_dict = get_cwe_dict()
+    selected_cwes = list(CWE_TITLES.keys())
+    cwe_severity = get_cwe_severity_chart_data(cves, selected_cwes)
+    latest_cves = sorted(cves, key=lambda x: x.get('Published', ''), reverse=True)[:25]
+    now = datetime.now(timezone.utc)
     return render_template(
         f"learn/{topic}.html",
         cwe_dict=cwe_dict,
@@ -496,100 +406,89 @@ def learn_topic(topic):
 
 @app.route("/vulnerabilities/", methods=["GET"])
 def vulnerabilities():
-    try:
-        year = request.args.get('year', type=int)
-        month = request.args.get('month', type=int)
-        day = request.args.get('day', type=int)
-        severity_filter = request.args.get('severity')
-        search_query = request.args.get('q')
-        page = request.args.get('page', default=1, type=int)
-        per_page = 15
-        fetch_days = None
-        show_note = False
-        note_start_date = None
-        note_end_date = None
-        
-        if year and month and day:
-            note_start_date = datetime(year, month, day).date()
-            note_end_date = note_start_date
-            show_note = True
-        elif year and month:
-            days_in_month = monthrange(year, month)[1]
-            note_start_date = datetime(year, month, 1).date()
-            note_end_date = datetime(year, month, days_in_month).date()
-            show_note = True
-        elif year and not month:
-            note_start_date = datetime(year, 1, 1).date()
-            note_end_date = datetime(year, 12, 31).date()
-            show_note = True
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+    day = request.args.get('day', type=int)
+    severity_filter = request.args.get('severity')
+    search_query = request.args.get('q')
+    page = request.args.get('page', default=1, type=int)
+    per_page = 15
+    fetch_days = None
+    show_note = False
+    note_start_date = None
+    note_end_date = None
+    if year and month and day:
+        note_start_date = datetime(year, month, day).date()
+        note_end_date = note_start_date
+        show_note = True
+    elif year and month:
+        days_in_month = monthrange(year, month)[1]
+        note_start_date = datetime(year, month, 1).date()
+        note_end_date = datetime(year, month, days_in_month).date()
+        show_note = True
+    elif year and not month:
+        note_start_date = datetime(year, 1, 1).date()
+        note_end_date = datetime(year, 12, 31).date()
+        show_note = True
+    else:
+        fetch_days = 30
+        note_end_date = datetime.now(timezone.utc).date()
+        note_start_date = note_end_date - timedelta(days=29)
+        show_note = True
+    all_cves = []
+    current_date = datetime.now(timezone.utc)
+    if year and month:
+        filter_date = datetime(year, month, 1, tzinfo=timezone.utc)
+        months_diff = (current_date.year - year) * 12 + (current_date.month - month)
+        if months_diff <= 2:
+            all_cves = get_all_cves(year=year, month=month)
         else:
-            fetch_days = 30
-            note_end_date = datetime.now(timezone.utc).date()
-            note_start_date = note_end_date - timedelta(days=29)
-            show_note = True
-        
-        all_cves = []
-        current_date = datetime.now(timezone.utc)
-        
-        try:
-            if year and month:
-                filter_date = datetime(year, month, 1, tzinfo=timezone.utc)
-                months_diff = (current_date.year - year) * 12 + (current_date.month - month)
-                if months_diff <= 2:
-                    all_cves = get_all_cves(year=year, month=month)
-                else:
-                    timeline_data = get_cached_timeline_data()
-                    month_key = f"{year}-{month:02d}"
-                    if month_key in timeline_data['labels']:
-                        idx = timeline_data['labels'].index(month_key)
-                        count = timeline_data['values'][idx]
-                        all_cves = generate_sample_cves_for_month(year, month, count)
-            elif year and not month:
-                if year == current_date.year:
-                    all_cves = get_all_cves(year=year)
-                else:
-                    all_cves = []
-                    timeline_data = get_cached_timeline_data()
-                    for m in range(1, 13):
-                        month_key = f"{year}-{m:02d}"
-                        if month_key in timeline_data['labels']:
-                            idx = timeline_data['labels'].index(month_key)
-                            count = timeline_data['values'][idx]
-                            all_cves.extend(generate_sample_cves_for_month(year, m, count))
-                        else:
-                            sample_count = random.randint(600, 1200)
-                            all_cves.extend(generate_sample_cves_for_month(year, m, sample_count))
-            else:
-                all_cves = get_all_cves(days=30)
-        except Exception as e:
-            logger.error(f"Error fetching CVEs in vulnerabilities route: {e}")
+            timeline_data = get_cached_timeline_data()
+            month_key = f"{year}-{month:02d}"
+            if month_key in timeline_data['labels']:
+                idx = timeline_data['labels'].index(month_key)
+                count = timeline_data['values'][idx]
+                all_cves = generate_sample_cves_for_month(year, month, count)
+    elif year and not month:
+        if year == current_date.year:
+            all_cves = get_all_cves(year=year)
+        else:
             all_cves = []
-        
-        all_cves_with_dates = []
-        for cve in all_cves:
-            parsed_date = parse_published_date(cve)
-            if parsed_date is not None:
-                cve['_parsed_published'] = parsed_date
-                all_cves_with_dates.append(cve)
-        
-        all_cves_with_dates.sort(key=lambda cve: cve.get('_parsed_published', datetime.min), reverse=True)
-        filtered_cves = all_cves_with_dates
-        
-        if year and month and day:
-            filtered_cves = [cve for cve in filtered_cves if
-                            cve.get('_parsed_published') is not None and
-                            cve['_parsed_published'].year == year and
-                            cve['_parsed_published'].month == month and
-                            cve['_parsed_published'].day == day]
-        else:
-            if severity_filter and severity_filter.upper() in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
-                filtered_cves = [cve for cve in filtered_cves if cve.get('Severity', '').upper() == severity_filter.upper()]
-            if search_query:
-                q_lower = search_query.lower()
-                if q_lower.startswith("cwe-") and q_lower[4:].isdigit():
-                    filtered_cves = [cve for cve in filtered_cves if (cve.get("CWE") or "").lower() == q_lower]
+            timeline_data = get_cached_timeline_data()
+            for m in range(1, 13):
+                month_key = f"{year}-{m:02d}"
+                if month_key in timeline_data['labels']:
+                    idx = timeline_data['labels'].index(month_key)
+                    count = timeline_data['values'][idx]
+                    all_cves.extend(generate_sample_cves_for_month(year, m, count))
                 else:
-                    filtered_cves = [cve for cve in filtered_cves if q_lower in (cve.get('Description', '') + cve.get('ID', '')).lower()]
+                    sample_count = random.randint(600, 1200)
+                    all_cves.extend(generate_sample_cves_for_month(year, m, sample_count))
+    else:
+        all_cves = get_all_cves(days=30)
+    all_cves_with_dates = []
+    for cve in all_cves:
+        parsed_date = parse_published_date(cve)
+        if parsed_date is not None:
+            cve['_parsed_published'] = parsed_date
+            all_cves_with_dates.append(cve)
+    all_cves_with_dates.sort(key=lambda cve: cve.get('_parsed_published', datetime.min), reverse=True)
+    filtered_cves = all_cves_with_dates
+    if year and month and day:
+        filtered_cves = [cve for cve in filtered_cves if
+                         cve.get('_parsed_published') is not None and
+                         cve['_parsed_published'].year == year and
+                         cve['_parsed_published'].month == month and
+                         cve['_parsed_published'].day == day]
+    else:
+        if severity_filter and severity_filter.upper() in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
+            filtered_cves = [cve for cve in filtered_cves if cve.get('Severity', '').upper() == severity_filter.upper()]
+        if search_query:
+            q_lower = search_query.lower()
+            if q_lower.startswith("cwe-") and q_lower[4:].isdigit():
+                filtered_cves = [cve for cve in filtered_cves if (cve.get("CWE") or "").lower() == q_lower]
+            else:
+                filtered_cves = [cve for cve in filtered_cves if q_lower in (cve.get('Description', '') + cve.get('ID', '')).lower()]
     total_results = len(filtered_cves)
     total_pages = max(1, math.ceil(total_results / per_page))
     current_page = max(1, min(page, total_pages))
