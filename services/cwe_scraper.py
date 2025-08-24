@@ -1,121 +1,146 @@
+# HTTP client for web scraping MITRE's CWE website
 import requests
+# HTML parsing library for extracting structured data
 from bs4 import BeautifulSoup
+# JSON serialization for caching scraped data
 import json
+# File system operations for cache management
 import os
+# Time utilities for cache expiry and rate limiting
 import time
+# LRU cache decorator for in-memory performance optimization
 from functools import lru_cache
 
-#Where I'm saving scraped CWE info (local, fast lookup when available)
+# Where I'm saving scraped CWE info (local, fast lookup when available)
 CACHE_DIR = "data/cache"
 CWE_CACHE_FILE = os.path.join(CACHE_DIR, "cwe_scraped_data.json")
-CACHE_EXPIRY_HOURS = 24 #How long until I want to re-scrape?
+CACHE_EXPIRY_HOURS = 24  # How long until I want to re-scrape?
 
 def ensure_cache_dir():
-    #Make the cache folder if it's not there already
+    """Make the cache folder if it's not there already"""
     os.makedirs(CACHE_DIR, exist_ok=True)
 
 def is_cache_valid():
-    #Check if I've got cached data and it's "fresh" (not too old)
+    """Check if I've got cached data and it's "fresh" (not too old)"""
+    # No cache file means invalid cache
     if not os.path.exists(CWE_CACHE_FILE):
         return False
     
+    # Calculate how old the cache file is
     file_age = time.time() - os.path.getmtime(CWE_CACHE_FILE)
+    # Return True if file is newer than our expiry threshold
     return file_age < (CACHE_EXPIRY_HOURS * 3600)
 
 def load_cached_cwe_data():
-    #Pull CWE data out of my local cache (if present)
+    """Pull CWE data out of my local cache (if present)"""
     try:
         with open(CWE_CACHE_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception:
-        #Something broke or file is corrupted? Just act like nothing cached.
+        # Something broke or file is corrupted? Just act like nothing cached.
         return {}
 
 def save_cwe_data_to_cache(data):
-    #Save the full CWE dict to disk (so next run is faster)
+    """Save the full CWE dict to disk (so next run is faster)"""
+    # Make sure cache directory exists before writing
     ensure_cache_dir()
     try:
         with open(CWE_CACHE_FILE, 'w', encoding='utf-8') as f:
+            # Pretty-print with indentation for readability, preserve unicode
             json.dump(data, f, indent=2, ensure_ascii=False)
     except Exception as e:
+        # Don't crash the app if cache save fails
         print(f"Failed to save CWE cache: {e}")
 
 def scrape_cwe_detail(cwe_id):
-    #Pulls data for one CWE from MITRE (scrapes their HTML)
+    """Pulls data for one CWE from MITRE (scrapes their HTML)"""
+    # Basic input validation - must be proper CWE format
     if not cwe_id.startswith('CWE-'):
         return None
     
+    # Extract the numeric part for URL construction
     cwe_number = cwe_id.replace('CWE-', '')
     url = f"https://cwe.mitre.org/data/definitions/{cwe_number}.html"
     
     try:
+        # Use realistic browser headers to avoid getting blocked
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
         
+        # Make the HTTP request with timeout to prevent hanging
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()  # Raise exception for HTTP error codes
+        
+        # Parse the HTML content
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        #Extract CWE name
+        # Extract CWE name from the main title
         name = "Unknown"
         title_elem = soup.find('h2')
         if title_elem:
             title_text = title_elem.get_text(strip=True)
+            # MITRE format is usually "CWE-XXX: Description"
             if ':' in title_text:
                 name = title_text.split(':', 1)[1].strip()
         
-        #Extract description
+        # Extract description with multiple fallback strategies
         description = ""
+        # Try official Description section first
         desc_section = soup.find('div', {'id': 'Description'}) or soup.find('div', class_='indent')
         if desc_section:
-            #Get the first paragraph of description
+            # Get the first paragraph of description
             paragraphs = desc_section.find_all('p')
             if paragraphs:
                 description = paragraphs[0].get_text(strip=True)
         
         if not description:
-            #Fallback: look for any div with description-like content
+            # Fallback: look for any div with description-like content
             desc_divs = soup.find_all('div', class_='indent')
             for div in desc_divs:
                 text = div.get_text(strip=True)
-                if len(text) > 50:  #Reasonable description length
+                if len(text) > 50:  # Reasonable description length
+                    # Truncate if too long to keep data manageable
                     description = text[:500] + "..." if len(text) > 500 else text
                     break
         
-        #Extract mitigation strategies
+        # Extract mitigation strategies
         mitigations = []
         mitigation_section = soup.find('div', {'id': 'Potential_Mitigations'})
         if mitigation_section:
             mitigation_items = mitigation_section.find_all(['li', 'p'])
-            for item in mitigation_items[:3]:  #Limit to first 3 mitigations
+            for item in mitigation_items[:3]:  # Limit to first 3 mitigations
                 mitigation_text = item.get_text(strip=True)
-                if len(mitigation_text) > 20:  #Filter out short/empty items
+                if len(mitigation_text) > 20:  # Filter out short/empty items
+                    # Truncate long mitigations for readability
                     mitigations.append(mitigation_text[:200])
         
-        #Extract examples
+        # Extract examples from code sections
         examples = []
         example_section = soup.find('div', {'id': 'Demonstrative_Examples'})
         if example_section:
             code_blocks = example_section.find_all(['code', 'pre'])
-            for code in code_blocks[:2]:  #Limit to first 2 examples
+            for code in code_blocks[:2]:  # Limit to first 2 examples
                 example_text = code.get_text(strip=True)
                 if example_text:
+                    # Keep examples short for display purposes
                     examples.append(example_text[:150])
         
-        #Extract relationships
+        # Extract relationships to other CWEs
         relationships = []
+        # Try both possible section names
         related_section = soup.find('div', {'id': 'Related_Attack_Patterns'}) or soup.find('div', {'id': 'Relationships'})
         if related_section:
             links = related_section.find_all('a', href=True)
-            for link in links[:5]:  #Limit relationships
+            for link in links[:5]:  # Limit relationships to prevent data bloat
                 href = link.get('href', '')
+                # Look for CWE definition links
                 if '/data/definitions/' in href:
                     related_cwe = link.get_text(strip=True)
                     if related_cwe.startswith('CWE-'):
                         relationships.append((related_cwe, 'Related'))
-
-        #return all the details in a nice consistent dict
+        
+        # Return all the details in a nice consistent dict structure
         return {
             'id': cwe_id,
             'name': name,
@@ -124,18 +149,23 @@ def scrape_cwe_detail(cwe_id):
             'examples': examples,
             'relationships': relationships,
             'source': 'scraped',
-            'scraped_at': time.time()
+            'scraped_at': time.time()  # Timestamp for cache management
         }
         
     except requests.RequestException as e:
+        # Network or HTTP-related errors
         print(f"Failed to scrape CWE-{cwe_number}: {e}")
         return None
     except Exception as e:
+        # Any other parsing errors
         print(f"Error parsing CWE-{cwe_number}: {e}")
         return None
 
 def get_enhanced_fallback_data():
-    # Only key/popular CWEs; real details from MITRE are better
+    """
+    Only key/popular CWEs; real details from MITRE are better
+    This provides comprehensive static data for the most critical vulnerabilities
+    """
     return {
         "CWE-79": {
             "id": "CWE-79",
@@ -275,32 +305,35 @@ def get_enhanced_fallback_data():
         }
     }
 
-@lru_cache(maxsize=128)
+@lru_cache(maxsize=128)  # In-memory cache for frequently accessed CWEs
 def get_cwe_data(cwe_id):
-    #Main way to get data for a given CWE id.
-    #Uses cache → then scraping → then fallback
+    """
+    Main way to get data for a given CWE id.
+    Uses cache → then scraping → then fallback
+    Three-tier strategy ensures data is always available
+    """
+    # Load cache if it's still valid (within expiry window)
     cached_data = load_cached_cwe_data() if is_cache_valid() else {}
     
-    #Check if we have this CWE in cache
+    # Check if we have this CWE in cache
     if cwe_id in cached_data:
         return cached_data[cwe_id]
     
-    #Try to scrape from MITRE
+    # Try to scrape from MITRE website
     print(f"Fetching CWE data for {cwe_id}...")
     scraped_data = scrape_cwe_detail(cwe_id)
-    
     if scraped_data:
-        #Save to cache
+        # Save successful scrape to cache for future use
         cached_data[cwe_id] = scraped_data
         save_cwe_data_to_cache(cached_data)
         return scraped_data
     
-    #Fallback to enhanced static data
+    # Fallback to enhanced static data for critical CWEs
     fallback_data = get_enhanced_fallback_data()
     if cwe_id in fallback_data:
         return fallback_data[cwe_id]
     
-    #Last resort: minimal data
+    # Last resort: minimal data generation for unknown CWEs
     cwe_number = cwe_id.replace('CWE-', '') if cwe_id.startswith('CWE-') else cwe_id
     return {
         'id': cwe_id,
@@ -312,19 +345,23 @@ def get_cwe_data(cwe_id):
     }
 
 def get_cwe_dict():
-    #Returns a dict mapping CWE-ID to data; combines fallback, cache, and static mappings
+    """
+    Returns a dict mapping CWE-ID to data; combines fallback, cache, and static mappings
+    Provides comprehensive CWE catalog for bulk operations
+    """
+    # Start with our high-quality static data for critical CWEs
     enhanced_data = get_enhanced_fallback_data()
     
-    #Load cached scraped data if available
+    # Load cached scraped data if available and merge it in
     if is_cache_valid():
         cached_data = load_cached_cwe_data()
-        enhanced_data.update(cached_data)
+        enhanced_data.update(cached_data)  # Cached data overrides static fallback
     
-    #Add more CWEs from the CWE_TITLES mapping
+    # Add more CWEs from the CWE_TITLES mapping with placeholder data
     from .cwe_map import CWE_TITLES
-    
     for cwe_id in CWE_TITLES.keys():
         if cwe_id not in enhanced_data:
+            # Create placeholder entries for mapped CWEs
             enhanced_data[cwe_id] = {
                 'id': cwe_id,
                 'name': CWE_TITLES[cwe_id],
@@ -337,22 +374,28 @@ def get_cwe_dict():
     return enhanced_data
 
 def refresh_cwe_cache():
-    #Update the cache for "important/common" CWE IDs
+    """
+    Update the cache for "important/common" CWE IDs
+    Proactive cache warming for better user experience
+    """
     from .cwe_map import CWE_TITLES
-    
     print("Refreshing CWE cache...")
+    
+    # Load existing cache to avoid unnecessary re-scraping
     cached_data = load_cached_cwe_data() if is_cache_valid() else {}
     
-    #Start by refreshing the most popular/common CWEs
+    # Start by refreshing the most popular/common CWEs (OWASP Top 10 focus)
     priority_cwes = ['CWE-79', 'CWE-89', 'CWE-20', 'CWE-22', 'CWE-119', 'CWE-200', 'CWE-287', 'CWE-120']
     
     for cwe_id in priority_cwes:
-        #If not cached fresh, scrape and cache it anew
+        # If not cached fresh, scrape and cache it anew
         if cwe_id not in cached_data or time.time() - cached_data[cwe_id].get('scraped_at', 0) > (CACHE_EXPIRY_HOURS * 3600):
             scraped = scrape_cwe_detail(cwe_id)
             if scraped:
                 cached_data[cwe_id] = scraped
-                time.sleep(1) 
+                # Rate limiting: be respectful to MITRE's servers
+                time.sleep(1)
     
+    # Save updated cache to disk
     save_cwe_data_to_cache(cached_data)
     print(f"CWE cache refreshed with {len(cached_data)} entries")

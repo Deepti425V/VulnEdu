@@ -1,150 +1,218 @@
+<!-- Main vulnerabilities listing page - extends base layout for consistency -->
 {% extends "base.html" %}
+
+<!-- Custom CSS block - adds page-specific styling to the head section -->
 {% block head %}
 <style>
-/* Scrollable year filter styling - matches CWE list theme */
+/* Custom scrollbar styling for year dropdown - matches dark theme */
+/* Set max height and enable vertical scrolling for long year lists */
 select[name="year"] {
     max-height: 200px;
-    overflow-y: auto !important;
+    overflow-y: auto !important;  /* Force scrolling even if browser defaults differ */
 }
 
-/* Custom scrollbar styling for year dropdown */
+/* Webkit browsers (Chrome, Safari, Edge) - detailed scrollbar customization */
 select[name="year"]::-webkit-scrollbar {
-    width: 8px;
+    width: 8px;  /* Thin scrollbar to save space */
 }
 
 select[name="year"]::-webkit-scrollbar-track {
-    background: #1a2236;
-    border-radius: 4px;
+    background: #1a2236;  /* Match page background color */
+    border-radius: 4px;   /* Rounded corners for modern look */
 }
 
 select[name="year"]::-webkit-scrollbar-thumb {
-    background: #63a4ff;
-    border-radius: 4px;
-    border: 1px solid #263159;
+    background: #63a4ff;     /* Primary blue accent color */
+    border-radius: 4px;      /* Match track border radius */
+    border: 1px solid #263159;  /* Subtle border for definition */
 }
 
+/* Hover state for scrollbar thumb - lighter blue for feedback */
 select[name="year"]::-webkit-scrollbar-thumb:hover {
     background: #5292e6;
 }
 
+/* Active state for scrollbar thumb - darker blue when clicking */
 select[name="year"]::-webkit-scrollbar-thumb:active {
     background: #4a80cc;
 }
 
-/* Firefox scrollbar */
+/* Firefox scrollbar support - simplified properties */
 select[name="year"] {
-    scrollbar-width: thin;
-    scrollbar-color: #63a4ff #1a2236;
+    scrollbar-width: thin;                    /* Use thin scrollbar */
+    scrollbar-color: #63a4ff #1a2236;       /* thumb color, track color */
 }
 
-/* Ensure dropdown opens properly */
+/* Style individual dropdown options for consistent appearance */
 select[name="year"] option {
-    background: #222d44;
-    color: #cdd7f7;
-    padding: 8px;
+    background: #222d44;  /* Darker background for dropdown items */
+    color: #cdd7f7;       /* Light text for readability */
+    padding: 8px;         /* Padding for better touch targets */
 }
 </style>
 {% endblock %}
 
+<!-- Main page content block -->
 {% block content %}
+
+<!-- Page container with flexbox layout and consistent gap spacing -->
 <div style="display: flex; flex-direction: column; gap: 32px">
-    <!-- Header Section -->
+
+    <!-- Header section with title and search/filter controls -->
     <div style="display:flex; justify-content:space-between; align-items:center;">
+        
+        <!-- Page title and subtitle section -->
         <div>
+            <!-- Main page heading with brand blue color and letter spacing -->
             <h1 style="margin:0;color:#63a4ff;letter-spacing:1px;font-size:1.8rem;">
                 Vulnerabilities Database
             </h1>
+            <!-- Subtitle with muted color and HTML entity for ampersand -->
             <div style="color:#a9adc1;margin-top:4px;font-size:1.07rem;">
                 Complete CVE Listing &amp; Search
             </div>
         </div>
-        
-        <!-- Search and Filter Form -->
+
+        <!-- Multi-field search and filter form -->
+        <!-- GET method preserves filters in URL for bookmarking and sharing -->
         <form style="display:flex;gap:18px;" method="get" action="{{ url_for('vulnerabilities') }}">
-            <input type="text" name="q" value="{{ search_query or '' }}" placeholder="🔍 Search CVEs"
+            
+            <!-- Text search input with emoji icon and preserved query value -->
+            <input type="text" name="q" value="{{ search_query or '' }}"
+                   placeholder="🔍 Search CVEs"
                    style="padding:9px;font-size:1rem;background:#222d44;color:#cdd7f7;border:none;border-radius:7px;">
             
-            <select name="severity" style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
+            <!-- Severity level dropdown filter -->
+            <select name="severity"
+                    style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
+                <!-- Default "All Severities" option - selected when no filter active -->
                 <option value="" {% if not severity_filter %}selected{% endif %}>All Severities</option>
+                <!-- Individual severity options with conditional selection based on current filter -->
                 <option value="CRITICAL" {% if severity_filter == 'CRITICAL' %}selected{% endif %}>Critical</option>
                 <option value="HIGH" {% if severity_filter == 'HIGH' %}selected{% endif %}>High</option>
                 <option value="MEDIUM" {% if severity_filter == 'MEDIUM' %}selected{% endif %}>Medium</option>
                 <option value="LOW" {% if severity_filter == 'LOW' %}selected{% endif %}>Low</option>
             </select>
-            
-            <select name="year" style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
+
+            <!-- Year filter dropdown - dynamically populated from available years -->
+            <select name="year"
+                    style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
+                <!-- Default "All Years" option -->
                 <option value="" {% if not year_filter %}selected{% endif %}>All Years</option>
+                <!-- Loop through available years from Flask route data -->
                 {% for y in available_years %}
                     <option value="{{ y }}" {% if year_filter == y %}selected{% endif %}>{{ y }}</option>
                 {% endfor %}
             </select>
-            
-            <select name="month" style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
+
+            <!-- Month filter dropdown - numbers formatted with leading zeros -->
+            <select name="month"
+                    style="background:#222d44;color:#cdd7f7;padding:9px;border:none;border-radius:7px;">
+                <!-- Default "All Months" option -->
                 <option value="" {% if not month_filter %}selected{% endif %}>All Months</option>
+                <!-- Loop through available months with zero-padding filter -->
                 {% for m in available_months %}
                     <option value="{{ m }}" {% if month_filter == m %}selected{% endif %}>{{ "%02d"|format(m) }}</option>
                 {% endfor %}
             </select>
-            
-            <button type="submit" style="background:#63a4ff;color:white;border:none;padding:10px 18px;border-radius:7px;font-weight:700;">
+
+            <!-- Submit button with primary blue styling -->
+            <button type="submit"
+                    style="background:#63a4ff;color:white;border:none;padding:10px 18px;border-radius:7px;font-weight:700;">
                 Filter
             </button>
         </form>
     </div>
 
+    <!-- Optional note text display (conditionally rendered) -->
     {% if note_text %}
     <div style="font-size: 0.85em; color: #a9adc1; margin-bottom: 12px; font-style: italic;">
         {{ note_text }}
     </div>
     {% endif %}
 
-    <!-- Latest Vulnerabilities Highlight Section -->
+    <!-- Critical and High Severity Vulnerabilities Highlight Section -->
     <section style="background:#1a2236;padding:28px;border-radius:16px;">
+        
+        <!-- Section header with icon and description -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <div>
+                <!-- Section title with warning emoji and blue accent color -->
                 <h2 style="margin:0; font-size:1.6rem; color:#63a4ff; display: flex; align-items: center;">
                     <span style="margin-right: 10px;">🚨</span> Latest Critical &amp; High Vulnerabilities
                 </h2>
+                <!-- Section subtitle with muted color -->
                 <div style="color:#94a3b8; margin-top: 6px; font-size: 0.95em;">
                     Most recent high-impact security vulnerabilities
                 </div>
             </div>
         </div>
+
+        <!-- Grid container for vulnerability cards -->
         <div style="display: grid; gap: 16px;">
+            
+            <!-- Server-side filtering logic for critical/high severity CVEs -->
+            <!-- Initialize empty list to collect critical/high severity vulnerabilities -->
             {% set latest_critical_high = [] %}
+            
+            <!-- Loop through first 10 latest CVEs to find critical/high severity ones -->
             {% for cve in latest_cves[:10] %}
+                <!-- Extract severity data - handle both string and list formats -->
                 {% set severity = cve.get('Severity', '') %}
                 {% set severity_str = severity if severity is string else (severity[0] if severity and severity|length > 0 else '') %}
+                
+                <!-- Filter for only CRITICAL and HIGH severity levels -->
                 {% if severity_str.upper() in ['CRITICAL', 'HIGH'] %}
                     {% set _ = latest_critical_high.append(cve) %}
                 {% endif %}
             {% endfor %}
-            
+
+            <!-- Display critical/high vulnerabilities if any found -->
             {% if latest_critical_high %}
+                <!-- Loop through filtered critical/high CVEs (limit to 5 for display) -->
                 {% for cve in latest_critical_high[:5] %}
+                    <!-- Re-extract severity for individual card processing -->
                     {% set severity = cve.get('Severity', '') %}
                     {% set severity_str = severity if severity is string else (severity[0] if severity and severity|length > 0 else '') %}
+                    
+                    <!-- Individual vulnerability card with conditional color-coded left border -->
                     <div style="background: #263159; border-radius: 12px; padding: 20px; border-left: 4px solid {% if severity_str == 'CRITICAL' %}#f47174{% else %}#fca311{% endif %};">
+                        
+                        <!-- Card content layout with flex for alignment -->
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                            
+                            <!-- Main content area (CVE ID, severity badge, description) -->
                             <div style="flex: 1;">
+                                
+                                <!-- CVE ID and severity badge row -->
                                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                                    <!-- CVE ID as clickable link - preserves current filter state -->
                                     <a href="{{ url_for('cve_detail', cve_id=cve.get('ID'), year=year_filter, month=month_filter, page=current_page, severity=severity_filter) }}"
                                        style="color: #63a4ff; font-weight: 700; font-size: 1.1em; text-decoration: none;">
                                         {{ cve.get('ID', 'N/A') }}
                                     </a>
+                                    
+                                    <!-- Color-coded severity badge -->
                                     <span style="background: {% if severity_str == 'CRITICAL' %}#f47174{% elif severity_str == 'HIGH' %}#fca311{% elif severity_str == 'MEDIUM' %}#3498db{% else %}#42d392{% endif %}; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8em; font-weight: bold;">
                                         {{ severity_str or 'UNKNOWN' }}
                                     </span>
                                 </div>
+                                
+                                <!-- CVE description with truncation for layout consistency -->
                                 <div style="color: #e2e8f0; line-height: 1.5; font-size: 0.95em;">
                                     {{ cve.get('Description', 'No description available')[:200] }}
+                                    <!-- Add ellipsis if description was truncated -->
                                     {% if cve.get('Description', '')|length > 200 %}...{% endif %}
                                 </div>
                             </div>
+                            
+                            <!-- Metadata sidebar (publication date, CWE) -->
                             <div style="margin-left: 20px; text-align: right; color: #94a3b8; font-size: 0.85em;">
+                                <!-- Publication date (first 10 chars = YYYY-MM-DD) -->
                                 {% if cve.get('Published') %}
                                     <div>{{ cve.get('Published')[:10] }}</div>
                                 {% endif %}
+                                <!-- CWE classification -->
                                 {% if cve.get('CWE') %}
                                     <div style="margin-top: 4px;">{{ cve.get('CWE') }}</div>
                                 {% endif %}
@@ -153,6 +221,7 @@ select[name="year"] option {
                     </div>
                 {% endfor %}
             {% else %}
+                <!-- Empty state when no critical/high vulnerabilities found -->
                 <div style="text-align: center; color: #94a3b8; padding: 20px;">
                     <div style="font-size: 1.5rem; margin-bottom: 8px;">🔍</div>
                     <div>No critical or high severity vulnerabilities found in current dataset</div>
@@ -161,16 +230,23 @@ select[name="year"] option {
         </div>
     </section>
 
-    <!-- Results Summary -->
+    <!-- Results summary bar showing total count and filter status -->
     <div style="display: flex; justify-content: space-between; align-items: center; background: #1a2236; padding: 16px 24px; border-radius: 12px;">
+        
+        <!-- Total results count with highlighted number -->
         <div style="color: #e2e8f0; font-weight: 600;">
-            <span style="color: #63a4ff;">{{ total_results }}</span> vulnerabilities found
+            <span style="color: #63a4ff;">{{ total_results }}</span>
+            vulnerabilities found
+            
+            <!-- Show "filtered results" indicator when filters are active -->
             {% if search_query or severity_filter or year_filter or month_filter %}
                 <span style="color: #94a3b8; font-weight: normal; margin-left: 8px;">
                     (filtered results)
                 </span>
             {% endif %}
         </div>
+
+        <!-- Pagination info (only show if multiple pages exist) -->
         {% if total_pages > 1 %}
             <div style="color: #94a3b8;">
                 Page {{ current_page }} of {{ total_pages }}
@@ -178,19 +254,26 @@ select[name="year"] option {
         {% endif %}
     </div>
 
-    <!-- Main CVE Table -->
+    <!-- Main vulnerability data table section -->
     <section style="background: #1a2236; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+        
+        <!-- Table header with title -->
         <div style="padding: 24px 28px; border-bottom: 1px solid #2a364f;">
             <h2 style="margin: 0; font-size: 1.3rem; color: #e2e8f0; display: flex; align-items: center;">
-                <span style="margin-right: 10px;"></span> All Vulnerabilities
+                <span style="margin-right: 10px;">📋</span> All Vulnerabilities
             </h2>
         </div>
-        
+
+        <!-- Table content (only render if CVE data exists) -->
         {% if latest_cves %}
+            <!-- Horizontal scroll container for responsive table on mobile -->
             <div style="overflow-x: auto;">
                 <table style="width: 100%; border-collapse: collapse;">
+                    
+                    <!-- Table header row -->
                     <thead>
                         <tr style="background: #212d46;">
+                            <!-- Column headers with consistent styling -->
                             <th style="padding: 16px 20px; text-align: center; color: #94a3b8; font-weight: 600; font-size: 1.1em; border-bottom: 1px solid #2a364f;">CVE ID</th>
                             <th style="padding: 16px 20px; text-align: center; color: #94a3b8; font-weight: 600; font-size: 1.1em; border-bottom: 1px solid #2a364f;">Description</th>
                             <th style="padding: 16px 20px; text-align: center; color: #94a3b8; font-weight: 600; font-size: 1.1em; border-bottom: 1px solid #2a364f;">Severity</th>
@@ -198,25 +281,41 @@ select[name="year"] option {
                             <th style="padding: 16px 20px; text-align: center; color: #94a3b8; font-weight: 600; font-size: 1.1em; border-bottom: 1px solid #2a364f;">CWE</th>
                         </tr>
                     </thead>
+
+                    <!-- Table body with vulnerability data -->
                     <tbody>
+                        <!-- Loop through all CVE records for main table display -->
                         {% for cve in latest_cves %}
+                            <!-- Process severity data for each row -->
                             {% set severity = cve.get('Severity', '') %}
                             {% set severity_str = severity if severity is string else (severity[0] if severity and severity|length > 0 else '') %}
-                            <tr style="background: #1a2236; border-bottom: 1px solid #2a364f; transition: background 0.2s;" onmouseover="this.style.background='#212d46'" onmouseout="this.style.background='#1a2236'">
+                            
+                            <!-- Table row with hover effects via inline JavaScript -->
+                            <tr style="background: #1a2236; border-bottom: 1px solid #2a364f; transition: background 0.2s;"
+                                onmouseover="this.style.background='#212d46'"
+                                onmouseout="this.style.background='#1a2236'">
+                                
+                                <!-- CVE ID column - clickable link to detail page -->
                                 <td style="padding: 16px 20px;text-align: center; font-size: 1.18rem;">
                                     <a href="{{ url_for('cve_detail', cve_id=cve.get('ID'), year=year_filter, month=month_filter, page=current_page, severity=severity_filter) }}"
                                        style="color: #63a4ff; font-weight: 600; text-decoration: none; font-family: monospace;">
                                         {{ cve.get('ID', 'N/A') }}
                                     </a>
                                 </td>
+
+                                <!-- Description column with truncation for table layout -->
                                 <td style="padding: 16px 20px; color: #e2e8f0; line-height: 1.4; max-width: 400px;">
                                     {{ cve.get('Description', 'No description available')[:120] }}{% if cve.get('Description', '')|length > 120 %}...{% endif %}
                                 </td>
+
+                                <!-- Severity badge column with color coding -->
                                 <td style="padding: 16px 20px; text-align: center;">
                                     <span style="background: {% if severity_str == 'CRITICAL' %}#f47174{% elif severity_str == 'HIGH' %}#fca311{% elif severity_str == 'MEDIUM' %}#3498db{% elif severity_str == 'LOW' %}#42d392{% else %}#6b7280{% endif %}; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold;">
                                         {{ severity_str or 'UNKNOWN' }}
                                     </span>
                                 </td>
+
+                                <!-- Publication date column with monospace font -->
                                 <td style="padding: 16px 20px; text-align: center; color: #94a3b8; font-size: 1.18em; font-family: monospace;">
                                     {% if cve.get('Published') %}
                                         {{ cve.get('Published')[:10] }}
@@ -224,6 +323,8 @@ select[name="year"] option {
                                         -
                                     {% endif %}
                                 </td>
+
+                                <!-- CWE classification column -->
                                 <td style="padding: 16px 20px; text-align: center; color: #94a3b8; font-size: 1.18em; font-family: monospace;">
                                     {% if cve.get('CWE') %}
                                         {{ cve.get('CWE') }}
@@ -237,6 +338,7 @@ select[name="year"] option {
                 </table>
             </div>
         {% else %}
+            <!-- Empty state when no vulnerabilities match current filters -->
             <div style="padding: 40px; text-align: center; color: #94a3b8;">
                 <div style="font-size: 3rem; margin-bottom: 16px;">🔍</div>
                 <div style="font-size: 1.1rem; margin-bottom: 8px;">No vulnerabilities found</div>
@@ -245,29 +347,35 @@ select[name="year"] option {
         {% endif %}
     </section>
 
-    <!-- Pagination -->
+    <!-- Pagination controls (only show when multiple pages exist) -->
     {% if total_pages > 1 %}
         <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 20px;">
+            
+            <!-- Previous page link (only show if not on first page) -->
             {% if current_page > 1 %}
                 <a href="{{ url_for('vulnerabilities', page=current_page-1, q=search_query, severity=severity_filter, year=year_filter, month=month_filter) }}"
                    style="background: #263159; color: #63a4ff; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-weight: 600;">
                     ← Previous
                 </a>
             {% endif %}
-            
+
+            <!-- Individual page number links -->
             {% for page_num in page_numbers %}
                 {% if page_num == current_page %}
+                    <!-- Current page - highlighted and non-clickable -->
                     <span style="background: #63a4ff; color: white; padding: 10px 14px; border-radius: 8px; font-weight: 700;">
                         {{ page_num }}
                     </span>
                 {% else %}
+                    <!-- Other pages - clickable links with filter preservation -->
                     <a href="{{ url_for('vulnerabilities', page=page_num, q=search_query, severity=severity_filter, year=year_filter, month=month_filter) }}"
                        style="background: #263159; color: #a9adc1; padding: 10px 14px; border-radius: 8px; text-decoration: none; font-weight: 600;">
                         {{ page_num }}
                     </a>
                 {% endif %}
             {% endfor %}
-            
+
+            <!-- Next page link (only show if not on last page) -->
             {% if current_page < total_pages %}
                 <a href="{{ url_for('vulnerabilities', page=current_page+1, q=search_query, severity=severity_filter, year=year_filter, month=month_filter) }}"
                    style="background: #263159; color: #63a4ff; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-weight: 600;">
@@ -278,9 +386,12 @@ select[name="year"] option {
     {% endif %}
 </div>
 
+<!-- Navigation footer - return to main dashboard link -->
 <div style="text-align:center; margin:2.5em 0 1em 0;">
     <a href="{{ url_for('index') }}" style="color:#63a4ff; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
         ← Back to Dashboard
     </a>
 </div>
+
+<!-- End of content block - control returns to base template -->
 {% endblock %}

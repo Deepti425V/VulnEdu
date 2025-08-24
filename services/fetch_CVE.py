@@ -1,54 +1,71 @@
+# HTTP client for making API requests to NVD
 import requests
+# Configuration containing NVD API credentials and endpoints
 from config import NVD_API_URL, NVD_API_KEY
+# Date/time utilities for complex date filtering and timezone handling
 from datetime import datetime, timedelta, timezone
+# File system operations for cache management
 import os
+# JSON serialization for cache persistence
 import json
+# Threading support for background scheduler
 import threading
+# Time utilities for scheduler sleep operations
 import time
 
-#Where we'll keep scraped CVEs between sessions (local file cache)
+# Where we'll keep scraped CVEs between sessions (local file cache)
 CACHE_PATH = "data/cache/cve_cache.json"
-CACHE_TIME_MINUTES = 1440   # 24 hours
-SCHEDULE_HOUR = 0           # Midnight (server local time)
+CACHE_TIME_MINUTES = 1440  # 24 hours cache expiry
+SCHEDULE_HOUR = 0  # Midnight (server local time) for auto-refresh
 
 def _is_cache_fresh():
-    #Checks if local CVE cache is recent enough
+    """Checks if local CVE cache is recent enough"""
+    # No cache file means cache is invalid
     if not os.path.exists(CACHE_PATH):
         return False
+    
+    # Get when the cache file was last modified
     mtime = datetime.fromtimestamp(os.path.getmtime(CACHE_PATH))
     now = datetime.now()
+    
+    # Return True if cache is newer than our expiry threshold (24 hours)
     return (now - mtime).total_seconds() < CACHE_TIME_MINUTES * 60
 
 def _load_from_cache():
-    #Loads a cached batch of CVEs from disk
+    """Loads a cached batch of CVEs from disk"""
+    # Return empty list if no cache file exists
     if not os.path.exists(CACHE_PATH):
         return []
+    
     try:
         with open(CACHE_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
-        #Corrupted cache? Just ignore and act empty
+        # Corrupted cache? Just ignore and act like cache is empty
         return []
 
 def _save_to_cache(cves):
-    #Dump the whole CVE list to disk (creates directory if needed)
+    """Dump the whole CVE list to disk (creates directory if needed)"""
+    # Ensure cache directory exists before writing
     os.makedirs(os.path.dirname(CACHE_PATH), exist_ok=True)
+    
+    # Save CVE data as JSON with UTF-8 encoding
     with open(CACHE_PATH, "w", encoding="utf-8") as f:
         json.dump(cves, f)
 
 def _fetch_from_nvd(days=30):
-    #Grabs CVEs from NVD API for the past X days (big batch, paginated)
+    """Grabs CVEs from NVD API for the past X days (big batch, paginated)"""
     now_utc = datetime.now(timezone.utc)
     all_cves = []
     start_index = 0
-    results_per_page = 2000
+    results_per_page = 2000  # NVD API maximum page size
     pub_end = now_utc
     
     # FIX 1: Correct date range calculation
     # For "today" (1 day), we want from start of today to now
     # For 30 days, we want full 30 days of data
     pub_start = pub_end - timedelta(days=days)
-
+    
     # FIX 2: Use proper date boundaries for more accurate filtering
     if days == 1:  # For "today", use start of today in UTC
         today_utc = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -57,38 +74,45 @@ def _fetch_from_nvd(days=30):
     else:
         # For multi-day ranges, use full day boundaries
         pub_start = (pub_end - timedelta(days=days)).replace(hour=0, minute=0, second=0, microsecond=0)
-
+    
     print(f"[CVEs] Fetching CVEs from {pub_start.isoformat()} to {pub_end.isoformat()}")
-
+    
+    # Build API request parameters
     params = {
         "resultsPerPage": results_per_page,
         "startIndex": start_index,
+        # Convert datetime to NVD API format (ISO with Z suffix)
         "pubStartDate": pub_start.isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
         "pubEndDate": pub_end.isoformat(timespec='milliseconds').replace('+00:00', 'Z')
     }
+    
+    # API authentication header
     headers = {"apikey": NVD_API_KEY}
     
-    #Loop the NVD pagination (max 2000 per page)
+    # Loop through NVD pagination (max 2000 per page)
     while True:
         try:
+            # Make HTTP request to NVD API with timeout
             response = requests.get(NVD_API_URL, params=params, headers=headers, timeout=60)
-            response.raise_for_status()
+            response.raise_for_status()  # Raise exception for HTTP errors
             data = response.json()
         except requests.RequestException as e:
             print(f"Error fetching CVEs from NVD: {e}")
-            break
-
+            break  # Don't crash, return partial results
+        
+        # Extract vulnerability data from API response
         vulnerabilities = data.get("vulnerabilities", [])
         if not vulnerabilities:
-            #NVD returned no new CVEs, we're done
+            # NVD returned no new CVEs, we're done
             break
-            
+        
+        # Process each vulnerability in this page
         for item in vulnerabilities:
             cve = item.get("cve", {})
             published_str = cve.get("published", "")
             if not published_str:
-                continue
-                
+                continue  # Skip CVEs without publication dates
+            
             # FIX 3: Proper datetime parsing with timezone awareness
             try:
                 # Parse the full timestamp, not just the date part
@@ -98,27 +122,31 @@ def _fetch_from_nvd(days=30):
                         published_dt = datetime.fromisoformat(published_str.replace('Z', '+00:00'))
                     else:
                         published_dt = datetime.fromisoformat(published_str)
-                        if published_dt.tzinfo is None:
-                            published_dt = published_dt.replace(tzinfo=timezone.utc)
+                    # Ensure timezone info is present
+                    if published_dt.tzinfo is None:
+                        published_dt = published_dt.replace(tzinfo=timezone.utc)
                 else:
                     # Just date like "2025-08-23"
                     published_dt = datetime.strptime(published_str[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
             except ValueError:
                 print(f"[CVEs] Warning: Could not parse publish date '{published_str}' for {cve.get('id', 'unknown')}")
                 continue
-                
+            
             # Additional filtering to ensure we only get CVEs in our date range
             if not (pub_start <= published_dt <= pub_end):
                 continue
-                
+            
+            # Extract basic CVE information
             cve_id = cve.get("id", "")
+            # Find English description from descriptions array
             description = next((desc["value"] for desc in cve.get("descriptions", []) if desc.get("lang") == "en"), "")
             
+            # Extract severity and CVSS score with fallback priority
             severity = "UNKNOWN"
             cvss = None
             metrics = cve.get("metrics", {})
             
-            #Try CVSS v3.1, then v3.0, then v2
+            # Try CVSS v3.1, then v3.0, then v2 (prefer newer versions)
             if "cvssMetricV31" in metrics:
                 sev_metric = metrics["cvssMetricV31"][0]
                 severity = sev_metric["cvssData"].get("baseSeverity", severity)
@@ -131,18 +159,18 @@ def _fetch_from_nvd(days=30):
                 sev_metric = metrics["cvssMetricV2"][0]
                 severity = sev_metric.get("baseSeverity", severity)
                 cvss = sev_metric["cvssData"].get("baseScore", cvss)
-                
-            #Pull out CWE if present
+            
+            # Pull out CWE (Common Weakness Enumeration) if present
             cwe = None
             for weakness in cve.get("weaknesses", []):
                 for desc in weakness.get("description", []):
-                    if desc.get("lang") == "en":
+                    if desc.get("lang") == "en":  # Find English CWE description
                         cwe = desc.get("value")
                         break
                 if cwe:
                     break
-                    
-            #Fill in all fields; "Products" will be empty here
+            
+            # Fill in all fields; "Products" will be empty here (NVD doesn't provide this)
             all_cves.append({
                 "ID": cve_id,
                 "Description": description,
@@ -150,50 +178,63 @@ def _fetch_from_nvd(days=30):
                 "CVSS_Score": cvss,
                 "CWE": cwe,
                 "Published": published_str,
-                "References": [ref["url"] for ref in cve.get("references", [])],
-                "Products": [],
-                "metrics": metrics
+                "References": [ref["url"] for ref in cve.get("references", [])],  # Extract reference URLs
+                "Products": [],  # Not provided by NVD API
+                "metrics": metrics  # Keep full metrics for advanced analysis
             })
-
+        
+        # Check if we need to fetch more pages
         total_results = data.get("totalResults", 0)
         print(f"[CVEs] Fetched {len(vulnerabilities)} CVEs (page {start_index//results_per_page + 1}), total available: {total_results}")
         
         if start_index + results_per_page >= total_results:
-            #Got everything, break the pagination loop
+            # Got everything, break the pagination loop
             break
+        
+        # Move to next page
         start_index += results_per_page
         params["startIndex"] = start_index
-
-    #Sort from newest to oldest so latest threats are always up top
+    
+    # Sort from newest to oldest so latest threats are always up top
     all_cves.sort(key=lambda x: x.get("Published") or "", reverse=True)
     print(f"[CVEs] Completed fetch. Total CVEs processed: {len(all_cves)}")
     return all_cves
 
 def _refresh_cache():
-    #Force a cache update from NVD (used by dashboard and scheduler)
+    """Force a cache update from NVD (used by dashboard and scheduler)"""
     print("[CVEs] Auto-refreshing CVE cache from NVD...")
+    # Fetch last 30 days of CVE data
     cves = _fetch_from_nvd(days=30)
+    # Save to local cache for fast future access
     _save_to_cache(cves)
     print(f"[CVEs] Cache refreshed. Fetched {len(cves)} CVEs.")
 
 def _auto_refresh_job():
-    #Scheduler thread: wakes up at midnight & updates cache (for dashboard speed)
+    """Scheduler thread: wakes up at midnight & updates cache (for dashboard speed)"""
     while True:
         now = datetime.now()
+        # Calculate next scheduled run (midnight)
         next_run = now.replace(hour=SCHEDULE_HOUR, minute=0, second=0, microsecond=0)
-        #If it's after the scheduled hour, aim for next day
+        
+        # If it's after the scheduled hour, aim for next day
         if now >= next_run:
             next_run = next_run + timedelta(days=1)
+        
+        # Calculate how long to sleep until next run
         delay = (next_run - now).total_seconds()
         print(f"[CVEs] Next auto-refresh scheduled at {next_run}. Sleeping {int(delay)} seconds...")
-        time.sleep(max(delay, 0))
+        time.sleep(max(delay, 0))  # Sleep until scheduled time
+        
         try:
+            # Perform the cache refresh
             _refresh_cache()
         except Exception as e:
+            # Don't let scheduler die on single failure
             print(f"[CVEs] Cache refresh FAILED: {e}")
 
 def start_auto_cache_scheduler():
-    #Start the scheduler thread automatically as soon as module is imported
+    """Start the scheduler thread automatically as soon as module is imported"""
+    # Create daemon thread (dies when main process exits)
     t = threading.Thread(target=_auto_refresh_job, daemon=True)
     t.start()
 
@@ -203,18 +244,18 @@ def get_all_cves(max_results=None, year=None, month=None, days=None, force_refre
     If cache is old or missing, does a fresh fetch & saves.
     You can filter the results by year/month for more narrow data.
     """
-    #Dashboard always uses the cache unless filters or manual refresh
+    # Dashboard always uses the cache unless filters or manual refresh
     if not year and not month and not days and not force_refresh and _is_cache_fresh():
         return _load_from_cache()
-        
-    #If dashboard, and cache is missing/outdated, fetch & block until we have it
+    
+    # If dashboard, and cache is missing/outdated, fetch & block until we have it
     if not year and not month and not days and not force_refresh and not _is_cache_fresh():
-        _refresh_cache()
+        _refresh_cache()  # Update cache synchronously
         return _load_from_cache()
-        
-    #If filtering (or forced refresh), always fetch live from NVD
+    
+    # If filtering (or forced refresh), always fetch live from NVD
     cves = _fetch_from_nvd(days=days or 30)
-
+    
     # FIX 4: Improved filtering with proper date comparison
     if year and month:
         filtered = []
@@ -222,7 +263,7 @@ def get_all_cves(max_results=None, year=None, month=None, days=None, force_refre
             pub = cve.get("Published", "")
             if pub:
                 try:
-                    # Parse the date properly
+                    # Parse the date properly with timezone handling
                     if 'T' in pub:
                         if pub.endswith('Z'):
                             pub_dt = datetime.fromisoformat(pub.replace('Z', '+00:00'))
@@ -241,7 +282,7 @@ def get_all_cves(max_results=None, year=None, month=None, days=None, force_refre
                             filtered.append(cve)
         return filtered
     
-    #Filter by year only
+    # Filter by year only
     elif year:
         filtered = []
         for cve in cves:
@@ -265,9 +306,9 @@ def get_all_cves(max_results=None, year=None, month=None, days=None, force_refre
                     if len(pub) >= 4 and pub[:4] == str(year):
                         filtered.append(cve)
         return filtered
-
+    
     # Otherwise, return all CVEs we just loaded
     return cves
 
-#Fire off background auto-refresh thread at module import (so dashboard cache is always ready)
+# Fire off background auto-refresh thread at module import (so dashboard cache is always ready)
 start_auto_cache_scheduler()

@@ -1,37 +1,56 @@
+<!-- Inherit common layout, navigation, and styles from base template -->
 {% extends "base.html" %}
+
+<!-- Override the content block to inject our dashboard visualizations -->
 {% block content %}
 
-<!-- Severity Pie Chart -->
-<div class="card mb-4">
-    <div class="card-header">Severity Distribution</div>
+<!-- Severity Distribution Pie Chart Container -->
+<div class="card mb-4">  <!-- Bootstrap card with bottom margin for spacing -->
+    <div class="card-header">Severity Distribution</div>  <!-- Card title bar -->
     <div class="card-body">
+        <!-- HTML5 canvas element - Chart.js will render pie chart here -->
+        <!-- Height set to 120px to maintain consistent sizing across charts -->
         <canvas id="severityPie" height="120"></canvas>
     </div>
 </div>
 
-<!-- Timeline Line Chart -->
-<div class="card mb-4">
-    <div class="card-header">CVEs Over Time</div>
+<!-- CVE Timeline Visualization Container -->
+<div class="card mb-4">  <!-- Another card for visual consistency -->
+    <div class="card-header">CVEs Over Time</div>  <!-- Descriptive header -->
     <div class="card-body">
+        <!-- Canvas for line chart showing vulnerability trends over time -->
+        <!-- Same height as pie chart for visual balance -->
         <canvas id="timelineChart" height="120"></canvas>
     </div>
 </div>
 
-<!-- Top CWE Bar Chart -->
-<div class="card mb-4">
-    <div class="card-header">Top Vulnerability Types (CWEs)</div>
+<!-- Top CWE (Common Weakness Enumeration) Bar Chart Container -->
+<div class="card mb-4">  <!-- Final dashboard card -->
+    <div class="card-header">Top Vulnerability Types (CWEs)</div>  <!-- Explains CWE acronym -->
     <div class="card-body">
+        <!-- Bar chart canvas - taller (200px) to accommodate more data labels -->
         <canvas id="cweBar" height="200"></canvas>
     </div>
 </div>
 
-<!-- Pass data as JSON for JS -->
+<!-- Data Transfer from Python Backend to JavaScript Frontend -->
 <script>
-    const metrics = {{ metrics|tojson }};
-    const timeline_data = {{ timeline_data|tojson }};
-    const cwe_stats = {{ cwe_stats|tojson }};
+    <!-- Convert Python data structures to JavaScript objects using Jinja2's tojson filter -->
+    <!-- This prevents XSS attacks by properly escaping special characters -->
+    const metrics = {{ metrics|tojson }};           // Overall vulnerability statistics
+    const timeline_data = {{ timeline_data|tojson }}; // Date-based CVE discovery data  
+    const cwe_stats = {{ cwe_stats|tojson }};       // CWE frequency rankings
 </script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{{ url_for('static', filename='js/visualizations.js') }}"></script>
 
+<!-- Load Chart.js library from CDN for creating interactive charts -->
+<!-- jsDelivr CDN provides fast, reliable delivery with browser caching benefits -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Load our custom JavaScript file that configures and renders the charts -->
+<!-- Flask's url_for generates the correct static file path -->
+<!-- This script runs after Chart.js loads and uses the data variables above -->
+<script src="{{ url_for('static', filename='js/visualizations.js') }}">
+</script>
+
+<!-- Close the content block - control returns to base template -->
 {% endblock %}

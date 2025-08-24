@@ -1,258 +1,409 @@
+<!-- Educational page explaining CVEs with interactive components -->
 {% extends "base.html" %}
+
 {% block content %}
+<!-- Main content container with responsive max-width -->
 <div style="max-width:1400px; margin:0 auto 32px auto; padding-top:20px;">
-  <!-- ===== Page Title & Intro ===== -->
-  <h1 style="color:#63a4ff;">What is a CVE?</h1>
-  <p style="color:#e2e8f0; font-size:1.12em;">
-    <b>CVE</b> stands for <em>Common Vulnerabilities and Exposures</em>.
-    It is the universal system—managed by
-    <span style="color:#79a3f8;">MITRE</span> and
-    <span style="color:#fca045;">NVD</span>—for giving unique names to
-    publicly known cybersecurity vulnerabilities.
-    <br><br>
-    <b>Why do CVEs matter?</b>
-    They allow security teams, researchers, and companies to discuss and fix the <u>same</u> problem consistently using a single ID.
-    Every CVE describes a specific security flaw, explains its risk, and helps you learn about real-world threats and how to manage them.
-  </p>
 
-  <!-- ===== CVE Anatomy Interactive Sample ===== -->
-  <h2 style="color:#cdd7ff; margin-top:36px;">CVE Anatomy: What’s Inside a Vulnerability Record</h2>
-  <div id="cve-sample-section"
-       style="background:#232b45; border-radius:16px; padding:34px 28px; margin-bottom:26px; border-left:6px solid #63a4ff;">
-    <div style="display:flex; flex-wrap:wrap; gap:22px; align-items:center;">
-      <span class="field-label" data-field="id" tabindex="0"
-            style="background:#263159;padding:7px 15px;border-radius:8px;color:#63a4ff;cursor:pointer;font-family:monospace;">
-        ID: <b>CVE-2021-44228</b>
-      </span>
-      <span class="field-label" data-field="published" tabindex="0"
-            style="background:#263159;padding:7px 15px;border-radius:8px; color:#cdd7ff; cursor:pointer;">
-        Published: <b>2021-12-09</b>
-      </span>
-      <span class="field-label" data-field="severity" tabindex="0"
-            style="background:#f55855;padding:7px 15px;border-radius:8px; color:#fff; font-weight:600; cursor:pointer;">
-        Severity: Critical
-      </span>
-      <span class="field-label" data-field="cwe" tabindex="0"
-            style="background:#3b8ded;padding:7px 15px;border-radius:8px; color:#fff; font-weight:600; cursor:pointer;">
-        CWE: CWE-502
-      </span>
-    </div>
-    <div style="margin-top:18px;">
-      <span class="field-label" data-field="desc" tabindex="0"
-            style="background:#263159;padding:7px 15px;border-radius:8px;color:#e2e8f0;cursor:pointer;">
-        Description: Apache Log4j2 Remote code execution via JNDI lookup ("Log4Shell")
-      </span>
-    </div>
-    <div style="margin-top:13px; color:#a9adc1;">
-      <span class="field-label" data-field="refs" tabindex="0"
-            style="background:#263159;padding:5px 11px;border-radius:8px;cursor:pointer;">
-        References:
-      </span>
-      <a href="https://nvd.nist.gov/vuln/detail/CVE-2021-44228" target="_blank"
-         style="color:#63a4ff; margin-left:10px;">
-        NVD
-      </a>
-      <a href="https://logging.apache.org/log4j/2.x/security.html" target="_blank"
-         style="color:#63a4ff; margin-left:18px;">
-        Vendor Advisory
-      </a>
-    </div>
-    <!-- Tooltip Box -->
-    <div id="cve-sample-tooltip" style="display:none; position:absolute; background:#101828; color:#eaf4fb; border-radius:8px; padding:13px 15px; font-size:1.01em; min-width:210px; max-width:350px; box-shadow:0 3px 18px #0008; z-index:200; pointer-events:none;"></div>
-  </div>
+    <!-- ===== Page Title & Introduction ===== -->
+    <h1 style="color:#63a4ff;">What is a CVE?</h1>
+    
+    <!-- Comprehensive introduction explaining CVE fundamentals -->
+    <p style="color:#e2e8f0; font-size:1.12em;">
+        <b>CVE</b> stands for <em>Common Vulnerabilities and Exposures</em>.
+        It is the universal system—managed by
+        <span style="color:#79a3f8;">MITRE</span> and
+        <span style="color:#fca045;">NVD</span>—for giving unique names to
+        publicly known cybersecurity vulnerabilities.
+        <br><br>
+        <b>Why do CVEs matter?</b>
+        They allow security teams, researchers, and companies to discuss and fix
+        the <u>same</u> problem consistently using a single ID.
+        Every CVE describes a specific security flaw, explains its risk, and helps
+        you learn about real-world threats and how to manage them.
+    </p>
 
-  <!-- ===== Section: How to Read & Interpret a CVE ===== -->
-  <h2 style="color:#cdd7ff;">How to Read a CVE Entry & Interpret Its Details</h2>
-  <div style="display:flex; flex-wrap:wrap; gap:30px; align-items:flex-start;">
-    <ul style="background:#1a2236; border-radius:13px; padding:26px 28px 16px 26px; color:#e3e8f0; font-size:1.09em; margin-bottom:22px;flex:2;">
-      <li><b>ID:</b> Unique reference for searching in vulnerability databases and security tools.</li>
-      <li><b>Description:</b> Review the summary—does it match your environment and risks?</li>
-      <li><b>Severity & Score:</b> The higher (e.g., <b>Critical</b>), the more urgent. Check CVSS number if present.</li>
-      <li><b>CWE:</b> Type or category of bug—helps guide fixes and mitigations. (E.g., Deserialization, XSS)</li>
-      <li><b>References:</b> Advisories—ALWAYS consult for patches or step-by-step guidance.</li>
-      <li><b>Products:</b> (If present) Specific affected software; always check compatibility before action.</li>
-    </ul>
-    <div style="flex:1; min-width:210px;">
-      <div style="background:#232b45; border-radius:13px; padding:18px 19px 19px 20px; color:#42d392; font-size:0.99em;">
-        <b>Tips:</b>
-        <ul style="font-size:0.99em; color:#a9adc1; margin-top:7px;">
-          <li>Never treat all CVEs the same—focus on critical/high scores first.</li>
-          <li>Check advisory links before taking action.</li>
-          <li>Look up the CWE type (“What is a CWE?”) to prevent similar issues in your own code.</li>
+    <!-- ===== Interactive CVE Anatomy Section ===== -->
+    <h2 style="color:#cdd7ff; margin-top:36px;">CVE Anatomy: What's Inside a Vulnerability Record</h2>
+    
+    <!-- Interactive sample CVE using Log4Shell for educational impact -->
+    <div id="cve-sample-section" style="background:#232b45; border-radius:16px; padding:34px 28px; margin-bottom:26px; border-left:6px solid #63a4ff;">
+        
+        <!-- Main CVE components row - flexbox layout for responsive design -->
+        <div style="display:flex; flex-wrap:wrap; gap:22px; align-items:center;">
+            
+            <!-- CVE ID field - clickable with tooltip -->
+            <span class="field-label" data-field="id" tabindex="0" 
+                  style="background:#263159;padding:7px 15px;border-radius:8px;color:#63a4ff;cursor:pointer;font-family:monospace;">
+                ID: <b>CVE-2021-44228</b>
+            </span>
+            
+            <!-- Published date field - helps users understand timeline -->
+            <span class="field-label" data-field="published" tabindex="0" 
+                  style="background:#263159;padding:7px 15px;border-radius:8px;color:#cdd7ff; cursor:pointer;">
+                Published: <b>2021-12-09</b>
+            </span>
+            
+            <!-- Severity indicator - critical level with red color -->
+            <span class="field-label" data-field="severity" tabindex="0" 
+                  style="background:#f55855;padding:7px 15px;border-radius:8px;color:#fff; font-weight:600; cursor:pointer;">
+                Severity: Critical
+            </span>
+            
+            <!-- CWE classification - shows vulnerability type -->
+            <span class="field-label" data-field="cwe" tabindex="0" 
+                  style="background:#3b8ded;padding:7px 15px;border-radius:8px;color:#fff; font-weight:600; cursor:pointer;">
+                CWE: CWE-502
+            </span>
+        </div>
+
+        <!-- CVE description on separate row for better readability -->
+        <div style="margin-top:18px;">
+            <span class="field-label" data-field="desc" tabindex="0" 
+                  style="background:#263159;padding:7px 15px;border-radius:8px;color:#e2e8f0;cursor:pointer;">
+                Description: Apache Log4j2 Remote code execution via JNDI lookup ("Log4Shell")
+            </span>
+        </div>
+
+        <!-- References section with external links -->
+        <div style="margin-top:13px; color:#a9adc1;">
+            <span class="field-label" data-field="refs" tabindex="0" 
+                  style="background:#263159;padding:5px 11px;border-radius:8px;cursor:pointer;">
+                References:
+            </span>
+            <!-- Direct link to NVD for authoritative information -->
+            <a href="https://nvd.nist.gov/vuln/detail/CVE-2021-44228" target="_blank" 
+               style="color:#63a4ff; margin-left:10px;">
+                NVD
+            </a>
+            <!-- Vendor advisory link for official patches/guidance -->
+            <a href="https://logging.apache.org/log4j/2.x/security.html" target="_blank" 
+               style="color:#63a4ff; margin-left:18px;">
+                Vendor Advisory
+            </a>
+        </div>
+
+        <!-- Hidden tooltip container - positioned absolutely when shown -->
+        <div id="cve-sample-tooltip" 
+             style="display:none; position:absolute; background:#101828; color:#eaf4fb; border-radius:8px; padding:13px 15px; font-size:1.01em; min-width:210px; max-width:350px; box-shadow:0 3px 18px #0008; z-index:200; pointer-events:none;"></div>
+    </div>
+
+    <!-- ===== CVE Interpretation Guide ===== -->
+    <h2 style="color:#cdd7ff;">How to Read a CVE Entry & Interpret Its Details</h2>
+    
+    <!-- Two-column layout: detailed list + tips sidebar -->
+    <div style="display:flex; flex-wrap:wrap; gap:30px; align-items:flex-start;">
+        
+        <!-- Main interpretation guide - comprehensive list -->
+        <ul style="background:#1a2236; border-radius:13px; padding:26px 28px 16px 26px; color:#e3e8f0; font-size:1.09em; margin-bottom:22px;flex:2;">
+            <li><b>ID:</b> Unique reference for searching in vulnerability databases and security tools.</li>
+            <li><b>Description:</b> Review the summary—does it match your environment and risks?</li>
+            <li><b>Severity & Score:</b> The higher (e.g., <b>Critical</b>), the more urgent. Check CVSS number if present.</li>
+            <li><b>CWE:</b> Type or category of bug—helps guide fixes and mitigations. (E.g., Deserialization, XSS)</li>
+            <li><b>References:</b> Advisories—ALWAYS consult for patches or step-by-step guidance.</li>
+            <li><b>Products:</b> (If present) Specific affected software; always check compatibility before action.</li>
         </ul>
-        <div style="margin-top:11px;">
-          <a href="{{ url_for('learn_topic', topic='what-is-cwe') }}" style="color:#63a4ff; text-decoration:underline;">What is a CWE?</a> |
-          <a href="{{ url_for('learn_topic', topic='cvss-scores') }}" style="color:#63a4ff; text-decoration:underline;">CVSS Score Guide</a>
+
+        <!-- Tips sidebar with cross-references -->
+        <div style="flex:1; min-width:210px;">
+            <div style="background:#232b45; border-radius:13px; padding:18px 19px 19px 20px; color:#42d392; font-size:0.99em;">
+                <b>Tips:</b>
+                <ul style="font-size:0.99em; color:#a9adc1; margin-top:7px;">
+                    <li>Never treat all CVEs the same—focus on critical/high scores first.</li>
+                    <li>Check advisory links before taking action.</li>
+                    <li>Look up the CWE type ("What is a CWE?") to prevent similar issues in your own code.</li>
+                </ul>
+                <!-- Cross-reference links to related learning topics -->
+                <div style="margin-top:11px;">
+                    <a href="{{ url_for('learn_topic', topic='what-is-cwe') }}" style="color:#63a4ff; text-decoration:underline;">What is a CWE?</a> |
+                    <a href="{{ url_for('learn_topic', topic='cvss-scores') }}" style="color:#63a4ff; text-decoration:underline;">CVSS Score Guide</a>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
 
-  <!-- ===== Interactive Today's CVEs ===== -->
-  <h2 style="color:#cdd7ff; margin-top:38px;">Today's CVEs</h2>
-  <div style="background:#1a2236; border-radius:14px; padding:20px 28px 24px 26px; margin-bottom:18px;">
-    <div style="color:#94a3b8;margin-bottom:9px;font-size:1.01em;">
-      <span>Showing most recent vulnerabilities published in the last 24 hours.</span>
-      <a href="{{ url_for('vulnerabilities') }}" style="margin-left:17px;color:#63a4ff;text-decoration:underline;font-weight:600;">SHOW ALL TODAY CVEs →</a>
-    </div>
-    <div style="display: grid; gap: 17px;">
-      {% set todays_cves = [] %}
-      {% for cve in latest_cves[:10] %}
-      {% set date_str = cve.get('Published','')[:10] %}
-      {% if date_str == (now.strftime('%Y-%m-%d')) %}
-      {% set _ = todays_cves.append(cve) %}
-      {% endif %}
-      {% endfor %}
+    <!-- ===== Today's CVEs Live Feed ===== -->
+    <h2 style="color:#cdd7ff; margin-top:38px;">Today's CVEs</h2>
+    
+    <div style="background:#1a2236; border-radius:14px; padding:20px 28px 24px 26px; margin-bottom:18px;">
+        <!-- Section header with link to full vulnerability database -->
+        <div style="color:#94a3b8;margin-bottom:9px;font-size:1.01em;">
+            <span>Showing most recent vulnerabilities published in the last 24 hours.</span>
+            <a href="{{ url_for('vulnerabilities') }}" 
+               style="margin-left:17px;color:#63a4ff;text-decoration:underline;font-weight:600;">SHOW ALL TODAY CVEs →</a>
+        </div>
 
-      {% if todays_cves %}
-        {% for cve in todays_cves[:5] %}
-        <div style="background:#263159; border-radius:12px; padding:18px 19px 14px 19px; border-left:4px solid {% if cve.get('Severity') == 'CRITICAL' %}#f47174{% else %}#fca311{% endif %};">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
-            <div style="flex:1;">
-              <div style="display:flex; gap:11px; align-items:center;">
-                <a href="{{ url_for('cve_detail', cve_id=cve.get('ID')) }}" style="color:#63a4ff; font-weight:700; font-size:1.1em; text-decoration:none;">
-                  {{ cve.get('ID','N/A') }}
-                </a>
-                <span style="background: {% if cve.get('Severity')=='CRITICAL' %}#f47174{% elif cve.get('Severity')=='HIGH' %}#fca311{% elif cve.get('Severity')=='MEDIUM' %}#3498db{% else %}#42d392{% endif %}; color:white; padding:4px 12px; border-radius:16px; font-size:0.83em; font-weight:600;">
-                  {{ cve.get('Severity','UNKNOWN') }}
-                </span>
-                {% if cve.get('CWE') %}
-                  <span style="margin-left:10px; background:#212d46; color:#63a4ff; padding:1px 9px; border-radius:11px; font-size:0.95em;">{{ cve.get('CWE') }}</span>
+        <!-- Container for today's CVE cards -->
+        <div style="display: grid; gap: 17px;">
+            
+            <!-- Server-side date filtering to find today's CVEs -->
+            {% set todays_cves = [] %}
+            {% for cve in latest_cves[:10] %}
+                <!-- Extract date string (YYYY-MM-DD format) -->
+                {% set date_str = cve.get('Published','')[:10] %}
+                <!-- Compare with today's date using Flask's now context -->
+                {% if date_str == (now.strftime('%Y-%m-%d')) %}
+                    {% set _ = todays_cves.append(cve) %}
                 {% endif %}
-              </div>
-              <div style="color:#e2e8f0; line-height:1.44; margin-top:7px; font-size:0.97em;">
-                {{ cve.get('Description','No description available')[:170] }}{% if cve.get('Description','')|length > 170 %}...{% endif %}
-              </div>
-            </div>
-            <div style="min-width:105px; text-align:right; color:#a9adc1;">
-              <div>{{ cve.get('Published')[:10] }}</div>
-            </div>
-          </div>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div style="text-align:center; color:#94a3b8; padding:26px;font-size:1.08em;">
-          <div style="font-size:1.7rem;margin-bottom:8px;">🔍</div>
-          No new CVEs detected today.
-        </div>
-      {% endif %}
-    </div>
-  </div>
+            {% endfor %}
 
-  <!-- ===== Timeline of Major CVEs ===== -->
-  <h2 style="color:#cdd7ff; margin-top:34px;">Timeline of Major CVEs</h2>
-  <div style="background:#232b45;border-radius:10px;padding:24px 18px 20px 18px; margin-bottom:18px;">
-    <table style="width:100%; color:#e3e8f0; font-size:1.05em; border-collapse:collapse;">
-      <thead>
-        <tr style="background:#263159;">
-          <th style="padding:10px 9px; text-align:left;">Year</th>
-          <th style="padding:10px 9px; text-align:left;">CVE ID</th>
-          <th style="padding:10px 9px; text-align:left;">Nickname</th>
-          <th style="padding:10px 9px; text-align:left;">Impact & Legacy</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td style="padding:9px 7px;">2014</td>
-          <td style="padding:9px 7px;"><a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2014-0160" target="_blank">CVE-2014-0160</a></td>
-          <td style="padding:9px 7px;">Heartbleed</td>
-          <td style="padding:9px 7px;">SSL bug exposed private keys, triggered global emergency patching</td>
-        </tr>
-        <tr>
-          <td style="padding:9px 7px;">2014</td>
-          <td style="padding:9px 7px;"><a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2014-6271" target="_blank">CVE-2014-6271</a></td>
-          <td style="padding:9px 7px;">Shellshock</td>
-          <td style="padding:9px 7px;">Bash shell flaw affected millions of Linux servers</td>
-        </tr>
-        <tr>
-          <td style="padding:9px 7px;">2017</td>
-          <td style="padding:9px 7px;"><a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2017-0144" target="_blank">CVE-2017-0144</a></td>
-          <td style="padding:9px 7px;">EternalBlue</td>
-          <td style="padding:9px 7px;">Used in WannaCry ransomware; showed the danger of wormable network bugs</td>
-        </tr>
-        <tr>
-          <td style="padding:9px 7px;">2017</td>
-          <td style="padding:9px 7px;"><a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2017-5638" target="_blank">CVE-2017-5638</a></td>
-          <td style="padding:9px 7px;">Apache Struts</td>
-          <td style="padding:9px 7px;">Enabled the Equifax breach, crucial lessons for enterprise patching</td>
-        </tr>
-        <tr>
-          <td style="padding:9px 7px;">2021</td>
-          <td style="padding:9px 7px;"><a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2021-44228" target="_blank">CVE-2021-44228</a></td>
-          <td style="padding:9px 7px;">Log4Shell</td>
-          <td style="padding:9px 7px;">Critical bug in Log4j2 affected cloud, apps, millions of devices worldwide</td>
-        </tr>
-        <tr>
-          <td style="padding:9px 7px;">2022</td>
-          <td style="padding:9px 7px;"><a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2022-22965" target="_blank">CVE-2022-22965</a></td>
-          <td style="padding:9px 7px;">Spring4Shell</td>
-          <td style="padding:9px 7px;">New Java bug affected popular Spring framework (recent ecosystem risk)</td>
-        </tr>
-      </tbody>
-    </table>
-    <div style="margin-top:14px; color:#a9adc1; font-size:0.97em;">
-      <b>Why These Matter:</b>
-      Each event reshaped industry patching, compliance, and risk management.
-      Major spikes in awareness and new best practices followed these discoveries.
+            <!-- Display today's CVEs if any found -->
+            {% if todays_cves %}
+                {% for cve in todays_cves[:5] %}
+                    <!-- CVE card with severity-based left border color -->
+                    <div style="background:#263159; border-radius:12px; padding:18px 19px 14px 19px; border-left:4px solid {% if cve.get('Severity') == 'CRITICAL' %}#f47174{% else %}#fca311{% endif %};">
+                        
+                        <!-- CVE card layout with main content and date sidebar -->
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+                            
+                            <!-- Main CVE information -->
+                            <div style="flex:1;">
+                                <!-- CVE ID, severity badge, and CWE in one row -->
+                                <div style="display:flex; gap:11px; align-items:center;">
+                                    <!-- Clickable CVE ID linking to detail page -->
+                                    <a href="{{ url_for('cve_detail', cve_id=cve.get('ID')) }}" 
+                                       style="color:#63a4ff; font-weight:700; font-size:1.1em; text-decoration:none;">
+                                        {{ cve.get('ID','N/A') }}
+                                    </a>
+                                    
+                                    <!-- Color-coded severity badge -->
+                                    <span style="background: {% if cve.get('Severity')=='CRITICAL' %}#f47174{% elif cve.get('Severity')=='HIGH' %}#fca311{% elif cve.get('Severity')=='MEDIUM' %}#3498db{% else %}#42d392{% endif %}; color:white; padding:4px 12px; border-radius:16px; font-size:0.83em; font-weight:600;">
+                                        {{ cve.get('Severity','UNKNOWN') }}
+                                    </span>
+                                    
+                                    <!-- CWE classification if available -->
+                                    {% if cve.get('CWE') %}
+                                        <span style="margin-left:10px; background:#212d46; color:#63a4ff; padding:1px 9px; border-radius:11px; font-size:0.95em;">{{ cve.get('CWE') }}</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- CVE description truncated for layout consistency -->
+                                <div style="color:#e2e8f0; line-height:1.44; margin-top:7px; font-size:0.97em;">
+                                    {{ cve.get('Description','No description available')[:170] }}
+                                    {% if cve.get('Description','')|length > 170 %}...{% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Publication date in right sidebar -->
+                            <div style="min-width:105px; text-align:right; color:#a9adc1;">
+                                <div>{{ cve.get('Published')[:10] }}</div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <!-- Empty state when no new CVEs today -->
+                <div style="text-align:center; color:#94a3b8; padding:26px;font-size:1.08em;">
+                    <div style="font-size:1.7rem;margin-bottom:8px;">🔍</div>
+                    No new CVEs detected today.
+                </div>
+            {% endif %}
+        </div>
     </div>
-  </div>
+
+    <!-- ===== Historical Timeline of Major CVEs ===== -->
+    <h2 style="color:#cdd7ff; margin-top:34px;">Timeline of Major CVEs</h2>
+    
+    <div style="background:#232b45;border-radius:10px;padding:24px 18px 20px 18px; margin-bottom:18px;">
+        <!-- Historical CVEs table showing industry-changing vulnerabilities -->
+        <table style="width:100%; color:#e3e8f0; font-size:1.05em; border-collapse:collapse;">
+            <thead>
+                <tr style="background:#263159;">
+                    <th style="padding:10px 9px; text-align:left;">Year</th>
+                    <th style="padding:10px 9px; text-align:left;">CVE ID</th>
+                    <th style="padding:10px 9px; text-align:left;">Nickname</th>
+                    <th style="padding:10px 9px; text-align:left;">Impact & Legacy</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Heartbleed - SSL/TLS vulnerability -->
+                <tr>
+                    <td style="padding:9px 7px;">2014</td>
+                    <td style="padding:9px 7px;">
+                        <a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2014-0160" target="_blank">CVE-2014-0160</a>
+                    </td>
+                    <td style="padding:9px 7px;">Heartbleed</td>
+                    <td style="padding:9px 7px;">SSL bug exposed private keys, triggered global emergency patching</td>
+                </tr>
+                
+                <!-- Shellshock - Bash shell vulnerability -->
+                <tr>
+                    <td style="padding:9px 7px;">2014</td>
+                    <td style="padding:9px 7px;">
+                        <a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2014-6271" target="_blank">CVE-2014-6271</a>
+                    </td>
+                    <td style="padding:9px 7px;">Shellshock</td>
+                    <td style="padding:9px 7px;">Bash shell flaw affected millions of Linux servers</td>
+                </tr>
+                
+                <!-- EternalBlue - Used in WannaCry ransomware -->
+                <tr>
+                    <td style="padding:9px 7px;">2017</td>
+                    <td style="padding:9px 7px;">
+                        <a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2017-0144" target="_blank">CVE-2017-0144</a>
+                    </td>
+                    <td style="padding:9px 7px;">EternalBlue</td>
+                    <td style="padding:9px 7px;">Used in WannaCry ransomware; showed the danger of wormable network bugs</td>
+                </tr>
+                
+                <!-- Apache Struts - Enabled Equifax breach -->
+                <tr>
+                    <td style="padding:9px 7px;">2017</td>
+                    <td style="padding:9px 7px;">
+                        <a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2017-5638" target="_blank">CVE-2017-5638</a>
+                    </td>
+                    <td style="padding:9px 7px;">Apache Struts</td>
+                    <td style="padding:9px 7px;">Enabled the Equifax breach, crucial lessons for enterprise patching</td>
+                </tr>
+                
+                <!-- Log4Shell - Critical Log4j vulnerability -->
+                <tr>
+                    <td style="padding:9px 7px;">2021</td>
+                    <td style="padding:9px 7px;">
+                        <a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2021-44228" target="_blank">CVE-2021-44228</a>
+                    </td>
+                    <td style="padding:9px 7px;">Log4Shell</td>
+                    <td style="padding:9px 7px;">Critical bug in Log4j2 affected cloud, apps, millions of devices worldwide</td>
+                </tr>
+                
+                <!-- Spring4Shell - Spring framework vulnerability -->
+                <tr>
+                    <td style="padding:9px 7px;">2022</td>
+                    <td style="padding:9px 7px;">
+                        <a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2022-22965" target="_blank">CVE-2022-22965</a>
+                    </td>
+                    <td style="padding:9px 7px;">Spring4Shell</td>
+                    <td style="padding:9px 7px;">New Java bug affected popular Spring framework (recent ecosystem risk)</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <!-- Explanation of why these historical CVEs matter -->
+        <div style="margin-top:14px; color:#a9adc1; font-size:0.97em;">
+            <b>Why These Matter:</b>
+            Each event reshaped industry patching, compliance, and risk management.
+            Major spikes in awareness and new best practices followed these discoveries.
+        </div>
+    </div>
 </div>
 
-<!-- ===== Interactive Highlight/Tooltip JS ===== -->
+<!-- ===== Interactive Tooltip JavaScript System ===== -->
 <script>
-const cveSampleTooltips = {
-  'id': { title: "CVE ID", text: "A unique vulnerability identifier. Used to track and search. Format: CVE-YYYY-NNNNN." },
-  'published': { title: "Published Date", text: "Date the vulnerability was publicly announced. Crucial for understanding risk exposure windows." },
-  'severity': { title: "Severity", text: "Shows risk level (Critical, High, Medium, Low)—often based on the CVSS score. Prioritize higher severities." },
-  'cwe': { title: "CWE", text: "Specifies the underlying type of coding/design flaw. Links to common patterns for prevention (e.g. Deserialization, XSS)." },
-  'desc': { title: "Description", text: "A summary of what the vulnerability is and how it can be exploited. Always read to see if it applies to your environment." },
-  'refs': { title: "References", text: "Links to authoritative advisories, patches, vendor updates, and analysis. The best source of detailed remediation steps." }
-};
+    // Tooltip content definitions for each CVE field
+    const cveSampleTooltips = {
+        'id': { 
+            title: "CVE ID", 
+            text: "A unique vulnerability identifier. Used to track and search. Format: CVE-YYYY-NNNNN." 
+        },
+        'published': { 
+            title: "Published Date", 
+            text: "Date the vulnerability was publicly announced. Crucial for understanding risk exposure windows." 
+        },
+        'severity': { 
+            title: "Severity", 
+            text: "Shows risk level (Critical, High, Medium, Low)—often based on the CVSS score. Prioritize higher severities." 
+        },
+        'cwe': { 
+            title: "CWE", 
+            text: "Specifies the underlying type of coding/design flaw. Links to common patterns for prevention (e.g. Deserialization, XSS)." 
+        },
+        'desc': { 
+            title: "Description", 
+            text: "A summary of what the vulnerability is and how it can be exploited. Always read to see if it applies to your environment." 
+        },
+        'refs': { 
+            title: "References", 
+            text: "Links to authoritative advisories, patches, vendor updates, and analysis. The best source of detailed remediation steps." 
+        }
+    };
 
-(function() {
-  const section = document.getElementById('cve-sample-section');
-  const tooltip = document.getElementById('cve-sample-tooltip');
-  let active = null;
-  function showTip(label, event) {
-    const field = label.dataset.field;
-    const data = cveSampleTooltips[field];
-    if (!data) return;
-    tooltip.innerHTML = "<b style='color:#63a4ff;'>" + data.title + "</b><br>" + data.text;
-    tooltip.style.display = "block";
-    const rect = label.getBoundingClientRect();
-    tooltip.style.position = 'fixed';
-    let left = rect.left;
-    let top = rect.bottom + 8;
-    if((left + tooltip.offsetWidth + 10) > window.innerWidth){
-      left = window.innerWidth - tooltip.offsetWidth - 22;
-    }
-    tooltip.style.left = left + "px";
-    tooltip.style.top = top + "px";
-    active = label;
-  }
-  function hideTip(ev) {
-    tooltip.style.display = "none";
-    active = null;
-  }
-  const labels = section.querySelectorAll('.field-label');
-  labels.forEach(function(label) {
-    label.addEventListener('mouseover', function(e) { showTip(label, e); });
-    label.addEventListener('focus', function(e){ showTip(label, e); });
-    label.addEventListener('mouseleave', hideTip);
-    label.addEventListener('blur', hideTip);
-    label.setAttribute('tabindex', '0');
-  });
-  document.addEventListener('mousedown', function(e){ if(active && !active.contains(e.target)) hideTip(); });
-  window.addEventListener('scroll', hideTip, {passive:true});
-  window.addEventListener('resize', hideTip);
-  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') hideTip(); });
-})();
+    // Self-executing function to encapsulate tooltip functionality
+    (function() {
+        // Get DOM elements for tooltip system
+        const section = document.getElementById('cve-sample-section');
+        const tooltip = document.getElementById('cve-sample-tooltip');
+        let active = null;  // Track currently active tooltip
+
+        /**
+         * Shows tooltip for a specific CVE field
+         * @param {Element} label - The field element that was hovered/focused
+         * @param {Event} event - The triggering event
+         */
+        function showTip(label, event) {
+            const field = label.dataset.field;
+            const data = cveSampleTooltips[field];
+            if (!data) return;  // Exit if no tooltip data exists
+
+            // Create tooltip content with title and description
+            tooltip.innerHTML = "<b style='color:#63a4ff;'>" + data.title + "</b><br>" + data.text;
+            tooltip.style.display = "block";
+
+            // Calculate optimal tooltip position
+            const rect = label.getBoundingClientRect();
+            tooltip.style.position = 'fixed';
+            let left = rect.left;
+            let top = rect.bottom + 8;  // 8px below the element
+
+            // Prevent tooltip from extending beyond right edge of viewport
+            if((left + tooltip.offsetWidth + 10) > window.innerWidth){
+                left = window.innerWidth - tooltip.offsetWidth - 22;
+            }
+
+            // Apply calculated position
+            tooltip.style.left = left + "px";
+            tooltip.style.top = top + "px";
+            active = label;  // Track active element
+        }
+
+        /**
+         * Hides the currently displayed tooltip
+         */
+        function hideTip(ev) {
+            tooltip.style.display = "none";
+            active = null;
+        }
+
+        // Attach event handlers to all CVE field labels
+        const labels = section.querySelectorAll('.field-label');
+        labels.forEach(function(label) {
+            // Mouse events for desktop interaction
+            label.addEventListener('mouseover', function(e) { showTip(label, e); });
+            label.addEventListener('mouseleave', hideTip);
+            
+            // Keyboard events for accessibility
+            label.addEventListener('focus', function(e){ showTip(label, e); });
+            label.addEventListener('blur', hideTip);
+            
+            // Enable keyboard focus
+            label.setAttribute('tabindex', '0');
+        });
+
+        // Global event handlers for better UX
+        
+        // Hide tooltip when clicking outside
+        document.addEventListener('mousedown', function(e){ 
+            if(active && !active.contains(e.target)) hideTip(); 
+        });
+        
+        // Hide tooltip during scrolling (passive for performance)
+        window.addEventListener('scroll', hideTip, {passive:true});
+        
+        // Window resize can affect positioning
+        window.addEventListener('resize', hideTip);
+        
+        // Escape key closes tooltip for keyboard users
+        document.addEventListener('keydown', function(e){ 
+            if(e.key === 'Escape') hideTip(); 
+        });
+    })();
 </script>
 
+<!-- Navigation footer - return to main dashboard -->
 <div style="text-align:center; margin:2.5em 0 1em 0;">
-  <a href="{{ url_for('index') }}" style="color:#63a4ff; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
-    ← Back to Dashboard
-  </a>
+    <a href="{{ url_for('index') }}" style="color:#63a4ff; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
+        ← Back to Dashboard
+    </a>
 </div>
 
+<!-- End of content block -->
 {% endblock %}

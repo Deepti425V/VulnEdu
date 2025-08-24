@@ -1,62 +1,113 @@
+<!-- Interactive CWE (Common Weakness Enumeration) learning interface -->
 {% extends "base.html" %}
+
 {% block content %}
+<!-- Main content container with responsive max-width -->
 <div style="max-width:1100px;margin:0 auto 30px auto;padding-top:20px;">
-<h1 style="color:#63a4ff;">CWEs by Severity</h1>
-<div style="margin:32px 0 48px 0; background:#1a2236; border-radius:14px; padding:30px;">
-    <div style="font-weight:700; color:#63a4ff; font-size:1.02rem; margin-bottom:10px;">
-        Most Critical CWEs (Your Focus)
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span>These are the most impactful vulnerability types you track:</span>
-        <button id="toggleShowAllCwe"
-                style="background:#263159;color:#63a4ff;padding:7px 18px;border-radius:7px;border:none;cursor:pointer;font-weight:600;font-size:0.97em;">
-            Show All CWEs
-        </button>
-    </div>
-    <div style="position:relative;height:320px;width:100%; margin-top:16px;">
-        {% if cwe_severity.labels|length > 0 %}
-        <canvas id="learnCweSeverityChart"></canvas>
-        {% else %}
-        <div style="color:#a9adc1;text-align:center;padding:30px 0;">
-            No CWE data available.
+    
+    <!-- Page title -->
+    <h1 style="color:#63a4ff;">CWEs by Severity</h1>
+    
+    <!-- CWE Severity Chart Section -->
+    <div style="margin:32px 0 48px 0; background:#1a2236; border-radius:14px; padding:30px;">
+        
+        <!-- Chart section header with toggle control -->
+        <div style="font-weight:700; color:#63a4ff; font-size:1.02rem; margin-bottom:10px;">
+            Most Critical CWEs (Your Focus)
         </div>
-        {% endif %}
+        
+        <!-- Header row with description and toggle button -->
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span>These are the most impactful vulnerability types you track:</span>
+            
+            <!-- Toggle button to switch between curated and complete CWE lists -->
+            <button id="toggleShowAllCwe" 
+                    style="background:#263159;color:#63a4ff;padding:7px 18px;border-radius:7px;border:none;cursor:pointer;font-weight:600;font-size:0.97em;">
+                Show All CWEs
+            </button>
+        </div>
+        
+        <!-- Chart container with fixed dimensions -->
+        <div style="position:relative;height:320px;width:100%; margin-top:16px;">
+            <!-- Conditional rendering: show chart only if data exists -->
+            {% if cwe_severity.labels|length > 0 %}
+                <!-- Canvas element for Chart.js severity distribution chart -->
+                <canvas id="learnCweSeverityChart"></canvas>
+            {% else %}
+                <!-- Fallback message when no data is available -->
+                <div style="color:#a9adc1;text-align:center;padding:30px 0;">
+                    No CWE data available.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Two-column layout: sidebar CWE list + detail panel -->
+    <div style="display:grid; grid-template-columns: 300px 1fr; gap:36px;">
+        
+        <!-- Left Column: CWE Navigation Sidebar -->
+        <aside style="background:#1a2236; border-radius:14px; padding:18px 0 18px 0;">
+            
+            <!-- Sidebar header with dynamic mode indicator -->
+            <div style="padding-left:24px;font-weight:700;color:#63a4ff;margin-bottom:10px;">
+                CWE List 
+                <span id="cweListModeTip" style="color:#94a3b8;font-size:0.93em;font-weight:400;">
+                    (Your Key Set)
+                </span>
+            </div>
+            
+            <!-- Primary CWE list: curated "key CWEs" (shown by default) -->
+            <ul id="cweListColumn" style="list-style:none;padding:0;margin:0;max-height:550px;overflow-y:auto;">
+                {% for cwe in key_cwes %}
+                    <!-- Individual CWE list item with click interaction -->
+                    <li data-cwe="{{ cwe }}" 
+                        style="padding:8px 24px;cursor:pointer;font-weight:500;color:#e3e7f2;user-select:none;border-left:4px solid transparent;transition: background 0.13s;">
+                        <!-- CWE title with muted CWE code in parentheses -->
+                        {{ key_cwe_titles[cwe] }} <span style="color:#94a3b8;font-size:0.9em;">({{ cwe }})</span>
+                    </li>
+                {% endfor %}
+            </ul>
+            
+            <!-- Secondary CWE list: complete database (hidden by default) -->
+            <ul id="cweListFull" style="display:none;list-style:none;padding:0;margin:0;max-height:550px;overflow-y:auto;">
+                {% for code, entry in cwe_dict.items() %}
+                    <!-- Complete database CWE item with same styling -->
+                    <li data-cwe="{{ code }}" 
+                        style="padding:8px 24px;cursor:pointer;font-weight:500;color:#e3e7f2;user-select:none;border-left:4px solid transparent;transition: background 0.13s;">
+                        <!-- Full CWE name with code identifier -->
+                        {{ entry.name }} <span style="color:#94a3b8;font-size:0.9em;">({{ code }})</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </aside>
+        
+        <!-- Right Column: CWE Detail Information Panel -->
+        <section style="background:#1a2236; border-radius:14px; padding:28px 26px; min-height:390px;">
+            
+            <!-- Dynamic content area populated by JavaScript -->
+            <div id="cweDetailPanel">
+                <!-- Default placeholder content encouraging user interaction -->
+                <p style="color:#a9adc1;">Select a key CWE to see its description, real-world impact, and mitigations.</p>
+            </div>
+        </section>
     </div>
 </div>
-<div style="display:grid; grid-template-columns: 300px 1fr; gap:36px;">
-    <aside style="background:#1a2236; border-radius:14px; padding:18px 0 18px 0;">
-        <div style="padding-left:24px;font-weight:700;color:#63a4ff;margin-bottom:10px;">
-            CWE List <span id="cweListModeTip" style="color:#94a3b8;font-size:0.93em;font-weight:400;">
-            (Your Key Set)</span>
-        </div>
-        <ul id="cweListColumn" style="list-style:none;padding:0;margin:0;max-height:550px;overflow-y:auto;">
-            {% for cwe in key_cwes %}
-            <li data-cwe="{{ cwe }}"
-                style="padding:8px 24px;cursor:pointer;font-weight:500;color:#e3e7f2;user-select:none;border-left:4px solid transparent;transition: background 0.13s;">
-                {{ key_cwe_titles[cwe] }} <span style="color:#94a3b8;font-size:0.9em;">({{ cwe }})</span>
-            </li>
-            {% endfor %}
-        </ul>
-        <ul id="cweListFull" style="display:none;list-style:none;padding:0;margin:0;max-height:550px;overflow-y:auto;">
-            {% for code, entry in cwe_dict.items() %}
-            <li data-cwe="{{ code }}"
-                style="padding:8px 24px;cursor:pointer;font-weight:500;color:#e3e7f2;user-select:none;border-left:4px solid transparent;transition: background 0.13s;">
-                {{ entry.name }} <span style="color:#94a3b8;font-size:0.9em;">({{ code }})</span>
-            </li>
-            {% endfor %}
-        </ul>
-    </aside>
-    <section style="background:#1a2236; border-radius:14px; padding:28px 26px; min-height:390px;">
-        <div id="cweDetailPanel">
-            <p style="color:#a9adc1;">Select a key CWE to see its description, real-world impact, and mitigations.</p>
-        </div>
-    </section>
-</div>
-</div>
+
+<!-- JavaScript Data Transfer: Pass server-side data to client-side JavaScript -->
 <script>
-window.learnCweSeverityData = {{ cwe_severity | tojson }};
-window.learnCweDict = {{ cwe_dict | tojson }};
-window.curatedCwes = {{ key_cwes | tojson }};
+    // CWE severity distribution data for Chart.js visualization
+    window.learnCweSeverityData = {{ cwe_severity | tojson }};
+    
+    // Complete CWE database with descriptions, impacts, and mitigations
+    window.learnCweDict = {{ cwe_dict | tojson }};
+    
+    // Curated list of key CWEs for focused learning
+    window.curatedCwes = {{ key_cwes | tojson }};
 </script>
+
+<!-- Load external JavaScript file for interactive functionality -->
+<!-- Contains chart rendering, event handlers, and UI interaction logic -->
 <script src="{{ url_for('static', filename='js/learn.js') }}"></script>
+
+<!-- End of content block -->
 {% endblock %}
