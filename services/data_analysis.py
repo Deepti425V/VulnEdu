@@ -1,44 +1,22 @@
-from .fetch_CVE import get_all_cves
+from .fetch_CVE import get_all_cves, get_cached_timeline_data
 from .group_CVE import group_by_severity, group_by_cwe, timeline_group, top_n_cwes
 from .cwe_map import cwe_title, CWE_TITLES
 from functools import lru_cache
 from datetime import datetime
 from collections import defaultdict
 
-@lru_cache(maxsize=1)
-def _cached_cves():
-    #Pull all CVEs and cache the whole batch (so repeated calls are instant)
-    #Tuple used for lru_cache (hashable).
-    return tuple(get_all_cves())
-
 def get_dashboard_metrics():
-    #Just group CVEs by severity, count them up for dashboard pie chart
-    cves = _cached_cves()
+    """Get counts for each severity level using real cached data"""
+    cves = get_all_cves(days=30)  # This uses cache automatically
     return group_by_severity(cves)
 
 def get_timeline_data():
-    #Monthly CVE counts for the timeline (for the chart up top)
-    cves = _cached_cves()
-    timeline = defaultdict(int)
-    for cve in cves:
-        date = cve.get("Published", "")
-        if date:
-            #Only "YYYY-MM" (easier for charting)
-            try:
-                month = date[:7]  # "YYYY-MM"
-                timeline[month] += 1
-            except:
-                continue
-    #Sort months chronologically for the graph
-    sorted_months = sorted(timeline.items())
-    return {
-        "labels": [item[0] for item in sorted_months],
-        "values": [item[1] for item in sorted_months]
-    }
+    """Get timeline data using the new real caching system"""
+    return get_cached_timeline_data()
 
 def get_severity_stats():
-    #Quick severity count for summary stats (CRITICAL/HIGH/MEDIUM/LOW)
-    cves = _cached_cves()
+    """Get severity distribution statistics using real data"""
+    cves = get_all_cves(days=30)
     counts = {
         'CRITICAL': 0,
         'HIGH': 0,
@@ -52,14 +30,14 @@ def get_severity_stats():
     return counts
 
 def get_cwe_radar():
-    #For the radar chart: count CVEs per CWE, then show top 7 visually
-    cves = _cached_cves()
+    """Prepare data for CWE radar chart using real data"""
+    cves = get_all_cves(days=30)
     cwe_counts = defaultdict(int)
     for cve in cves:
         cwe = cve.get("CWE")
         if cwe:
             cwe_counts[cwe] += 1
-    #Get top 7 CWEs by frequency for visualization
+    
     top_cwes = sorted(cwe_counts.items(), key=lambda x: x[1], reverse=True)[:7]
     return {
         "labels": [cwe_title(cwe) for cwe, _ in top_cwes],
@@ -67,36 +45,38 @@ def get_cwe_radar():
     }
 
 def get_yearly_trends():
-    #Count CVEs published each year for last 5 (for trend-over-time chart)
-    cves = _cached_cves()
+    """Get yearly CVE counts using real timeline data"""
+    timeline_data = get_cached_timeline_data()
+    
+    # Convert monthly data to yearly
+    yearly_counts = defaultdict(int)
+    for i, month_label in enumerate(timeline_data.get('labels', [])):
+        if len(month_label) >= 4:  # Format: "YYYY-MM"
+            year = int(month_label[:4])
+            count = timeline_data.get('values', [])[i] if i < len(timeline_data.get('values', [])) else 0
+            yearly_counts[year] += count
+    
+    # Get last 5 years
     current_year = datetime.now().year
-    year_counts = {year: 0 for year in range(current_year - 4, current_year + 1)}
-    for cve in cves:
-        published = cve.get('Published', '')
-        if published:
-            try:
-                year = int(published[:4])
-                if year in year_counts:
-                    year_counts[year] += 1
-            except ValueError:
-                continue
+    years = list(range(current_year - 4, current_year + 1))
+    
     return {
-        "labels": list(year_counts.keys()),
-        "values": list(year_counts.values())
+        "labels": years,
+        "values": [yearly_counts.get(year, 0) for year in years]
     }
 
 def get_top_cwes(n=7):
-    #Return the top N most frequent CWEs (good for table or bar chart)
-    cves = _cached_cves()
+    """Get top N CWEs by frequency using real data"""
+    cves = get_all_cves(days=30)
     cwe_counts = group_by_cwe(cves)
     return [cwe_title(cwe) for cwe in top_n_cwes(cwe_counts, n=n)]
 
 def get_latest_cves(n=5):
-    # Give back the N most recently published CVEs (lets you show latest threats)
-    cves = _cached_cves()
+    """Get most recent N CVEs using real data"""
+    cves = get_all_cves(days=30)
     sorted_cves = sorted(
-        cves,
-        key=lambda x: x.get('Published') or '',
+        cves, 
+        key=lambda x: x.get('Published') or '', 
         reverse=True
     )
     return [
@@ -104,13 +84,13 @@ def get_latest_cves(n=5):
             "id": cve.get("ID"),
             "description": cve.get("Description"),
             "severity": cve.get("Severity", "UNKNOWN")
-        }
+        } 
         for cve in sorted_cves[:n]
     ]
 
 def get_product_count():
-    #How many unique products are affected in this whole CVE set?
-    cves = _cached_cves()
+    """Count unique affected products using real data"""
+    cves = get_all_cves(days=30)
     prods = set()
     for cve in cves:
         for prod in cve.get("Products", []):
@@ -118,20 +98,19 @@ def get_product_count():
     return len(prods)
 
 def search_cves(q=None, severity=None):
-    # Search CVEs by keyword and (optionally) severity.
-    # Fast fuzzy search for dashboard 
-    cves = _cached_cves()
+    """Search CVEs by query and severity filter using real data"""
+    cves = get_all_cves(days=30)  # You might want to increase this for search
     results = []
     for cve in cves:
         _id = cve.get("ID", "")
         _desc = cve.get("Description", "")
         _sev = cve.get("Severity", "UNKNOWN")
-        #If query is set, it must match ID at least somewhere
+        
         if q and q.lower() not in _id.lower() and q.lower() not in _desc.lower():
             continue
-        #If filtering by severity, match (case-insensitive)
         if severity and _sev.upper() != severity.upper():
             continue
+            
         results.append({
             "id": _id,
             "description": _desc,
@@ -140,30 +119,30 @@ def search_cves(q=None, severity=None):
     return results
 
 def get_cve_by_id(cve_id):
-    #Look up full details for one CVE by ID (hit NVD API)
+    """Get single CVE details by ID"""
     from .nvd_api import get_cve_detail
     return get_cve_detail(cve_id)
 
 def get_cwe_severity_data():
-    #For each CWE, count CVEs at each severity (even if zero).
-    #Makes the severity bar chart stacked (all CWEs show, even with zero counts).
-    from collections import defaultdict
-    cves = _cached_cves()
+    """For each CWE, count CVEs at each severity using real data"""
+    cves = get_all_cves(days=30)
     cwe_severity = defaultdict(lambda: defaultdict(int))
+    
     for cve in cves:
         cwe = cve.get('CWE')
         if cwe:
             severity = cve.get('Severity', 'UNKNOWN').upper()
             if severity in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
                 cwe_severity[cwe][severity] += 1
+
     # Always include every CWE from CWE_TITLES, even if it's all zeros
     cwe_keys = list(CWE_TITLES.keys())
     return {
         'labels': [cwe_title(cwe) for cwe in cwe_keys],
         'data': {
             'CRITICAL': [cwe_severity[cwe].get('CRITICAL', 0) for cwe in cwe_keys],
-            'HIGH':     [cwe_severity[cwe].get('HIGH', 0) for cwe in cwe_keys],
-            'MEDIUM':   [cwe_severity[cwe].get('MEDIUM', 0) for cwe in cwe_keys],
-            'LOW':      [cwe_severity[cwe].get('LOW', 0) for cwe in cwe_keys]
+            'HIGH': [cwe_severity[cwe].get('HIGH', 0) for cwe in cwe_keys],
+            'MEDIUM': [cwe_severity[cwe].get('MEDIUM', 0) for cwe in cwe_keys],
+            'LOW': [cwe_severity[cwe].get('LOW', 0) for cwe in cwe_keys]
         }
     }
