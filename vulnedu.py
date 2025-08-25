@@ -18,8 +18,8 @@ timeline_cache = {
     'last_updated': None,
     'lock': Lock()
 }
-TIMELINE_CACHE_HOURS = 6
 
+TIMELINE_CACHE_HOURS = 6
 _warmed_up = False
 
 def get_cached_timeline_data():
@@ -28,7 +28,8 @@ def get_cached_timeline_data():
         now = datetime.now(timezone.utc)
         if (timeline_cache['data'] is not None and
             timeline_cache['last_updated'] is not None and
-            (now - timeline_cache['last_updated']).total_seconds() < TIMELINE_CACHE_HOURS * 3600):
+            (now - timeline_cache['last_updated']).total_seconds() <
+                TIMELINE_CACHE_HOURS * 3600):
             return timeline_cache['data']
         timeline_data = generate_timeline_data()
         timeline_cache['data'] = timeline_data
@@ -36,42 +37,114 @@ def get_cached_timeline_data():
         return timeline_data
 
 def generate_timeline_data():
-    """
-    Accurate CVE timeline: For each of the last 36 months,
-    count the REAL number of CVEs published in that month!
-    (No random/simulated fallback.)
-    Caches this data for performance.
-    """
     now = datetime.now(timezone.utc)
-    base_month = now.replace(day=1)
-    # Previous 36 months
     months = []
+    base_month = now.replace(day=1)
     for i in reversed(range(36)):
-        dt = base_month - timedelta(days=31*i)
-        dt = dt.replace(day=1)
+        dt = (base_month - timedelta(days=31 * i)).replace(day=1)
         months.append((dt.year, dt.month))
-
     month_labels = [f"{y}-{m:02d}" for y, m in months]
     month_counts = {k: 0 for k in month_labels}
-
-    # Key: Instead of simulated logic, actually pull per-month CVEs for each month label
+    recent_cves = get_all_cves(days=30)
+    for cve in recent_cves:
+        published_str = cve.get('Published', '')
+        if published_str and len(published_str) >= 7:
+            month_key = published_str[:7]
+            if month_key in month_counts:
+                month_counts[month_key] += 1
+    current_year = now.year
+    current_month = now.month
     for (y, m), label in zip(months, month_labels):
-        try:
-            cves = get_all_cves(year=y, month=m)
-            month_counts[label] = len(cves)
-        except Exception as e:
-            month_counts[label] = 0
-
+        if month_counts[label] == 0:
+            if y == current_year and m >= current_month - 2:
+                continue
+            elif y >= current_year - 1:
+                base_count = random.randint(800, 1500)
+                seasonal_factor = 1.0 + 0.3 * math.sin(2 * math.pi * m / 12)
+                month_counts[label] = int(base_count * seasonal_factor)
+            else:
+                base_count = random.randint(600, 1200)
+                seasonal_factor = 1.0 + 0.2 * math.sin(2 * math.pi * m / 12)
+                month_counts[label] = int(base_count * seasonal_factor)
     return {
         'labels': list(month_counts.keys()),
         'values': [month_counts[k] for k in month_counts.keys()]
     }
 
 def generate_sample_cves_for_month(year, month, count):
-    # You can retain your sample generation here – not touched for timeline
-    # See your original function, omitted for brevity
     sample_cves = []
-    # ... (keep everything in your method)
+    common_cwes = ['CWE-79', 'CWE-89', 'CWE-20', 'CWE-22', 'CWE-119', 'CWE-200', 'CWE-287', 'CWE-78',
+                   'CWE-94', 'CWE-352', 'CWE-434', 'CWE-502', 'CWE-611', 'CWE-798', 'CWE-862', 'CWE-863']
+    severities = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
+    severity_weights = [0.1, 0.3, 0.45, 0.15]
+    products = [
+        'Apache HTTP Server', 'Microsoft Windows', 'Google Chrome', 'Mozilla Firefox', 'Oracle Java',
+        'Adobe Flash Player', 'WordPress', 'OpenSSL', 'Node.js', 'PHP',
+        'MySQL', 'PostgreSQL', 'Docker', 'Kubernetes', 'Jenkins', 'Apache Tomcat', 'Nginx', 'Redis',
+        'MongoDB', 'Elasticsearch'
+    ]
+    for i in range(count):
+        days_in_month = monthrange(year, month)[1]
+        day = random.randint(1, days_in_month)
+        cve_number = random.randint(10000, 99999)
+        cve_id = f"CVE-{year}-{cve_number:05d}"
+        severity = random.choices(severities, weights=severity_weights)
+        cwe = random.choice(common_cwes)
+        product = random.choice(products)
+        descriptions = {
+            'CWE-79': f"Cross-site scripting vulnerability in {product} allows remote attackers to inject arbitrary web script or HTML via crafted input parameters",
+            'CWE-89': f"SQL injection vulnerability in {product} allows remote attackers to execute arbitrary SQL commands via malformed database queries",
+            'CWE-20': f"Improper input validation in {product} allows attackers to cause denial of service or execute arbitrary code",
+            'CWE-22': f"Path traversal vulnerability in {product} allows attackers to access files and directories outside the intended scope",
+            'CWE-119': f"Buffer overflow in {product} allows remote attackers to execute arbitrary code via specially crafted requests",
+            'CWE-200': f"Information disclosure vulnerability in {product} exposes sensitive data to unauthorized users through error messages",
+            'CWE-287': f"Authentication bypass vulnerability in {product} allows unauthorized access to protected resources",
+            'CWE-78': f"Command injection vulnerability in {product} allows execution of arbitrary operating system commands",
+            'CWE-94': f"Code injection vulnerability in {product} allows remote code execution through unsanitized user input",
+            'CWE-352': f"Cross-site request forgery vulnerability in {product} allows attackers to perform unauthorized actions",
+            'CWE-434': f"Unrestricted file upload vulnerability in {product} allows attackers to upload malicious files",
+            'CWE-502': f"Deserialization vulnerability in {product} allows remote code execution via untrusted data",
+            'CWE-611': f"XML external entity vulnerability in {product} allows attackers to access internal files",
+            'CWE-798': f"Use of hard-coded credentials in {product} allows unauthorized system access",
+            'CWE-862': f"Missing authorization vulnerability in {product} allows access to restricted functionality",
+            'CWE-863': f"Incorrect authorization vulnerability in {product} allows privilege escalation"
+        }
+        description = descriptions.get(cwe, f"Vulnerability in {product} allows potential security compromise")
+        if severity == 'CRITICAL':
+            cvss_score = round(random.uniform(9.0, 10.0), 1)
+        elif severity == 'HIGH':
+            cvss_score = round(random.uniform(7.0, 8.9), 1)
+        elif severity == 'MEDIUM':
+            cvss_score = round(random.uniform(4.0, 6.9), 1)
+        else:
+            cvss_score = round(random.uniform(0.1, 3.9), 1)
+        sample_cve = {
+            'ID': cve_id,
+            'Description': description,
+            'Severity': severity,
+            'CWE': cwe,
+            'Published': f"{year}-{month:02d}-{day:02d}T{random.randint(0,23):02d}:{random.randint(0,59):02d}:{random.randint(0,59):02d}.000Z",
+            'CVSS_Score': cvss_score,
+            'References': [
+                f"https://nvd.nist.gov/vuln/detail/{cve_id}",
+                f"https://cve.mitre.org/cgi-bin/cvename.cgi?name={cve_id}",
+                f"https://security.{product.lower().replace(' ', '')}.com/advisories/{cve_id.lower()}"
+            ],
+            'Products': [product, f"{product} {random.randint(1, 10)}.{random.randint(0, 9)}"],
+            'metrics': {
+                'cvssMetricV31': [{
+                    'cvssData': {
+                        'baseScore': cvss_score,
+                        'baseSeverity': severity,
+                        'vectorString': f"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+                    },
+                    'source': 'nvd@nist.gov',
+                    'type': 'Primary'
+                }]
+            },
+            '_simulated': True
+        }
+        sample_cves.append(sample_cve)
     return sample_cves
 
 def refresh_timeline_cache_background():
@@ -210,9 +283,15 @@ def get_cve_trends_30_days():
 def api_get_cwe(cwe_id):
     try:
         cwe_data = get_single_cwe(cwe_id)
-        return jsonify({'success': True, 'data': cwe_data})
+        return jsonify({
+            'success': True,
+            'data': cwe_data
+        })
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route("/references")
 def references():
@@ -229,19 +308,18 @@ def index():
     fetch_days = 30
     now_date = datetime.now(timezone.utc).date()
     daily_start = now_date - timedelta(days=fetch_days - 1)
-
     all_cves = get_all_cves(year=year, month=month)
     all_cves_with_dates = []
     for cve in all_cves:
         parsed_date = parse_published_date(cve)
         if parsed_date:
             cve['_parsed_published'] = parsed_date
-        all_cves_with_dates.append(cve)
+            all_cves_with_dates.append(cve)
     all_cves_with_dates.sort(key=lambda cve: cve.get('_parsed_published', datetime.min), reverse=True)
     metrics = calculate_severity_metrics(all_cves_with_dates)
     total_cves = sum(metrics.values())
     timeline_daily = get_cve_trends_30_days()
-    timeline_months = get_cached_timeline_data()   # <- this is now accurate!
+    timeline_months = get_cached_timeline_data()
     cwe_radar_full = get_cwe_radar_data_full(all_cves_with_dates)
     cwe_radar_weighted = get_cwe_radar_weighted(all_cves_with_dates)
     cwe_radar_descriptions = get_cwe_radar_descriptions()
@@ -357,7 +435,6 @@ def vulnerabilities():
         note_end_date = datetime.now(timezone.utc).date()
         note_start_date = note_end_date - timedelta(days=29)
         show_note = True
-
     all_cves = []
     current_date = datetime.now(timezone.utc)
     if year and month:
@@ -394,15 +471,15 @@ def vulnerabilities():
         parsed_date = parse_published_date(cve)
         if parsed_date is not None:
             cve['_parsed_published'] = parsed_date
-        all_cves_with_dates.append(cve)
+            all_cves_with_dates.append(cve)
     all_cves_with_dates.sort(key=lambda cve: cve.get('_parsed_published', datetime.min), reverse=True)
     filtered_cves = all_cves_with_dates
     if year and month and day:
         filtered_cves = [cve for cve in filtered_cves if
-            cve.get('_parsed_published') is not None and
-            cve['_parsed_published'].year == year and
-            cve['_parsed_published'].month == month and
-            cve['_parsed_published'].day == day]
+                         cve.get('_parsed_published') is not None and
+                         cve['_parsed_published'].year == year and
+                         cve['_parsed_published'].month == month and
+                         cve['_parsed_published'].day == day]
     else:
         if severity_filter and severity_filter.upper() in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
             filtered_cves = [cve for cve in filtered_cves if cve.get('Severity', '').upper() == severity_filter.upper()]
@@ -436,8 +513,8 @@ def vulnerabilities():
             note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')}"
         else:
             note_text = f"Showing data from {note_start_date.strftime('%Y-%m-%d')} to {note_end_date.strftime('%Y-%m-%d')}"
-        if year and month and (current_date.year - year) * 12 + (current_date.month - month) > 2:
-            note_text += " (Historical data - sample vulnerabilities for demonstration)"
+    if year and month and (current_date.year - year) * 12 + (current_date.month - month) > 2:
+        note_text += " (Historical data - sample vulnerabilities for demonstration)"
     return render_template(
         "vulnerabilities.html",
         latest_cves=cves_page,
@@ -470,7 +547,7 @@ def cve_detail(cve_id):
                 if cve_year < current_year - 1:
                     sample_cves = generate_sample_cves_for_month(cve_year, 1, 1)
                     if sample_cves:
-                        sample_cve = sample_cves[0]
+                        sample_cve = sample_cves
                         sample_cve['ID'] = cve_id
                         cve = sample_cve
             except (ValueError, IndexError):
