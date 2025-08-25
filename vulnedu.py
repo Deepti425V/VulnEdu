@@ -244,7 +244,7 @@ def generate_sample_cves_for_month(year, month, count):
 @app.route("/api/cwe/<cwe_id>")
 def api_get_cwe(cve_id):
     try:
-        cwe_data = get_single_cwe(cwe_id=)
+        cwe_data = get_single_cwe(cwe_id=cve_id)
         return jsonify({'success': True, 'data': cwe_data})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
