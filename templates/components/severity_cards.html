@@ -1,0 +1,43 @@
+<div class="severity-cards-grid">
+    
+    <!-- Critical severity card - highest priority vulnerabilities -->
+    <div class="severity-card" data-severity="CRITICAL" style="cursor: pointer;">
+        <!-- Dynamic count display - populated by server-side template engine -->
+        <div style="font-size:2.2rem;font-weight:800;color:#f47174;">
+            {{ metrics.CRITICAL }}
+        </div>
+        <!-- Severity label with consistent styling -->
+        <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">Critical</div>
+    </div>
+    
+    <!-- High severity card - second priority level -->
+    <div class="severity-card" data-severity="HIGH" style="cursor: pointer;">
+        <!-- Orange color for high-attention vulnerabilities -->
+        <div style="font-size:2.2rem;font-weight:800;color:#fca311;">
+            {{ metrics.HIGH }}
+        </div>
+        <!-- Standard label formatting -->
+        <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">High</div>
+    </div>
+    
+    <!-- Medium severity card - moderate priority vulnerabilities -->
+    <div class="severity-card" data-severity="MEDIUM" style="cursor: pointer;">
+        <!-- Blue color indicating medium-level attention needed -->
+        <div style="font-size:2.2rem;font-weight:800;color:#3b8ded;">
+            {{ metrics.MEDIUM }}
+        </div>
+        <!-- Consistent white text for readability -->
+        <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">Medium</div>
+    </div>
+    
+    <!-- Low severity card - lowest priority vulnerabilities -->
+    <div class="severity-card" data-severity="LOW" style="cursor: pointer;">
+        <!-- Green color for low-priority items -->
+        <div style="font-size:2.2rem;font-weight:800;color:#42d392;">
+            {{ metrics.LOW }}
+        </div>
+        <!-- Final label with matching typography -->
+        <div style="color:#fff;margin-top:7px;font-size:0.95em;font-weight:600;">Low</div>
+    </div>
+    
+</div> <!-- End severity cards grid -->

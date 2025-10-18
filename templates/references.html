@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width:1400px;margin:0 auto 32px auto;padding-top:20px;">
+    <!-- Page Header -->
+    <h1 style="color:#63a4ff;">References & Resources</h1>
+    <p style="color:#e2e8f0;font-size:1.1em;line-height:1.6;margin-bottom:32px;">
+        This page contains all the authoritative sources, APIs, documentation,
+        and resources that power VulnEdu. Understanding these resources helps you dive deeper into cybersecurity
+        vulnerability research and build your own security tools.
+    </p>
+
+    <!-- Quick Navigation - SCROLL TO SECTIONS ON SAME PAGE -->
+    <div style="background:#1a2236;border-radius:12px;padding:20px;margin-bottom:32px;">
+        <h3 style="color:#63a4ff;margin:0 0 16px 0;">Quick Navigation</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+            <a href="#data-sources" style="color:#63a4ff;text-decoration:none;padding:8px 12px;background:#263159;border-radius:6px;font-weight:500;">🗄️ Primary Data Sources</a>
+            <a href="#apis-feeds" style="color:#63a4ff;text-decoration:none;padding:8px 12px;background:#263159;border-radius:6px;font-weight:500;">🔌 APIs & Data Feeds</a>
+            <a href="#tech-docs" style="color:#63a4ff;text-decoration:none;padding:8px 12px;background:#263159;border-radius:6px;font-weight:500;">⚙️ Technical Documentation</a>
+            <a href="#dev-tools" style="color:#63a4ff;text-decoration:none;padding:8px 12px;background:#263159;border-radius:6px;font-weight:500;">🛠️ Development Tools</a>
+        </div>
+    </div>
+
+    <!-- INCLUDE YOUR EXISTING TEMPLATE FILES - CORRECTED FILENAMES -->
+    <div id="data-sources">
+        {% include 'references/data-sources.html' %}
+    </div>
+
+    <div id="apis-feeds">
+        {% include 'references/apis-feeds.html' %}
+    </div>
+
+    <div id="tech-docs">
+        {% include 'references/tech-docs.html' %}
+    </div>
+
+    <div id="dev-tools">
+        {% include 'references/dev_tools.html' %}
+    </div>
+
+    <!-- Attribution -->
+    <section style="background:#1a2236;border-radius:14px;padding:28px;">
+        <h2 style="color:#63a4ff;margin:0 0 20px 0;">Attribution & Acknowledgments</h2>
+        <div style="color:#e2e8f0;line-height:1.6;">
+            <p>VulnEdu is built using publicly available data from government and nonprofit organizations dedicated to improving cybersecurity. We acknowledge:</p>
+            <ul style="margin-left:20px;color:#a9adc1;">
+                <li><strong>NIST</strong> for maintaining the National Vulnerability Database</li>
+                <li><strong>MITRE Corporation</strong> for the CVE and CWE programs</li>
+                <li><strong>FIRST.org</strong> for the CVSS scoring methodology</li>
+                <li><strong>OWASP</strong> for educational resources and best practices</li>
+                <li>The global <strong>cybersecurity research community</strong> for continuous improvements</li>
+            </ul>
+        </div>
+    </section>
+</div>
+
+<div style="text-align:center; margin:2.5em 0 1em 0;">
+    <a href="{{ url_for('main.index') }}" style="color:#63a4ff; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
+        ← Back to Dashboard
+    </a>
+</div>
+
+<script>
+// Smooth scrolling for anchor links
+document.addEventListener('DOMContentLoaded', function() {
+    const links = document.querySelectorAll('a[href^="#"]');
+    for (const link of links) {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href').substring(1);
+            const targetElement = document.getElementById(targetId);
+            if (targetElement) {
+                targetElement.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

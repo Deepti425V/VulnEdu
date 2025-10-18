@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+/* Custom scrollbar styling for dark theme */
+/* Creates consistent dark-themed scrollbars across webkit browsers */
+.cwe-list-scroll {
+    max-height: 550px; /* Prevents excessive vertical space usage */
+    overflow-y: auto; /* Enables vertical scrolling when content exceeds height */
+    list-style: none; /* Removes default bullet points */
+    padding: 0; /* Removes default list padding */
+    margin: 0; /* Removes default list margins */
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) scrollbar customization */
+.cwe-list-scroll::-webkit-scrollbar {
+    width: 8px; /* Thin scrollbar for modern appearance */
+}
+
+.cwe-list-scroll::-webkit-scrollbar-track {
+    background: #1a2236; /* Dark background matching site theme */
+    border-radius: 4px; /* Rounded edges for polished look */
+}
+
+.cwe-list-scroll::-webkit-scrollbar-thumb {
+    background: #63a4ff; /* Blue accent color matching site branding */
+    border-radius: 4px; /* Consistent rounded appearance */
+    border: 1px solid #263159; /* Subtle border for definition */
+}
+
+.cwe-list-scroll::-webkit-scrollbar-thumb:hover {
+    background: #5292e6; /* Slightly darker blue on hover */
+}
+
+.cwe-list-scroll::-webkit-scrollbar-thumb:active {
+    background: #4a80cc; /* Even darker when actively dragging */
+}
+
+/* Firefox scrollbar styling fallback */
+.cwe-list-scroll {
+    scrollbar-width: thin; /* Thin scrollbar option */
+    scrollbar-color: #63a4ff #1a2236; /* Thumb and track colors */
+}
+
+/* CWE list item styling for interactive elements */
+.cwe-list-item {
+    padding: 8px 24px; /* Comfortable click target size */
+    cursor: pointer; /* Indicates clickable element */
+    font-weight: 500; /* Medium weight for readability */
+    color: #e3e7f2; /* Light gray text for contrast */
+    user-select: none; /* Prevents accidental text selection */
+    border-left: 4px solid transparent; /* Space for selection indicator */
+    transition: background 0.13s, border-left 0.13s, color 0.13s; /* Smooth hover effects */
+}
+
+.cwe-list-item:hover {
+    background: #212d46; /* Darker background on hover */
+    color: #ffffff; /* Pure white text for maximum contrast */
+}
+
+.cwe-list-item.selected {
+    background: #212d46; /* Same background as hover state */
+    border-left: 4px solid #63a4ff; /* Blue left border for selection indicator */
+    color: #63a4ff; /* Blue text to match selection theme */
+}
+
+.cwe-code {
+    color: #94a3b8; /* Muted color for CWE codes */
+    font-size: 0.9em; /* Slightly smaller than main text */
+}
+
+/* Enhanced button styling with hover effects */
+.toggle-button {
+    margin: 16px 0 0 24px; /* Consistent spacing with list items */
+    background: #263159; /* Dark blue background */
+    color: #63a4ff; /* Blue text color */
+    padding: 8px 18px; /* Comfortable button size */
+    border-radius: 8px; /* Rounded corners */
+    border: none; /* Remove default button styling */
+    cursor: pointer; /* Indicates interactive element */
+    font-weight: 600; /* Bold text for emphasis */
+    font-size: 0.97em; /* Slightly smaller than body text */
+    transition: background 0.2s, transform 0.1s; /* Smooth hover animations */
+}
+
+.toggle-button:hover {
+    background: #2d3d6b; /* Lighter blue on hover */
+    transform: translateY(-1px); /* Subtle lift effect */
+}
+
+.toggle-button:active {
+    transform: translateY(0); /* Returns to normal position when clicked */
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Main container with responsive max-width -->
+<div style="max-width:1400px;margin:0 auto 32px auto;padding-top:20px;">
+    <!-- Page title with consistent blue theming -->
+    <h1 style="color:#63a4ff;">What is a CWE?</h1>
+    <!-- Comprehensive introduction explaining CWE concept and importance -->
+    <p style="color:#e2e8f0;font-size:1.13em;">
+        <strong>CWE</strong> stands for <em><span style="color:#63a4ff">Common Weakness Enumeration</span></em>.<br> In
+        technology and computer science, we learn by identifying patterns—not just memorizing a list of past mistakes. The <b>CWE catalog</b> is a map of the <span style="color:#fca311;">most common
+        error patterns</span> that lead to vulnerabilities in software.<br>
+        <br>
+        <b>If you spot the pattern, you can prevent the problem:</b>
+        <!-- Educational bullet points explaining CWE value proposition -->
+        <ul style="color:#e2e8f0;margin-left:20px;">
+            <li>Just like a math book teaches "types of mistakes" (e.g., sign error, division by zero), CWE teaches you <span style="color:#42d392;">recurring security problems</span>.</li>
+            <li><b>CWE entries</b> are like chapters in a textbook—each describes a different kind of software weakness.</li>
+            <li>You'll see real-world examples (<b>CVEs</b>), but you'll learn the general idea with CWE.</li>
+        </ul>
+    </p>
+
+    <!-- Educational section explaining CWE structure -->
+    <h2 style="color:#cdd7ff;">CWE Structure: How Weakness Types Are Organized</h2>
+    <ul style="color:#e2e8f0;margin-left:20px;">
+        <li><b>ID format:</b> <code>CWE&lt;Number&gt; – &lt;Name&gt;</code> (e.g., <code>CWE-79 – Cross-Site Scripting</code>)</li>
+        <li><b>Name:</b> A concise label for the type of mistake (e.g., "Buffer Overflow")</li>
+        <li><b>Description:</b> Explains what usually goes wrong—and why</li>
+        <li><b>Example:</b> Shows a typical code or configuration that triggers this weakness</li>
+        <li><b>Mitigations:</b> Teaches you practical ways to avoid making this mistake when writing software</li>
+        <li><b>Hierarchy:</b> Shows if a weakness is broad ("Injection") or a sub-type ("SQL Injection")</li>
+    </ul>
+
+    <!-- Interactive chart section for data visualization -->
+    <h2 style="color:#cdd7ff;margin-top:26px;">CWEs by Severity</h2>
+    <div style="background:#1a2236;border-radius:12px;padding:28px 18px 25px 18px; margin-bottom:18px;">
+        <!-- Context information about data source -->
+        <div style="color:#94a3b8; font-size:0.98em; margin-bottom:9px;">
+            <span>Showing data from <b>recent analysis</b>. Click any CWE below for live MITRE data.</span>
+        </div>
+        
+        <!-- Filter controls for chart customization -->
+        <div style="display:flex;align-items:center; justify-content:space-between; margin-bottom:18px;">
+            <label style="color:#e2e8f0;font-size:1.07em; font-weight:600;">
+                Show:
+                <!-- Dropdown to control number of displayed CWEs -->
+                <select id="cweSeverityFilter" style="background:#232b45;color:#63a4ff;padding:7px 14px;border-radius:6px;border:none;margin-left:7px;">
+                    <option value="10" selected>Top 10 CWEs</option>
+                    <option value="5">Top 5 CWEs</option>
+                </select>
+            </label>
+        </div>
+        
+        <!-- Chart container with responsive wrapper -->
+        <div style="max-width:1400px;width:100%;overflow-x:auto;">
+            <canvas id="cwesBySeverityChart" width="700" height="235"></canvas>
+        </div>
+    </div>
+
+    <!-- JavaScript for chart functionality -->
+    <script>
+    // Wait for DOM to be fully loaded before initializing
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize CWE severity data with fallback values
+        window.cweSeverityData = window.cweSeverityData || {
+            labels: ['Cross-Site Scripting', 'SQL Injection', 'Input Validation', 'Path Traversal', 'Buffer Overflow'],
+            indices: ['CWE-79', 'CWE-89', 'CWE-20', 'CWE-22', 'CWE-119'],
+            data: {
+                CRITICAL: [15, 12, 8, 5, 7],
+                HIGH: [25, 20, 15, 10, 12],
+                MEDIUM: [30, 25, 20, 15, 18],
+                LOW: [10, 8, 12, 8, 6]
+            }
+        };
+
+        // Navigation function to filter vulnerabilities by CWE
+        function goToVulnsForCWE(idx) {
+            const cwe_key = window.cweSeverityData.indices[idx];
+            if (cwe_key) {
+                // Redirect to vulnerabilities page with CWE filter
+                window.location.href = "/vulnerabilities?q=" + encodeURIComponent(cwe_key);
+            }
+        }
+
+        // Main chart rendering function
+        function renderChart(topN) {
+            const data = window.cweSeverityData.data || {};
+            
+            // Slice data arrays to show only requested number of items
+            const labels = window.cweSeverityData.labels ? window.cweSeverityData.labels.slice(0, topN) : [];
+            
+            // Debug logging for development
+            console.log("Rendering chart with topN:", topN);
+            console.log("Labels:", labels);
+            console.log("Data:", data);
+            
+            // Chart.js configuration object
+            const chartData = {
+                labels: labels,
+                datasets: [
+                    // Each severity level as separate dataset for stacking
+                    {label:'Critical', data: data.CRITICAL ? data.CRITICAL.slice(0, topN) : [], backgroundColor:'#f55855'},
+                    {label:'High', data: data.HIGH ? data.HIGH.slice(0, topN) : [], backgroundColor:'#f8a541'},
+                    {label:'Medium', data: data.MEDIUM ? data.MEDIUM.slice(0, topN) : [], backgroundColor:'#3b8ded'},
+                    {label:'Low', data: data.LOW ? data.LOW.slice(0, topN) : [], backgroundColor:'#42d392'}
+                ]
+            };
+
+            // Destroy existing chart to prevent memory leaks
+            if (window.cwesSeverityChart) {
+                window.cwesSeverityChart.destroy();
+            }
+
+            // Create new Chart.js instance
+            window.cwesSeverityChart = new Chart(document.getElementById('cwesBySeverityChart').getContext('2d'), {
+                type: 'bar', // Stacked bar chart type
+                data: chartData,
+                options:{
+                    responsive:true, // Adapts to container size
+                    maintainAspectRatio:false, // Allows height customization
+                    plugins:{
+                        legend:{display:true, position:"bottom"}, // Legend below chart
+                        title:{display:true, text:`CWEs by Severity – Top ${topN}`} // Dynamic title
+                    },
+                    scales:{
+                        // X and Y axis configuration with stacking enabled
+                        x:{stacked:true, ticks:{color:'#cdd7ff', font:{size:11}}},
+                        y:{stacked:true, beginAtZero:true, ticks:{color:'#cdd7ff'}}
+                    },
+                    // Click handler for navigation to vulnerability details
+                    onClick: (evt, activeEls) => {
+                        if (activeEls && activeEls.length > 0) {
+                            goToVulnsForCWE(activeEls[0].index);
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize with default Top 10 view
+        renderChart(10);
+
+        // Event listener for filter dropdown changes
+        document.getElementById('cweSeverityFilter').addEventListener('change', function(){
+            renderChart(parseInt(this.value,10)); // Parse selected value and re-render
+        });
+    });
+    </script>
+
+    <!-- CWE Explorer Interface Section -->
+    <h2 style="color:#cdd7ff;margin-top:34px;">CWE List &amp; Explorer</h2>
+    <!-- Instructions for using the explorer -->
+    <div style="color:#94a3b8; font-size:0.95em; margin-bottom:12px;">
+        <strong>How it works:</strong> Click any CWE below to fetch live, detailed information from the official MITRE database. The first click may take a few seconds to load.
+    </div>
+    
+    <!-- Two-column grid layout for explorer interface -->
+    <div style="display:grid; grid-template-columns: 300px 1fr; gap: 36px;">
+        <!-- Left sidebar with CWE list -->
+        <aside style="background:#1a2236; border-radius:14px; padding:18px 0 18px 0; height: fit-content;">
+            <!-- Sidebar header with mode indicator -->
+            <div style="padding-left:24px;font-weight:700;color:#63a4ff;margin-bottom:10px;">
+                CWE List <span id="cweListModeTip" style="color:#94a3b8;font-size:0.93em;font-weight:400;">(Your Key Set)</span>
+            </div>
+            
+            <!-- Curated key CWEs list (default view) -->
+            <ul id="cweListColumn" class="cwe-list-scroll">
+                {% for cwe in key_cwes %}
+                <!-- Generate list items with data attributes for JavaScript -->
+                <li data-cwe="{{ cwe }}" class="cwe-list-item">
+                    {{ key_cwe_titles[cwe] }} <span class="cwe-code">({{ cwe }})</span>
+                </li>
+                {% endfor %}
+            </ul>
+            
+            <!-- Full CWE dictionary list (hidden by default) -->
+            <ul id="cweListFull" class="cwe-list-scroll" style="display:none;">
+                {% for code, entry in cwe_dict.items() %}
+                <!-- Generate complete list from CWE dictionary -->
+                <li data-cwe="{{ code }}" class="cwe-list-item">
+                    {{ entry.name }} <span class="cwe-code">({{ code }})</span>
+                </li>
+                {% endfor %}
+            </ul>
+            
+            <!-- Toggle button to switch between list views -->
+            <button id="toggleShowAllCwe" class="toggle-button">
+                Show All CWEs
+            </button>
+        </aside>
+
+        <!-- Right panel for detailed CWE information -->
+        <section style="background:#1a2236; border-radius:14px; padding:28px 26px;min-height:390px;">
+            <div id="cweDetailPanel">
+                <!-- Conditional rendering based on data availability -->
+                {% if cwe_dict|length > 0 %}
+                <!-- Default empty state with instructions -->
+                <div style="text-align: center; padding: 40px; color: #a9adc1;">
+                    <div style="font-size: 2.5rem; margin-bottom: 16px;">🔍</div>
+                    <div style="font-size: 1.1rem; margin-bottom: 8px;">Select a CWE to explore</div>
+                    <div style="margin-top: 12px; font-size: 0.9em;">Click any CWE from the list to see detailed information, mitigations, examples, and relationships.</div>
+                </div>
+                {% else %}
+                <!-- Error state when no CWE data available -->
+                <p style="color:#f47174;">No CWE data found in catalog or fallback.</p>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+
+    <!-- Pass server-side data to JavaScript global variables -->
+    <script>
+    // CWE severity data for chart rendering
+    window.cweSeverityData = {{ cwe_severity | tojson }};
+    // Complete CWE dictionary for reference
+    window.learnCweDict = {{ cwe_dict|tojson }};
+    // Curated list of important CWEs
+    window.key_cwes = {{ key_cwes|tojson }};
+    // Display names for key CWEs
+    window.key_cwe_titles = {{ key_cwe_titles|tojson }};
+    
+    // Debug logging for development and troubleshooting
+    console.log("CWE Severity Data:", window.cweSeverityData);
+    </script>
+    
+    <!-- External JavaScript module for CWE interaction handling -->
+    <script src="{{ url_for('static', filename='js/pages/learn.js') }}"></script>
+</div>
+
+<!-- Navigation back to main dashboard -->
+<div style="text-align:center; margin:2.5em 0 1em 0;">
+    <a href="{{ url_for('main.index') }}" style="color:#63a4ff; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
+        ← Back to Dashboard
+    </a>
+</div>
+{% endblock %}
