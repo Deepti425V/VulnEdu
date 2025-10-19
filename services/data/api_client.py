@@ -6,10 +6,20 @@ from typing import List, Dict, Any, Optional
 import config
 import threading
 import logging
+import traceback
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# CRITICAL: Print stack trace when this module loads
+print(f"\n{'='*80}")
+print(f"WARNING: api_client.py is being imported!")
+print(f"{'='*80}")
+print("Import stack trace:")
+for line in traceback.format_stack()[:-1]:
+    print(line.strip())
+print(f"{'='*80}\n")
 
 class NVDApiClient:
     """Enhanced NVD API client with proper rate limiting and caching"""
@@ -19,22 +29,22 @@ class NVDApiClient:
         self.api_key = config.NVD_API_KEY
         self.timeout = config.API_TIMEOUT
         self.last_request_time = 0
-        # Proper rate limiting based on API key availability
-        if self.api_key:
-            self.min_request_interval = 30 / 50  # 50 requests per 30 seconds with key
-        else:
-            self.min_request_interval = 30 / 5   # 5 requests per 30 seconds without key
         
-        # Session for connection reuse
+        if self.api_key:
+            self.min_request_interval = 30 / 50
+        else:
+            self.min_request_interval = 30 / 5
+        
         self.session = requests.Session()
         if self.api_key:
             self.session.headers.update({"apiKey": self.api_key})
         
-        # Cache for storing data
         self._cache = {}
         self._cache_timestamps = {}
         self._cache_lock = threading.Lock()
-
+        
+        print("[API Client] Initialized (NO data loaded yet)")
+    
     def _rate_limit(self):
         """Proper rate limiting with logging"""
         elapsed = time.time() - self.last_request_time
@@ -42,33 +52,35 @@ class NVDApiClient:
             sleep_time = self.min_request_interval - elapsed
             logger.info(f"Rate limiting: sleeping for {sleep_time:.2f} seconds")
             time.sleep(sleep_time)
+        
         self.last_request_time = time.time()
-
+    
     def _is_cache_valid(self, cache_key: str, max_age: int = 900) -> bool:
         """Check if cache entry is still valid (default 15 minutes)"""
         with self._cache_lock:
             if cache_key not in self._cache_timestamps:
                 return False
+            
             age = time.time() - self._cache_timestamps[cache_key]
             return age < max_age
-
+    
     def _set_cache(self, cache_key: str, data: Any):
         """Set cache entry with timestamp"""
         with self._cache_lock:
             self._cache[cache_key] = data
             self._cache_timestamps[cache_key] = time.time()
-
+    
     def _get_cache(self, cache_key: str) -> Any:
         """Get cache entry"""
         with self._cache_lock:
             return self._cache.get(cache_key)
-
+    
     def get_cves_last_30_days(self) -> List[Dict[str, Any]]:
         """Get CVEs from last 30 days with proper caching"""
         cache_key = "cves_30_days"
         
         # Check cache first
-        if self._is_cache_valid(cache_key, max_age=900):  # 15 minutes
+        if self._is_cache_valid(cache_key, max_age=900):
             logger.info("Using cached 30-day CVE data")
             return self._get_cache(cache_key)
         
@@ -81,7 +93,7 @@ class NVDApiClient:
         all_cves = []
         start_index = 0
         results_per_page = 2000
-        max_results = 10000  # Limit to prevent excessive API calls
+        max_results = 10000
         
         try:
             while start_index < max_results:
@@ -115,69 +127,64 @@ class NVDApiClient:
                 if not vulnerabilities:
                     break
                 
-                # Process CVEs
                 for item in vulnerabilities:
                     cve_data = item.get("cve", {})
                     processed = self._process_cve_item(cve_data)
                     if processed:
                         all_cves.append(processed)
                 
-                # Check if we've got all results or hit our limit
                 if len(vulnerabilities) < results_per_page or start_index + len(vulnerabilities) >= total_results:
                     break
-                    
+                
                 start_index += len(vulnerabilities)
                 
-                # Safety limit
                 if start_index >= max_results:
                     logger.warning(f"Hit safety limit of {max_results} results")
                     break
             
-            # Sort by published date (newest first)
             all_cves.sort(key=lambda x: x.get('Published', ''), reverse=True)
             
-            # Cache the results
             self._set_cache(cache_key, all_cves)
             
             logger.info(f"Successfully fetched and cached {len(all_cves)} CVEs")
+            
             return all_cves
             
         except requests.exceptions.RequestException as e:
             logger.error(f"API request exception: {e}")
-            # Return cached data if available, even if expired
+            
             cached_data = self._get_cache(cache_key)
             if cached_data:
                 logger.info("Returning expired cached data due to API error")
                 return cached_data
+            
             return []
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
-            # Return cached data if available
+            
             cached_data = self._get_cache(cache_key)
             if cached_data:
                 return cached_data
+            
             return []
-
+    
     def _process_cve_item(self, cve_data: Dict) -> Optional[Dict]:
         """Convert NVD CVE format to internal format"""
         try:
             cve_id = cve_data.get("id", "")
             if not cve_id:
                 return None
-
-            # Extract description
+            
             description = ""
             for desc in cve_data.get("descriptions", []):
                 if desc.get("lang") == "en":
                     description = desc.get("value", "")
                     break
-
-            # Extract severity and CVSS
+            
             severity = "UNKNOWN"
             cvss_score = None
             metrics = cve_data.get("metrics", {})
-
-            # Try different CVSS versions
+            
             for version in ["cvssMetricV40", "cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
                 if version in metrics and metrics[version]:
                     try:
@@ -192,8 +199,7 @@ class NVDApiClient:
                             break
                     except (IndexError, KeyError):
                         continue
-
-            # Extract CWE
+            
             cwe = None
             for weakness in cve_data.get("weaknesses", []):
                 for desc in weakness.get("description", []):
@@ -204,14 +210,13 @@ class NVDApiClient:
                             break
                 if cwe:
                     break
-
-            # Extract references
+            
             references = []
             for ref in cve_data.get("references", []):
                 url = ref.get("url")
                 if url:
                     references.append(url)
-
+            
             return {
                 "ID": cve_id,
                 "Description": description or "No description available",
@@ -224,18 +229,18 @@ class NVDApiClient:
                 "Products": [],
                 "metrics": metrics
             }
-
         except Exception as e:
             logger.error(f"Error processing CVE: {e}")
             return None
-
+    
     def clear_cache(self):
         """Clear all cached data"""
         with self._cache_lock:
             self._cache.clear()
             self._cache_timestamps.clear()
+        
         logger.info("Cache cleared")
-
+    
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""
         with self._cache_lock:
@@ -251,5 +256,24 @@ class NVDApiClient:
             
             return stats
 
-# Global API client instance
-api_client = NVDApiClient()
+# CRITICAL: DO NOT instantiate here - only when imported
+print("[API Client] Module loaded (instance NOT created yet)")
+
+# This will be created ONLY when first imported by another module
+api_client = None
+
+def get_api_client():
+    """Lazy instantiation - only create when first called"""
+    global api_client
+    if api_client is None:
+        print("[API Client] Creating instance for first time")
+        api_client = NVDApiClient()
+    return api_client
+
+# For backward compatibility - but this should NOT trigger anything
+class _LazyAPIClient:
+    def __getattr__(self, name):
+        client = get_api_client()
+        return getattr(client, name)
+
+api_client = _LazyAPIClient()
