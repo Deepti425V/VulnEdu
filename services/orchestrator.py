@@ -5,15 +5,15 @@ from datetime import datetime, timezone, timedelta
 import config
 
 class DataOrchestrator:
-    """Clean orchestrator with LAZY imports to prevent startup API calls"""
+    """Clean orchestrator with ZERO imports or execution on init"""
     
     def __init__(self):
-        # CRITICAL: Do nothing on init
+        # CRITICAL: Do NOTHING on init
         pass
     
     def get_dashboard_data(self, year=None, month=None, day=None, severity_filter=None, timeline_years=1):
-        """Get all dashboard data with separate data sources for different components"""
-        # Import ONLY when needed, not at module level
+        """Get all dashboard data - LAZY imports inside function"""
+        # Import ONLY when this function is called (on first HTTP request)
         from services.analysis.cwe_processor import get_vendor_risk_analysis, get_weighted_cwe_analysis
         from services.data.api_client import api_client
         from services.cache.cache_manager import cache_manager
@@ -199,7 +199,7 @@ class DataOrchestrator:
                     if pub_date:
                         try:
                             if 'T' in pub_date:
-                                dt = datetime.fromisoformat(pub_date.replace('Z', '+00:00'))
+                                dt = datetime.fromisoformat(pub_date.replace('Z', '+0000'))
                             else:
                                 dt = datetime.strptime(pub_date[:10], '%Y-%m-%d')
                             
@@ -213,6 +213,7 @@ class DataOrchestrator:
                             filtered_cves.append(cve)
                         except:
                             continue
+                
                 cves = filtered_cves
             
             print(f"[Orchestrator] API data filtered to {len(cves)} CVEs")
@@ -312,5 +313,5 @@ class DataOrchestrator:
             'current_date': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
         }
 
-# Global orchestrator instance
+# Global orchestrator instance - NO execution on import
 data_orchestrator = DataOrchestrator()
