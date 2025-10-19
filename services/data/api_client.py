@@ -6,20 +6,10 @@ from typing import List, Dict, Any, Optional
 import config
 import threading
 import logging
-import traceback
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# CRITICAL: Print stack trace when this module loads
-print(f"\n{'='*80}")
-print(f"WARNING: api_client.py is being imported!")
-print(f"{'='*80}")
-print("Import stack trace:")
-for line in traceback.format_stack()[:-1]:
-    print(line.strip())
-print(f"{'='*80}\n")
 
 class NVDApiClient:
     """Enhanced NVD API client with proper rate limiting and caching"""
@@ -42,8 +32,6 @@ class NVDApiClient:
         self._cache = {}
         self._cache_timestamps = {}
         self._cache_lock = threading.Lock()
-        
-        print("[API Client] Initialized (NO data loaded yet)")
     
     def _rate_limit(self):
         """Proper rate limiting with logging"""
@@ -256,24 +244,5 @@ class NVDApiClient:
             
             return stats
 
-# CRITICAL: DO NOT instantiate here - only when imported
-print("[API Client] Module loaded (instance NOT created yet)")
-
-# This will be created ONLY when first imported by another module
-api_client = None
-
-def get_api_client():
-    """Lazy instantiation - only create when first called"""
-    global api_client
-    if api_client is None:
-        print("[API Client] Creating instance for first time")
-        api_client = NVDApiClient()
-    return api_client
-
-# For backward compatibility - but this should NOT trigger anything
-class _LazyAPIClient:
-    def __getattr__(self, name):
-        client = get_api_client()
-        return getattr(client, name)
-
-api_client = _LazyAPIClient()
+# Global API client instance - SIMPLE instantiation, no tricks
+api_client = NVDApiClient()
