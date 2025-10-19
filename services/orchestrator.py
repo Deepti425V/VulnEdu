@@ -25,11 +25,18 @@ class DataOrchestrator:
     """Clean orchestrator using separate visualization modules with caching and dynamic data sources"""
     
     def __init__(self):
-        # Log data source configuration on startup for operational visibility
-        data_source_config.log_data_source_status()
+        # Don't log on init - this triggers API calls during module import
+        # Will log on first actual request instead
+        self._logged_status = False
     
     def get_dashboard_data(self, year=None, month=None, day=None, severity_filter=None, timeline_years=1):
         """Get all dashboard data with separate data sources for different components"""
+        
+        # Log data source config on first real request, not on import
+        if not self._logged_status:
+            data_source_config.log_data_source_status()
+            self._logged_status = True
+        
         print(f"[Orchestrator] Loading dashboard data with filters: year={year}, month={month}, day={day}, severity={severity_filter}, timeline_years={timeline_years}")
         
         try:
