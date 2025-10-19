@@ -8,7 +8,7 @@
                 Educational CVE Analysis Tool
             </h1>
             <div style="color:#a9adc1;margin-top:4px;font-size:1.07rem;">
-                Dashboard &amp; Analytics
+                Dashboard & Analytics
             </div>
         </div>
         {% include 'components/filters/search_filters.html' %}
@@ -32,10 +32,17 @@
 
     <div class="dashboard-row-2">
         {% include 'components/charts/pie_chart.html' %}
-        
         <section style="background:#1a2236; border-radius:14px; padding:30px 30px 10px 30px; flex:2; display: flex; flex-direction:column; min-width: 350px; min-height:250px; height: 300px;">
-            <div style="font-weight:700; color:#F5E8D8; margin-bottom:8px; font-size: 1.02rem; letter-spacing:0.15px; text-align:left;">
-                Vulnerabilities Over Time (Last 5 Years)
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div style="font-weight:700; color:#F5E8D8; font-size: 1.02rem; letter-spacing:0.15px;">
+                    Vulnerabilities Over Time
+                </div>
+                <select id="timelineYearsFilter" style="background:#263159; color:#63a4ff; padding:6px 12px; border-radius:6px; border:none; cursor:pointer;">
+                    <option value="1" {% if timeline_years == 1 %}selected{% endif %}>Last 1 Year</option>
+                    <option value="2" {% if timeline_years == 2 %}selected{% endif %}>Last 2 Years</option>
+                    <option value="3" {% if timeline_years == 3 %}selected{% endif %}>Last 3 Years</option>
+                    <option value="5" {% if timeline_years == 5 %}selected{% endif %}>Last 5 Years</option>
+                </select>
             </div>
             <div style="position: relative; height:250px;">
                 <canvas id="timelineChart"></canvas>
@@ -55,16 +62,14 @@
         window.cweRadarAll = {{ cwe_radar_all | tojson }};
         window.cweRadarWeighted = {{ cwe_radar_weighted | tojson }};
         window.cweRadarDescriptions = {{ cwe_radar_descriptions | tojson }};
-        
         {% if cwe_radar_all and cwe_radar_all.cwe_30_day_counts %}
         window.cwe30DayCounts = {{ cwe_radar_all.cwe_30_day_counts | tojson }};
         {% else %}
         window.cwe30DayCounts = {};
         {% endif %}
-        
         window.cweMitigations = {};
+        window.currentTimelineYears = {{ timeline_years }};
     </script>
-
     <script src="{{ url_for('static', filename='js/pages/dashboard.js') }}"></script>
 </div>
 {% endblock %}

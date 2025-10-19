@@ -33,10 +33,10 @@ class DataProcessor:
         if cached_data:
             return cached_data
         
-        # Calculate current year and create 5-year range
+        # If no cache, load whatever years are requested
+        # DEFAULT: Only current year for fast startup
         current_year = datetime.now().year
-        # Include current year and last 4 years for total of 5 years
-        years = list(range(current_year - 4, current_year + 1))
+        years = [current_year]  # Changed from list(range(current_year - 4, current_year + 1))
         
         print(f"[Historical] Loading data for years: {years}")
         
@@ -65,6 +65,7 @@ class DataProcessor:
             year_data = self._load_year_file(year)
             all_data[str(year)] = year_data
             print(f"[Historical] Loaded {len(year_data)} CVEs for {year}")
+        
         return all_data
     
     def _fetch_from_github(self, filename: str) -> bytes:
@@ -88,7 +89,7 @@ class DataProcessor:
             raise Exception(f"GitHub fetch error: {e}")
     
     def _load_year_file(self, year: int) -> List[Dict]:
-        """Load CVEs from a specific year file - GitHub or local fallback"""
+        """Load CVEs from a specific year file – GitHub or local fallback"""
         try:
             # Try different file patterns
             possible_filenames = [
@@ -126,7 +127,6 @@ class DataProcessor:
             # Fallback to local files if GitHub fails or is disabled
             if data is None:
                 print(f"[Historical] GitHub fetch failed or disabled, trying local files for {year}")
-                
                 if os.path.exists(self.historical_dir):
                     files = os.listdir(self.historical_dir)
                     print(f"[Historical] Local files available: {files[:10]}...")
@@ -192,7 +192,7 @@ class DataProcessor:
             
             print(f"[Historical] Successfully processed {len(cves)} CVEs for {year}")
             return cves
-            
+        
         except Exception as e:
             print(f"[Historical] Error loading {year}: {e}")
             # Print full traceback for debugging complex issues
@@ -205,7 +205,6 @@ class DataProcessor:
         try:
             cve_data = item.get("cve", {})
             cve_id = cve_data.get("id", "")
-            
             if not cve_id:
                 return None
             
@@ -265,7 +264,6 @@ class DataProcessor:
         try:
             cve_data = item.get("cve", {})
             cve_id = cve_data.get("CVE_data_meta", {}).get("ID", "")
-            
             if not cve_id:
                 return None
             
@@ -323,7 +321,6 @@ class DataProcessor:
             # Log processing errors but continue with batch processing
             print(f"[Historical] Error processing JSON 1.1 CVE: {e}")
             return None
-
 
 # Global historical loader instance for application-wide use (maintaining interface compatibility)
 historical_loader = DataProcessor()

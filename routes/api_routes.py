@@ -70,9 +70,36 @@ def data_source_status():
         # Return JSON error response with HTTP 500 status
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@api_bp.route("/timeline-data")
+def get_timeline_data():
+    """API endpoint for dynamic timeline loading"""
+    try:
+        years = request.args.get('years', default=1, type=int)
+        # Validate years parameter
+        if years not in [1, 2, 3, 5]:
+            years = 1
+        
+        print(f"[API] Loading timeline data for {years} year(s)")
+        
+        # Get timeline data from orchestrator
+        timeline_data = data_orchestrator._get_timeline(years)
+        
+        return jsonify({
+            'success': True,
+            'timeline': timeline_data,
+            'years': years
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
 @api_bp.route("/cwe/<cwe_code>")
 def api_cwe_detail(cwe_code):
-    """API endpoint for CWE details - Enhanced with MITRE scraping simulation"""
+    """API endpoint for CWE details – Enhanced with MITRE scraping simulation"""
     try:
         # Hardcoded CWE database for reliable educational content
         # In production, this would fetch from MITRE or local CWE database
@@ -134,7 +161,7 @@ def api_cwe_detail(cwe_code):
                 "source": "scraped"
             }
         }
-
+        
         # Get requested CWE data or return generic fallback structure
         cwe_info = cwe_details.get(cwe_code, {
             "name": f"CWE {cwe_code}",
@@ -144,7 +171,7 @@ def api_cwe_detail(cwe_code):
             "relationships": [],
             "source": "placeholder"
         })
-
+        
         # Return JSON response with CWE data
         return jsonify({'success': True, 'data': cwe_info})
     except Exception as e:
@@ -156,6 +183,7 @@ def test_api_connection():
     """Test API connection and return basic stats"""
     try:
         from services.data.api_client import api_client
+        from datetime import datetime
         
         # Get cache stats
         cache_stats = api_client.get_cache_stats()
@@ -181,8 +209,60 @@ def test_api_connection():
 @api_bp.route("/health")
 def health_check():
     """Simple health check endpoint"""
+    from datetime import datetime
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
         'service': 'VulnEdu API'
     })
+
+@api_bp.route("/cache-builder")
+def cache_builder():
+    """Smart endpoint for UptimeRobot to gradually build cache"""
+    try:
+        from datetime import datetime
+        from services.data.data_processor import historical_loader
+        from services.cache.cache_manager import cache_manager
+        
+        current_year = datetime.now().year
+        
+        # Check what's cached
+        historical_data = cache_manager.get_historical_data()
+        
+        if not historical_data:
+            # Nothing cached yet, load current year
+            print("[Cache Builder] No cache found, loading current year...")
+            cache_manager.warm_up_cache()
+            cached_years = 1
+        else:
+            cached_years = len(historical_data)
+        
+        # If less than 5 years cached, load next year in background
+        if cached_years < 5:
+            next_year = current_year - cached_years
+            
+            def load_next_year():
+                print(f"[Cache Builder] Loading year {next_year}...")
+                data = historical_loader.get_multiple_years_data([next_year])
+                # Merge with existing cache
+                existing = cache_manager.get_historical_data() or {}
+                existing.update(data)
+                cache_manager.set_historical_data(existing)
+                print(f"[Cache Builder] Successfully loaded {next_year}")
+                return data
+            
+            cache_manager.start_background_load(f'year_{next_year}', load_next_year)
+        
+        return jsonify({
+            'status': 'healthy',
+            'cached_years': cached_years,
+            'total_years': 5,
+            'progress': f"{cached_years}/5",
+            'message': f'Loading year {current_year - cached_years}...' if cached_years < 5 else 'Fully cached'
+        })
+    
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500

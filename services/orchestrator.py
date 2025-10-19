@@ -28,18 +28,18 @@ class DataOrchestrator:
         # Log data source configuration on startup for operational visibility
         data_source_config.log_data_source_status()
     
-    def get_dashboard_data(self, year=None, month=None, day=None, severity_filter=None):
+    def get_dashboard_data(self, year=None, month=None, day=None, severity_filter=None, timeline_years=1):
         """Get all dashboard data with separate data sources for different components"""
-        print(f"[Orchestrator] Loading dashboard data with filters: year={year}, month={month}, day={day}, severity={severity_filter}")
+        print(f"[Orchestrator] Loading dashboard data with filters: year={year}, month={month}, day={day}, severity={severity_filter}, timeline_years={timeline_years}")
         
         try:
-            # 1. CVE Trends (Last 30 days) - ALWAYS unfiltered, last 30 days only
+            # 1. CVE Trends (Last 30 days) – ALWAYS unfiltered, last 30 days only
             print("[Orchestrator] Getting CVE trends (last 30 days) - unfiltered")
             cve_trends = self._get_always_30_day_trends()
             
-            # 2. Vulnerabilities Over Time (Last 5 years) - ALWAYS unfiltered, last 5 years
-            print("[Orchestrator] Getting vulnerabilities over time (last 5 years) - unfiltered")
-            vulnerabilities_timeline = self._get_always_5_year_timeline()
+            # 2. Vulnerabilities Over Time – Dynamic years based on user selection
+            print(f"[Orchestrator] Getting vulnerabilities over time (last {timeline_years} years) - unfiltered")
+            vulnerabilities_timeline = self._get_timeline(timeline_years)
             
             # 3. Filtered data for Cards and Pie Chart ONLY
             print("[Orchestrator] Getting filtered data for cards and pie chart")
@@ -102,25 +102,25 @@ class DataOrchestrator:
             # Generate proper note text with data source info for transparency
             cutoff_info, explanation = data_source_config.get_data_source_cutoff()
             if year and month and day:
-                note_text = f"Cards & Pie Chart: {year}-{month:02d}-{day:02d} | Trends: Last 30 days | Timeline: Last 5 years"
+                note_text = f"Cards & Pie Chart: {year}-{month:02d}-{day:02d} | Trends: Last 30 days | Timeline: Last {timeline_years} year(s)"
             elif year and month:
-                note_text = f"Cards & Pie Chart: {year}-{month:02d} | Trends: Last 30 days | Timeline: Last 5 years"
+                note_text = f"Cards & Pie Chart: {year}-{month:02d} | Trends: Last 30 days | Timeline: Last {timeline_years} year(s)"
             elif year:
-                note_text = f"Cards & Pie Chart: {year} data | Trends: Last 30 days | Timeline: Last 5 years"
+                note_text = f"Cards & Pie Chart: {year} data | Trends: Last 30 days | Timeline: Last {timeline_years} year(s)"
             elif severity_filter:
-                note_text = f"Cards & Pie Chart: {severity_filter.lower()} severity | Trends: Last 30 days | Timeline: Last 5 years"
+                note_text = f"Cards & Pie Chart: {severity_filter.lower()} severity | Trends: Last 30 days | Timeline: Last {timeline_years} year(s)"
             else:
-                note_text = f"Cards & Pie Chart: Last 30 days | Trends: Last 30 days | Timeline: Last 5 years"
+                note_text = f"Cards & Pie Chart: Last 30 days | Trends: Last 30 days | Timeline: Last {timeline_years} year(s)"
             
             # Add data source information for operational transparency
             note_text += f" | {explanation}"
             
             # Log comprehensive operation summary
             print(f"[Orchestrator] Data loaded successfully:")
-            print(f" Filtered CVEs (cards/pie): {len(filtered_cves)}")
-            print(f" CVE Trends data points: {len(cve_trends.get('labels', []))}")
-            print(f" Timeline data points: {len(vulnerabilities_timeline.get('labels', []))}")
-            print(f" Severity counts: C={severity_metrics['CRITICAL']}, H={severity_metrics['HIGH']}, M={severity_metrics['MEDIUM']}, L={severity_metrics['LOW']}")
+            print(f"  Filtered CVEs (cards/pie): {len(filtered_cves)}")
+            print(f"  CVE Trends data points: {len(cve_trends.get('labels', []))}")
+            print(f"  Timeline data points: {len(vulnerabilities_timeline.get('labels', []))}")
+            print(f"  Severity counts: C={severity_metrics['CRITICAL']}, H={severity_metrics['HIGH']}, M={severity_metrics['MEDIUM']}, L={severity_metrics['LOW']}")
             
             # Construct comprehensive dashboard data structure
             dashboard_data = {
@@ -129,9 +129,9 @@ class DataOrchestrator:
                 'total_cves': len(filtered_cves),
                 'severity_percentage': severity_percentages,
                 
-                # Chart data - SEPARATED by purpose for clarity
+                # Chart data – SEPARATED by purpose for clarity
                 'timeline_data_days': cve_trends,  # Always last 30 days
-                'timeline_data_years': vulnerabilities_timeline,  # Always last 5 years
+                'timeline_data_years': vulnerabilities_timeline,  # Dynamic years
                 'cwe_radar': vendor_risk.get('top_10_cwes', {'indices': [], 'labels': [], 'values': []}),
                 'cwe_radar_all': vendor_risk,
                 'cwe_radar_weighted': weighted_vendor_risk,
@@ -156,7 +156,7 @@ class DataOrchestrator:
             raise e
     
     def _get_always_30_day_trends(self) -> Dict[str, Any]:
-        """Always get last 30 days trends from API - unfiltered"""
+        """Always get last 30 days trends from API – unfiltered"""
         try:
             return get_cve_trends_last_30_days()
         except Exception as e:
@@ -169,13 +169,13 @@ class DataOrchestrator:
                 'date_range': {'start': '', 'end': ''}
             }
     
-    def _get_always_5_year_timeline(self) -> Dict[str, Any]:
-        """Always get last 5 years timeline from historical data - unfiltered"""
+    def _get_timeline(self, years=1) -> Dict[str, Any]:
+        """Get timeline for specified number of years from historical data - unfiltered"""
         try:
-            from services.analysis.trend_analyzer import get_vulnerabilities_over_time_last_5_years
-            return get_vulnerabilities_over_time_last_5_years()
+            from services.analysis.trend_analyzer import get_vulnerabilities_over_time_last_n_years
+            return get_vulnerabilities_over_time_last_n_years(years)
         except Exception as e:
-            print(f"[Orchestrator] Error getting 5-year timeline: {e}")
+            print(f"[Orchestrator] Error getting timeline: {e}")
             # Return empty structure to maintain dashboard functionality
             return {
                 'labels': [],
@@ -186,8 +186,9 @@ class DataOrchestrator:
             }
     
     def get_filtered_cves(self, year=None, month=None, day=None) -> List[Dict[str, Any]]:
-        """Get filtered CVE data using dynamic data source selection - ENHANCED DEBUG"""
+        """Get filtered CVE data using dynamic data source selection – ENHANCED DEBUG"""
         print(f"[Orchestrator] Getting filtered CVEs: year={year}, month={month}, day={day}")
+        
         cutoff_info, explanation = data_source_config.get_data_source_cutoff()
         
         if not year:
@@ -204,6 +205,7 @@ class DataOrchestrator:
             try:
                 from services.analysis.trend_analyzer import get_filtered_historical_cves
                 cves = get_filtered_historical_cves(year, month, day)
+                
                 # DEBUG: Check what we actually got
                 print(f"[Orchestrator] Historical data returned {len(cves)} CVEs")
                 if cves:
@@ -213,6 +215,7 @@ class DataOrchestrator:
                         pub_date = cve.get('Published', 'No date')
                         sample_dates.append(f"{cve.get('ID', 'Unknown')}: {pub_date}")
                     print(f"[Orchestrator] Sample CVE dates: {sample_dates}")
+                
                 return cves
             except Exception as e:
                 print(f"[Orchestrator] Error loading historical data: {e}")
@@ -233,7 +236,7 @@ class DataOrchestrator:
                         try:
                             # Handle different date formats from API
                             if 'T' in pub_date:
-                                dt = datetime.fromisoformat(pub_date.replace('Z', '+0000'))
+                                dt = datetime.fromisoformat(pub_date.replace('Z', '+00:00'))
                             else:
                                 dt = datetime.strptime(pub_date[:10], '%Y-%m-%d')
                             
@@ -328,6 +331,7 @@ class DataOrchestrator:
         cache_file = os.path.join(config.CACHE_DIR, "recent_api_cache.json")
         if os.path.exists(cache_file):
             os.remove(cache_file)
+        
         print("[Orchestrator] All caches cleared, including data source config cache")
     
     def get_data_source_status(self) -> Dict[str, Any]:

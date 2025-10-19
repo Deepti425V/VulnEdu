@@ -5,121 +5,163 @@ document.addEventListener('DOMContentLoaded', function() {
     // Timeline Chart: 5-year monthly vulnerability trends
     // Shows long-term patterns and seasonal variations
     const timelineChartEl = document.getElementById('timelineChart');
+    let timelineChartInstance = null;
+    
     if (timelineChartEl) {
-        const ctx = timelineChartEl.getContext('2d');
-        // Extract data from server-injected window objects
-        const labels = window.timelineData.labels || []; // Month labels like '2024-01'
-        const data = window.timelineData.values || [];   // CVE counts per month
-
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'CVEs Per Month (Last 5 Years)',
-                    data: data,
-                    borderColor: '#63a4ff',                    // Primary blue line color
-                    backgroundColor: 'rgba(99, 164, 255, 0.1)', // Subtle fill under line
-                    fill: true,                                // Enable area fill
-                    tension: 0.3,                             // Smooth curve tension
-                    borderWidth: 2,                           // Line thickness
-                    pointRadius: 4,                           // Data point size
-                    pointHoverRadius: 6,                      // Hover point size
-                    pointBackgroundColor: '#63a4ff'           // Point color
-                }]
-            },
-            options: {
-                responsive: true,                             // Adapt to container size
-                maintainAspectRatio: false,                  // Allow flexible height
-                plugins: {
-                    legend: { display: false },              // Hide legend for cleaner look
-                    tooltip: { 
-                        mode: 'index',                       // Show all datasets at x position
-                        intersect: false,                    // Don't require exact intersection
-                        callbacks: {
-                            title: function(context) {
-                                return 'Month: ' + context[0].label;
-                            },
-                            label: function(context) {
-                                return 'CVEs: ' + context.parsed.y;
-                            }
-                        }
-                    }
+        function drawTimelineChart() {
+            const ctx = timelineChartEl.getContext('2d');
+            
+            // Extract data from server-injected window objects
+            const labels = window.timelineData.labels || [];
+            const data = window.timelineData.values || [];
+            
+            // Destroy existing chart if it exists
+            if (timelineChartInstance) {
+                timelineChartInstance.destroy();
+            }
+            
+            timelineChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'CVEs Per Month',
+                        data: data,
+                        borderColor: '#63a4ff',
+                        backgroundColor: 'rgba(99, 164, 255, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#63a4ff'
+                    }]
                 },
-                scales: {
-                    x: {
-                        grid: { display: false },            // Clean appearance without grid
-                        ticks: {
-                            color: '#8b9bb4',                // Muted tick color
-                            // Show only January labels to prevent crowding
-                            callback: function(value, index, values) {
-                                const label = this.getLabelForValue(value);
-                                if (!label) return null;
-                                // Display year for January months, blank otherwise
-                                if (label.slice(-2) === "01") return label.slice(0, 4);
-                                return "";
-                            },
-                            autoSkip: false,                  // Don't automatically skip labels
-                            maxRotation: 0,                   // Keep labels horizontal
-                            minRotation: 0
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                title: function(context) {
+                                    return 'Month: ' + context[0].label;
+                                },
+                                label: function(context) {
+                                    return 'CVEs: ' + context.parsed.y;
+                                }
+                            }
                         }
                     },
-                    y: {
-                        beginAtZero: true,                    // Start y-axis at zero
-                        grid: { display: false },            // Clean appearance
-                        ticks: {
-                            color: '#8b9bb4',                // Muted tick color
-                            stepSize: 2000,                   // Suggested step size
-                            // Show only multiples of 500 for readability
-                            callback: function(value, index, ticks) {
-                                return value % 500 === 0 ? value : "";
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                color: '#8b9bb4',
+                                callback: function(value, index, values) {
+                                    const label = this.getLabelForValue(value);
+                                    if (!label) return null;
+                                    if (label.slice(-2) === "01") return label.slice(0, 4);
+                                    return "";
+                                },
+                                autoSkip: false,
+                                maxRotation: 0,
+                                minRotation: 0
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { display: false },
+                            ticks: {
+                                color: '#8b9bb4',
+                                stepSize: 2000,
+                                callback: function(value, index, ticks) {
+                                    return value % 500 === 0 ? value : "";
+                                }
                             }
                         }
-                    }
-                },
-                interaction: {
-                    mode: 'nearest',                         // Find nearest point
-                    axis: 'x',                               // Along x-axis
-                    intersect: false                         // Don't require exact intersection
-                },
-                // Click handler for navigation to monthly filtered view
-                onClick: (evt, activeEls) => {
-                    if (activeEls && activeEls.length) {
-                        const chart = activeEls[0].element.$context.chart;
-                        const idx = activeEls[0].index;
-                        const label = chart.data.labels[idx];
-                        if (label && label.length >= 7) {
-                            const [year, month] = label.split('-');
-                            // Navigate to filtered vulnerabilities page
-                            window.location.href = '/vulnerabilities?year=' + year + '&month=' + month;
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    },
+                    onClick: (evt, activeEls) => {
+                        if (activeEls && activeEls.length) {
+                            const chart = activeEls[0].element.$context.chart;
+                            const idx = activeEls[0].index;
+                            const label = chart.data.labels[idx];
+                            if (label && label.length >= 7) {
+                                const [year, month] = label.split('-');
+                                window.location.href = '/vulnerabilities?year=' + year + '&month=' + month;
+                            }
                         }
                     }
                 }
-            }
-        });
+            });
+        }
+        
+        // Initial draw
+        drawTimelineChart();
+        
+        // Timeline Years Filter Handler
+        const timelineFilter = document.getElementById('timelineYearsFilter');
+        if (timelineFilter) {
+            timelineFilter.addEventListener('change', async function() {
+                const years = parseInt(this.value);
+                console.log(`Loading ${years} year(s) of timeline data...`);
+                
+                // Show loading state
+                timelineChartEl.style.opacity = '0.5';
+                
+                try {
+                    // Fetch new data from API
+                    const response = await fetch(`/api/timeline-data?years=${years}`);
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // Update global timeline data
+                        window.timelineData = result.timeline;
+                        
+                        // Redraw chart
+                        drawTimelineChart();
+                        
+                        console.log(`Successfully loaded ${years} year(s) of data`);
+                    } else {
+                        console.error('Error loading timeline:', result.error);
+                        alert('Error loading timeline data. Please try again.');
+                    }
+                } catch (error) {
+                    console.error('Error loading timeline:', error);
+                    alert('Error loading timeline data. Please try again.');
+                } finally {
+                    timelineChartEl.style.opacity = '1';
+                }
+            });
+        }
     }
 
     // Daily Trend Chart: 30-day bar chart for recent activity
-    // Shows short-term patterns and daily variations
     if (document.getElementById('dailyTrendChart')) {
         const ctxDaily = document.getElementById('dailyTrendChart').getContext('2d');
-        const labels = window.timelineDataDaily.labels || [];     // Daily dates like '2024-01-05'
-        const dataValues = window.timelineDataDaily.values || []; // CVE counts per day
-
-        // Label every 7th day to prevent x-axis crowding
+        const labels = window.timelineDataDaily.labels || [];
+        const dataValues = window.timelineDataDaily.values || [];
+        
         const dayLabels = labels.map((label, idx) => {
-            return (idx % 7 === 0) ? label.slice(5, 10) : ''; // Show MM-DD format
+            return (idx % 7 === 0) ? label.slice(5, 10) : '';
         });
-
+        
         new Chart(ctxDaily, {
-            type: 'bar',                                      // Bar chart for discrete daily values
+            type: 'bar',
             data: {
                 labels: dayLabels,
                 datasets: [{
                     label: 'CVEs per Day (Last 30 Days)',
                     data: dataValues,
-                    backgroundColor: 'rgba(99, 164, 255, 0.8)', // Semi-transparent blue bars
-                    borderColor: 'rgba(99, 164, 255, 1)',      // Solid blue border
+                    backgroundColor: 'rgba(99, 164, 255, 0.8)',
+                    borderColor: 'rgba(99, 164, 255, 1)',
                     tension: 0.3,
                     fill: true,
                     pointRadius: 3,
@@ -135,12 +177,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         mode: 'index',
                         intersect: false,
                         callbacks: {
-                            // Show full date in tooltip for precision
                             title: function(context) {
                                 const idx = context[0].dataIndex;
-                                return window.timelineDataDaily.labels && 
-                                       window.timelineDataDaily.labels[idx] ?
-                                       window.timelineDataDaily.labels[idx] : '';
+                                return window.timelineDataDaily.labels && window.timelineDataDaily.labels[idx] ?
+                                    window.timelineDataDaily.labels[idx] : '';
                             }
                         }
                     }
@@ -149,15 +189,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     y: {
                         beginAtZero: true,
                         grid: { display: false },
-                        ticks: { color: '#90caf9'}            // Light blue ticks
+                        ticks: { color: '#90caf9'}
                     },
                     x: {
                         grid: { display: false },
                         ticks: {
                             color: '#90caf9',
-                            maxRotation: 0,                    // Keep labels horizontal
+                            maxRotation: 0,
                             autoSkip: false,
-                            maxTicksLimit: 10                  // Limit number of visible ticks
+                            maxTicksLimit: 10
                         }
                     }
                 },
@@ -166,13 +206,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     axis: 'x',
                     intersect: false
                 },
-                // Click handler for navigation to specific date
                 onClick: (evt, activeElements) => {
                     if (activeElements && activeElements.length > 0) {
                         const idx = activeElements[0].index;
                         const fullDate = window.timelineDataDaily.labels[idx];
                         if (fullDate) {
-                            // Parse date and navigate to filtered view
                             const year = fullDate.slice(0, 4);
                             const month = parseInt(fullDate.slice(5, 7));
                             const day = parseInt(fullDate.slice(8, 10));
@@ -184,41 +222,40 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Severity Doughnut Chart: Distribution of vulnerability severities
-    // Shows current severity breakdown with interactive filtering
+    // Severity Doughnut Chart
     if (document.getElementById('severityPie')) {
         const ctxPie = document.getElementById('severityPie').getContext('2d');
+        
         new Chart(ctxPie, {
-            type: 'doughnut',                                 // Doughnut style with center space
+            type: 'doughnut',
             data: {
                 labels: ["Critical", "High", "Medium", "Low", "Unknown"],
                 datasets: [{
                     data: [
-                        window.severityStats.CRITICAL || 0,   // Extract counts from server data
+                        window.severityStats.CRITICAL || 0,
                         window.severityStats.HIGH || 0,
                         window.severityStats.MEDIUM || 0,
                         window.severityStats.LOW || 0,
                         window.severityStats.UNKNOWN || 0
                     ],
-                    backgroundColor: [                         // Industry-standard severity colors
-                        '#f55855',                            // Critical: Red
-                        '#f8a541',                            // High: Orange
-                        '#3b8ded',                            // Medium: Blue
-                        '#42d392',                            // Low: Green
-                        '#6b7280'                             // Unknown: Gray
+                    backgroundColor: [
+                        '#f55855',
+                        '#f8a541',
+                        '#3b8ded',
+                        '#42d392',
+                        '#6b7280'
                     ],
-                    borderWidth: 4,                           // Border between segments
-                    borderColor: '#1a2236',                   // Dark border color
-                    hoverOffset: 10                           // Segment separation on hover
+                    borderWidth: 4,
+                    borderColor: '#1a2236',
+                    hoverOffset: 10
                 }]
             },
             options: {
-                cutout: '65%',                                // Size of center cutout
+                cutout: '65%',
                 plugins: {
-                    legend: { display: false },               // Hide default legend
+                    legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            // Custom tooltip with percentage calculation
                             label: function(context) {
                                 const label = context.label;
                                 const value = context.parsed;
@@ -229,14 +266,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 },
-                // Click handler for severity filtering
                 onClick: (evt, activeEls) => {
                     if (activeEls && activeEls.length) {
                         const chart = activeEls[0].element.$context.chart;
                         const idx = activeEls[0].index;
                         const label = chart.data.labels[idx];
                         if (label) {
-                            // Navigate to severity-filtered vulnerabilities
                             window.location.href = '/vulnerabilities?severity=' + label.toUpperCase();
                         }
                     }
@@ -245,28 +280,31 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Vendor Risk Analysis Radar Chart: Multi-dimensional CWE analysis
-    // Shows top vulnerability categories with filtering and weighted options
+    // Vendor Risk Analysis Radar Chart
     if (document.getElementById('vendorRiskChart')) {
         const ctx = document.getElementById('vendorRiskChart').getContext('2d');
-        let topN = 10;        // Default to top 10 CWEs
-        let weighted = false; // Weighted scoring toggle
-
-        // Helper function to get appropriate dataset based on filters
+        let topN = 10;
+        let weighted = false;
+        
+        function goToVulnsForCWE(idx) {
+            const cwe_key = window.cweSeverityData.indices[idx];
+            if (cwe_key) {
+                window.location.href = "/vulnerabilities?q=" + encodeURIComponent(cwe_key);
+            }
+        }
+        
         function getRadarData() {
             let srcAll = window.cweRadarAll;
             let source = srcAll.top_10 || srcAll['all'] || window.cweRadar || {};
             
-            // Select data source based on topN filter
             if (topN === 5 && srcAll.top_5) source = srcAll.top_5;
             else if (topN === 10 && srcAll.top_10) source = srcAll.top_10;
             else if (topN === 'all' && srcAll.all) source = srcAll.all;
-
-            // Use weighted data if enabled and available
+            
             if (weighted && window.cweRadarWeighted && window.cweRadarWeighted.indices) {
                 let srcW = window.cweRadarWeighted;
                 let codes = srcW.indices, names = srcW.labels, values = srcW.values;
-                // Limit to topN if not 'all'
+                
                 if (topN !== 'all' && values.length > topN) {
                     codes = codes.slice(0, topN);
                     names = names.slice(0, topN);
@@ -274,11 +312,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 return { codes, names, values };
             }
-
-            // Use regular data
+            
             let codes = source.indices || [];
             let names = source.labels || [];
             let values = source.values || [];
+            
             if (topN !== 'all' && values.length > topN) {
                 codes = codes.slice(0, topN);
                 names = names.slice(0, topN);
@@ -286,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             return { codes, names, values };
         }
-
+        
         // Enhanced tooltip with CWE details, definitions, and mitigations
         function radarTooltip(context) {
             const code = context.label;
