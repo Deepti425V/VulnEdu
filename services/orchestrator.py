@@ -1,42 +1,24 @@
-# Operating system interface for file and cache operations
 import os
-# JSON processing for cache file operations (imported but not directly used)
 import json
-# Type annotations for complex data structures and function returns
 from typing import Dict, List, Any
-# Date and time operations for temporal filtering and processing
 from datetime import datetime, timezone, timedelta
-# Trend analysis service for temporal vulnerability patterns
 from services.analysis.trend_analyzer import get_cve_trends_last_30_days
-# Severity analysis service for vulnerability classification metrics
 from services.analysis.severity_analyzer import get_severity_card_counts, get_severity_percentages
-# Updated import to use the new modular structure for CWE analysis
 from services.analysis.cwe_processor import get_vendor_risk_analysis, get_weighted_cwe_analysis
-# Real-time API client for current vulnerability data
 from services.data.api_client import api_client
-# Cache management service for performance optimization
 from services.cache.cache_manager import cache_manager
-# Dynamic data source configuration for intelligent routing
 from services.data.data_source_config import data_source_config
-# Application configuration for system settings
 import config
 
 class DataOrchestrator:
     """Clean orchestrator using separate visualization modules with caching and dynamic data sources"""
     
     def __init__(self):
-        # Don't log on init - this triggers API calls during module import
-        # Will log on first actual request instead
-        self._logged_status = False
+        # CRITICAL: Do nothing on init to prevent API calls during import
+        pass
     
     def get_dashboard_data(self, year=None, month=None, day=None, severity_filter=None, timeline_years=1):
         """Get all dashboard data with separate data sources for different components"""
-        
-        # Log data source config on first real request, not on import
-        if not self._logged_status:
-            data_source_config.log_data_source_status()
-            self._logged_status = True
-        
         print(f"[Orchestrator] Loading dashboard data with filters: year={year}, month={month}, day={day}, severity={severity_filter}, timeline_years={timeline_years}")
         
         try:
@@ -94,7 +76,6 @@ class DataOrchestrator:
                 weighted_vendor_risk = get_weighted_cwe_analysis()
             except Exception as e:
                 print(f"[Orchestrator] Error loading vendor risk analysis: {e}")
-                # Provide empty data structure to maintain dashboard functionality
                 vendor_risk = {
                     'top_5_cwes': {'indices': [], 'labels': [], 'values': []},
                     'top_10_cwes': {'indices': [], 'labels': [], 'values': []},
@@ -119,37 +100,27 @@ class DataOrchestrator:
             else:
                 note_text = f"Cards & Pie Chart: Last 30 days | Trends: Last 30 days | Timeline: Last {timeline_years} year(s)"
             
-            # Add data source information for operational transparency
             note_text += f" | {explanation}"
             
-            # Log comprehensive operation summary
             print(f"[Orchestrator] Data loaded successfully:")
             print(f"  Filtered CVEs (cards/pie): {len(filtered_cves)}")
             print(f"  CVE Trends data points: {len(cve_trends.get('labels', []))}")
             print(f"  Timeline data points: {len(vulnerabilities_timeline.get('labels', []))}")
             print(f"  Severity counts: C={severity_metrics['CRITICAL']}, H={severity_metrics['HIGH']}, M={severity_metrics['MEDIUM']}, L={severity_metrics['LOW']}")
             
-            # Construct comprehensive dashboard data structure
             dashboard_data = {
-                # Current metrics from filtered data (for cards and pie chart)
                 'metrics': severity_metrics,
                 'total_cves': len(filtered_cves),
                 'severity_percentage': severity_percentages,
-                
-                # Chart data – SEPARATED by purpose for clarity
-                'timeline_data_days': cve_trends,  # Always last 30 days
-                'timeline_data_years': vulnerabilities_timeline,  # Dynamic years
+                'timeline_data_days': cve_trends,
+                'timeline_data_years': vulnerabilities_timeline,
                 'cwe_radar': vendor_risk.get('top_10_cwes', {'indices': [], 'labels': [], 'values': []}),
                 'cwe_radar_all': vendor_risk,
                 'cwe_radar_weighted': weighted_vendor_risk,
                 'cwe_radar_descriptions': self._get_cwe_descriptions(),
-                
-                # Raw data for other pages
                 'latest_cves': filtered_cves,
                 'available_years': list(range(datetime.now().year, 2009, -1)),
                 'available_months': list(range(1, 13)),
-                
-                # Status info for transparency
                 'note_text': note_text
             }
             
@@ -168,7 +139,6 @@ class DataOrchestrator:
             return get_cve_trends_last_30_days()
         except Exception as e:
             print(f"[Orchestrator] Error getting 30-day trends: {e}")
-            # Return empty structure to maintain dashboard functionality
             return {
                 'labels': [],
                 'values': [],
@@ -183,7 +153,6 @@ class DataOrchestrator:
             return get_vulnerabilities_over_time_last_n_years(years)
         except Exception as e:
             print(f"[Orchestrator] Error getting timeline: {e}")
-            # Return empty structure to maintain dashboard functionality
             return {
                 'labels': [],
                 'values': [],
@@ -193,36 +162,23 @@ class DataOrchestrator:
             }
     
     def get_filtered_cves(self, year=None, month=None, day=None) -> List[Dict[str, Any]]:
-        """Get filtered CVE data using dynamic data source selection – ENHANCED DEBUG"""
+        """Get filtered CVE data using dynamic data source selection"""
         print(f"[Orchestrator] Getting filtered CVEs: year={year}, month={month}, day={day}")
         
         cutoff_info, explanation = data_source_config.get_data_source_cutoff()
         
         if not year:
-            # No year filter - use API data for current/recent months
             print(f"[Orchestrator] Using API data for recent data")
             cves = api_client.get_cves_last_30_days()
             print(f"[Orchestrator] API returned {len(cves)} CVEs")
             return cves
         
-        # Determine data source based on dynamic cutoff
         if data_source_config.should_use_historical(year, month):
-            # Use historical data
             print(f"[Orchestrator] Using historical data for {year}-{month or 'all'}")
             try:
                 from services.analysis.trend_analyzer import get_filtered_historical_cves
                 cves = get_filtered_historical_cves(year, month, day)
-                
-                # DEBUG: Check what we actually got
                 print(f"[Orchestrator] Historical data returned {len(cves)} CVEs")
-                if cves:
-                    # Show sample dates to verify filtering
-                    sample_dates = []
-                    for i, cve in enumerate(cves[:5]):  # Check first 5
-                        pub_date = cve.get('Published', 'No date')
-                        sample_dates.append(f"{cve.get('ID', 'Unknown')}: {pub_date}")
-                    print(f"[Orchestrator] Sample CVE dates: {sample_dates}")
-                
                 return cves
             except Exception as e:
                 print(f"[Orchestrator] Error loading historical data: {e}")
@@ -230,24 +186,20 @@ class DataOrchestrator:
                 traceback.print_exc()
                 return []
         else:
-            # Use API data
             print(f"[Orchestrator] Using API data for {year}-{month or 'current'}")
             cves = api_client.get_cves_last_30_days()
             
-            # Apply date filters for API data
             if year or month or day:
                 filtered_cves = []
                 for cve in cves:
                     pub_date = cve.get('Published', '')
                     if pub_date:
                         try:
-                            # Handle different date formats from API
                             if 'T' in pub_date:
                                 dt = datetime.fromisoformat(pub_date.replace('Z', '+00:00'))
                             else:
                                 dt = datetime.strptime(pub_date[:10], '%Y-%m-%d')
                             
-                            # Check filters against parsed date
                             if year and dt.year != year:
                                 continue
                             if month and dt.month != month:
@@ -268,7 +220,6 @@ class DataOrchestrator:
         if not cve_id or not cve_id.startswith("CVE"):
             return self._get_not_found_cve(cve_id)
         
-        # Search in recent API data first for current vulnerabilities
         try:
             recent_cves = api_client.get_cves_last_30_days()
             for cve in recent_cves:
@@ -278,12 +229,10 @@ class DataOrchestrator:
         except:
             pass
         
-        # Search in historical data systematically
         try:
             from services.data.data_processor import historical_loader
             available_files = data_source_config.get_available_historical_files()
             
-            # Search through available historical files
             for year, filepath in available_files.items():
                 year_data = historical_loader.get_year_data(year)
                 for cve in year_data:
@@ -321,7 +270,7 @@ class DataOrchestrator:
             'CWE': None,
             'Published': '',
             'lastModified': '',
-            'References': [f'https://nvd.nist.gov/vuln/detail/{cve_id}'],  # Provide external reference
+            'References': [f'https://nvd.nist.gov/vuln/detail/{cve_id}'],
             'Products': [],
             'CVSS_Score': None,
             'metrics': {}
@@ -330,11 +279,9 @@ class DataOrchestrator:
     def clear_cache(self):
         """Clear all caches for complete data refresh"""
         cache_manager.clear_cache()
-        # Also clear the data source config cache
         data_source_config._cutoff_cache = None
         data_source_config._cache_date = None
         
-        # Remove specific cache files
         cache_file = os.path.join(config.CACHE_DIR, "recent_api_cache.json")
         if os.path.exists(cache_file):
             os.remove(cache_file)

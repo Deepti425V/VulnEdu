@@ -3,8 +3,8 @@ from routes.main_routes import main_bp
 from routes.api_routes import api_bp
 from routes.learn_routes import learn_bp
 from routes.utility_routes import utility_bp
-from services.data.data_source_config import data_source_config
 import config
+import os
 
 def create_app():
     """Application factory pattern"""
@@ -29,17 +29,8 @@ if __name__ == "__main__":
     print(f"[Flask] API Key configured: {'YES' if config.NVD_API_KEY else 'NO'}")
     
     # Create required directories
-    import os
     for directory in [config.CACHE_DIR, config.NVD_DIR, config.NVD_HISTORICAL_DIR, config.NVD_PROCESSED_DIR]:
         os.makedirs(directory, exist_ok=True)
-    
-    # Log data source configuration
-    print("\n=== Data Source Configuration ===")
-    data_source_config.log_data_source_status()
-    print("==================================\n")
-    
-    # REMOVED: Cache warm-up that was blocking startup on Render
-    # Cache will be built on-demand and by UptimeRobot hitting /api/cache-builder
     
     print("[Flask] Ready to serve requests")
     app.run(host='0.0.0.0', port=5000, debug=True)
