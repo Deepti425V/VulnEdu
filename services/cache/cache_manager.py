@@ -167,25 +167,9 @@ class CacheManager:
         return None
 
     def preload_data_async(self):
-        """Preload ONLY current year for fast startup"""
-        print("[Cache] Starting async preload of current year only...")
-        
-        # Preload only current year
-        def load_current_year():
-            from services.data.data_processor import historical_loader
-            from datetime import datetime
-            current_year = datetime.now().year
-            print(f"[Cache] Loading current year: {current_year}")
-            return historical_loader.get_multiple_years_data([current_year])
-        
-        self.start_background_load('current_year_data', load_current_year)
-        
-        # Preload CWE analysis data for dashboard (will use whatever is cached)
-        def load_cwe_analysis():
-            from services.analysis.cwe_processor import get_vendor_risk_analysis
-            return get_vendor_risk_analysis()
-        
-        self.start_background_load('cwe_analysis', load_cwe_analysis)
+        """Minimal preload - no longer used on startup"""
+        print("[Cache] Preload skipped - cache builds on-demand")
+        pass
 
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""
@@ -253,16 +237,12 @@ class CacheManager:
         print("[Cache] All caches cleared")
 
     def warm_up_cache(self):
-        """Warm up cache with ONLY current year for fast startup"""
-        print("[Cache] Warming up cache with current year only...")
-        
-        # Start background preloading of current year
-        self.preload_data_async()
-        
-        # Clean up any expired entries
-        self.clear_expired_cache()
-        
-        print("[Cache] Cache warm-up initiated (current year only)")
+        """Minimal warm-up - cache builds on-demand via /api/cache-builder"""
+        print("[Cache] Cache system initialized (no startup preload)")
+        # Don't load anything on startup - prevents blocking Render deployment
+        # Cache will be built by:
+        # 1. First page load (loads API data only)
+        # 2. UptimeRobot calling /api/cache-builder (gradually loads historical data)
 
 # Global cache instance for application-wide use
 cache_manager = CacheManager()

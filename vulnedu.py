@@ -38,16 +38,8 @@ if __name__ == "__main__":
     data_source_config.log_data_source_status()
     print("==================================\n")
     
-    # Clear cache on startup and warm up
-    try:
-        from services.cache.cache_manager import cache_manager
-        cache_manager.clear_cache()
-        print("[Flask] Cache cleared on startup")
-        
-        # Warm up cache with background loading
-        cache_manager.warm_up_cache()
-        print("[Flask] Cache warm-up initiated")
-    except Exception as e:
-        print(f"[Flask] Error with cache operations: {e}")
+    # REMOVED: Cache warm-up that was blocking startup on Render
+    # Cache will be built on-demand and by UptimeRobot hitting /api/cache-builder
     
+    print("[Flask] Ready to serve requests")
     app.run(host='0.0.0.0', port=5000, debug=True)
