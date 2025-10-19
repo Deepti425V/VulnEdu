@@ -3,18 +3,6 @@ from datetime import datetime, timezone
 
 learn_bp = Blueprint('learn', __name__)
 
-# Static CWE titles for educational content
-CWE_TITLES = {
-    "CWE-79": "Cross-Site Scripting",
-    "CWE-89": "SQL Injection",
-    "CWE-20": "Improper Input Validation",
-    "CWE-22": "Path Traversal",
-    "CWE-119": "Buffer Overflow",
-    "CWE-200": "Information Exposure",
-    "CWE-287": "Improper Authentication",
-    "CWE-78": "OS Command Injection"
-}
-
 @learn_bp.route("/")
 def learn():
     """Redirect to main learn topic"""
@@ -23,9 +11,17 @@ def learn():
 @learn_bp.route("/<topic>")
 def learn_topic(topic):
     """Learn topic pages"""
-    # LAZY IMPORT - only when route is called
-    from services.data.api_client import api_client
-    from services.analysis.cwe_processor import cwe_processor, get_vendor_risk_analysis
+    
+    CWE_TITLES = {
+        "CWE-79": "Cross-Site Scripting",
+        "CWE-89": "SQL Injection",
+        "CWE-20": "Improper Input Validation",
+        "CWE-22": "Path Traversal",
+        "CWE-119": "Buffer Overflow",
+        "CWE-200": "Information Exposure",
+        "CWE-287": "Improper Authentication",
+        "CWE-78": "OS Command Injection"
+    }
     
     valid_topics = [
         'what-is-cwe', 'what-is-cve', 'cvss-scores',
@@ -36,6 +32,9 @@ def learn_topic(topic):
         return redirect(url_for('learn.learn_topic', topic='what-is-cve'))
     
     try:
+        from services.data.api_client import api_client
+        from services.analysis.cwe_processor import cwe_processor, get_vendor_risk_analysis
+        
         latest_cves = api_client.get_cves_last_30_days()[:25]
         
         cwe_dict = {}
