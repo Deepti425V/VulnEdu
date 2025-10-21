@@ -4,8 +4,10 @@ from typing import Dict, List, Any
 from datetime import datetime, timezone, timedelta
 # Dictionary with automatic default value initialization for counting
 from collections import defaultdict
+
 # API client service for recent vulnerability data
 from services.data.api_client import api_client
+
 
 def get_cve_trends_last_30_days() -> Dict[str, Any]:
     """Get CVE trends for last 30 days – API ONLY"""
@@ -26,6 +28,7 @@ def get_cve_trends_last_30_days() -> Dict[str, Any]:
     # Process each CVE to count by publication date
     for cve in cves:
         pub_date = cve.get('Published', '')
+        
         if pub_date:
             try:
                 # Handle different date formats from API
@@ -46,6 +49,7 @@ def get_cve_trends_last_30_days() -> Dict[str, Any]:
     
     # Build chart-ready data structure with chronological ordering
     sorted_dates = sorted(daily_counts.keys())
+    
     result = {
         'labels': sorted_dates,  # X-axis labels for chart
         'values': [daily_counts[date] for date in sorted_dates],  # Y-axis values
@@ -59,8 +63,9 @@ def get_cve_trends_last_30_days() -> Dict[str, Any]:
     print(f"[CVE Trends] Generated trends: {result['total_cves']} CVEs over {len(sorted_dates)} days")
     return result
 
+
 def get_vulnerabilities_over_time_last_n_years(years=1) -> Dict[str, Any]:
-    """Get vulnerability timeline for last N years – HISTORICAL DATA ONLY"""
+    """Get vulnerability timeline for last N years – LAZY LOADING"""
     print(f"[Vulnerabilities Over Time] Loading last {years} years historical data...")
     
     # Lazy import to avoid circular dependencies
@@ -72,21 +77,20 @@ def get_vulnerabilities_over_time_last_n_years(years=1) -> Dict[str, Any]:
     
     print(f"[Vulnerabilities Over Time] Loading years: {years_to_load}")
     
-    # Load only requested years
-    historical_data = historical_loader.get_multiple_years_data(years_to_load)
-    
     # Initialize monthly counting structure
     monthly_counts = defaultdict(int)
     total_cves = 0
     
-    # Process each year of historical data
-    for year_str, year_cves in historical_data.items():
-        print(f"[Vulnerabilities Over Time] Processing {year_str}: {len(year_cves)} CVEs")
+    # Process each year of historical data - ONE AT A TIME
+    for year in years_to_load:
+        year_cves = historical_loader.get_year_data(year)  # Lazy load
+        print(f"[Vulnerabilities Over Time] Processing {year}: {len(year_cves)} CVEs")
         total_cves += len(year_cves)
         
         # Process each CVE in the year
         for cve in year_cves:
             pub_date = cve.get('Published', '')
+            
             if pub_date:
                 try:
                     # Handle different date formats from historical sources
@@ -100,12 +104,14 @@ def get_vulnerabilities_over_time_last_n_years(years=1) -> Dict[str, Any]:
                     # Group by year-month for appropriate granularity
                     month_key = dt.strftime('%Y-%m')
                     monthly_counts[month_key] += 1
+                
                 except Exception as e:
                     print(f"[Vulnerabilities Over Time] Error parsing date {pub_date}: {e}")
                     continue
     
     # Sort chronologically and build chart-ready structure
     sorted_months = sorted(monthly_counts.items())
+    
     result = {
         'labels': [item[0] for item in sorted_months],  # Month labels
         'values': [item[1] for item in sorted_months],  # CVE counts per month
@@ -117,8 +123,9 @@ def get_vulnerabilities_over_time_last_n_years(years=1) -> Dict[str, Any]:
     print(f"[Vulnerabilities Over Time] Generated timeline: {result['total_cves']} CVEs across {result['months_covered']} months")
     return result
 
+
 def get_filtered_historical_cves(year: int = None, month: int = None, day: int = None) -> List[Dict[str, Any]]:
-    """Get filtered CVEs from historical data – FIXED FILTERING LOGIC"""
+    """Get filtered CVEs from historical data – LAZY LOADING"""
     print(f"[Historical Filter] Getting filtered data for year={year}, month={month}, day={day}")
     
     # Year is required for historical filtering
@@ -129,7 +136,7 @@ def get_filtered_historical_cves(year: int = None, month: int = None, day: int =
     # Lazy import to avoid circular dependencies
     from services.data.data_processor import historical_loader
     
-    # Load specific year data for efficient filtering
+    # Load specific year data for efficient filtering - LAZY LOAD
     year_cves = historical_loader.get_year_data(year)
     print(f"[Historical Filter] Loaded {len(year_cves)} CVEs for year {year}")
     
@@ -140,8 +147,10 @@ def get_filtered_historical_cves(year: int = None, month: int = None, day: int =
     
     # Apply hierarchical filtering: year → month → day
     filtered_cves = []
+    
     for cve in year_cves:
         pub_date = cve.get('Published', '')
+        
         if pub_date:
             try:
                 # Handle different date formats consistently
@@ -158,6 +167,7 @@ def get_filtered_historical_cves(year: int = None, month: int = None, day: int =
                     if day is None or dt.day == day:
                         filtered_cves.append(cve)
                         print(f"[Historical Filter] Match: CVE {cve.get('ID', 'Unknown')} from {dt.strftime('%Y-%m-%d')}")
+            
             except Exception as e:
                 print(f"[Historical Filter] Error parsing date {pub_date}: {e}")
                 continue

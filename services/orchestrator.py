@@ -6,6 +6,7 @@ import json
 from typing import Dict, List, Any
 # Date and time operations for temporal filtering and processing
 from datetime import datetime, timezone, timedelta
+
 # Trend analysis service for temporal vulnerability patterns
 from services.analysis.trend_analyzer import get_cve_trends_last_30_days
 # Severity analysis service for vulnerability classification metrics
@@ -20,6 +21,7 @@ from services.cache.cache_manager import cache_manager
 from services.data.data_source_config import data_source_config
 # Application configuration for system settings
 import config
+
 
 class DataOrchestrator:
     """Clean orchestrator using separate visualization modules with caching and dynamic data sources"""
@@ -81,7 +83,7 @@ class DataOrchestrator:
             else:
                 severity_percentages = {k: "0%" for k in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']}
             
-            # 5. Vendor Risk Analysis - use full historical data (unchanged)
+            # 5. Vendor Risk Analysis - use full historical data (LAZY LOADED)
             try:
                 vendor_risk = get_vendor_risk_analysis()
                 weighted_vendor_risk = get_weighted_cwe_analysis()
@@ -98,7 +100,6 @@ class DataOrchestrator:
                     'years_analyzed': []
                 }
                 weighted_vendor_risk = {'indices': [], 'labels': [], 'values': []}
-            
             # Generate proper note text with data source info for transparency
             cutoff_info, explanation = data_source_config.get_data_source_cutoff()
             if year and month and day:
