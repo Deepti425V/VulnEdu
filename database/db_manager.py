@@ -47,7 +47,29 @@ class DatabaseManager:
         try:
             cursor = self.conn.cursor()
             
-            # CVE table - FIXED: changed "references" to "reference_links"
+            # SMART FIX: Check if old broken table exists and drop only if needed
+            print("[Database] Checking for old broken tables...")
+            try:
+                cursor.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'cves' AND column_name = 'references'
+                """)
+                
+                if cursor.fetchone():
+                    # Old broken table exists! Drop it
+                    print("[Database] Found old broken tables with 'references' column, dropping them...")
+                    cursor.execute("DROP TABLE IF EXISTS cves CASCADE")
+                    cursor.execute("DROP TABLE IF EXISTS cache_metadata CASCADE")
+                    self.conn.commit()
+                    print("[Database] Old tables dropped successfully")
+                else:
+                    print("[Database] No broken tables found, proceeding normally")
+            except Exception as check_error:
+                print(f"[Database] Error checking for old tables (continuing anyway): {check_error}")
+                self.conn.rollback()
+            
+            # CVE table - FIXED: using reference_links instead of references
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS cves (
                     id VARCHAR(50) PRIMARY KEY,
