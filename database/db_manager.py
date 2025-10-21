@@ -1,75 +1,70 @@
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor, execute_batch
+from psycopg2 import pool
 from typing import List, Dict, Any, Optional
 import json
 from datetime import datetime
 
-
 class DatabaseManager:
-    """Manages PostgreSQL database connections and operations"""
+    """Manages PostgreSQL database connections with connection pooling"""
     
     def __init__(self):
-        # Get database URL from environment variable (Render provides this automatically)
+        # Get database URL from environment variable
         self.database_url = os.environ.get('DATABASE_URL')
-        self.conn = None
+        self.connection_pool = None
         self.use_database = bool(self.database_url)
         
         if self.use_database:
             print("[Database] Database URL found, database mode ENABLED")
-            self.connect()
+            self.init_connection_pool()
             self.init_tables()
         else:
             print("[Database] No DATABASE_URL found, database mode DISABLED (using memory)")
     
-    def connect(self):
-        """Establish database connection"""
+    def init_connection_pool(self):
+        """Initialize connection pool"""
         if not self.database_url:
             return False
         
         try:
-            # Render's DATABASE_URL starts with postgres://, but psycopg2 needs postgresql://
+            # Fix URL format
             database_url = self.database_url.replace('postgres://', 'postgresql://', 1)
-            self.conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
-            self.conn.autocommit = False  # Use transactions
-            print("[Database] Successfully connected to PostgreSQL")
+            
+            # Create connection pool with limited connections
+            self.connection_pool = pool.SimpleConnectionPool(
+                1,  # Min connections
+                3,  # Max connections (reduced for memory)
+                database_url
+            )
+            print("[Database] Connection pool initialized (1-3 connections)")
             return True
         except Exception as e:
-            print(f"[Database] Connection error: {e}")
+            print(f"[Database] Connection pool error: {e}")
             self.use_database = False
             return False
     
+    def get_connection(self):
+        """Get connection from pool"""
+        if self.connection_pool:
+            return self.connection_pool.getconn()
+        return None
+    
+    def return_connection(self, conn):
+        """Return connection to pool"""
+        if self.connection_pool and conn:
+            self.connection_pool.putconn(conn)
+    
     def init_tables(self):
         """Initialize database tables if they don't exist"""
-        if not self.conn:
+        conn = self.get_connection()
+        if not conn:
             return
         
         try:
-            cursor = self.conn.cursor()
+            cursor = conn.cursor()
             
-            # SMART FIX: Check if old broken table exists and drop only if needed
-            print("[Database] Checking for old broken tables...")
-            try:
-                cursor.execute("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name = 'cves' AND column_name = 'references'
-                """)
-                
-                if cursor.fetchone():
-                    # Old broken table exists! Drop it
-                    print("[Database] Found old broken tables with 'references' column, dropping them...")
-                    cursor.execute("DROP TABLE IF EXISTS cves CASCADE")
-                    cursor.execute("DROP TABLE IF EXISTS cache_metadata CASCADE")
-                    self.conn.commit()
-                    print("[Database] Old tables dropped successfully")
-                else:
-                    print("[Database] No broken tables found, proceeding normally")
-            except Exception as check_error:
-                print(f"[Database] Error checking for old tables (continuing anyway): {check_error}")
-                self.conn.rollback()
-            
-            # CVE table - FIXED: using reference_links instead of references
+            # CVE table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS cves (
                     id VARCHAR(50) PRIMARY KEY,
@@ -87,18 +82,10 @@ class DatabaseManager:
                 )
             """)
             
-            # Create indexes for faster queries
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_cves_severity ON cves(severity)
-            """)
-            
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_cves_published ON cves(published)
-            """)
-            
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_cves_cwe ON cves(cwe)
-            """)
+            # Create indexes
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_cves_severity ON cves(severity)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_cves_published ON cves(published)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_cves_cwe ON cves(cwe)")
             
             # Cache metadata table
             cursor.execute("""
@@ -110,22 +97,28 @@ class DatabaseManager:
                 )
             """)
             
-            self.conn.commit()
+            conn.commit()
             print("[Database] Tables initialized successfully")
-            
         except Exception as e:
             print(f"[Database] Error initializing tables: {e}")
-            self.conn.rollback()
+            conn.rollback()
+        finally:
+            cursor.close()
+            self.return_connection(conn)
     
     def save_cves_batch(self, cves: List[Dict[str, Any]]) -> bool:
         """Save multiple CVEs to database"""
-        if not self.conn or not cves:
+        if not self.use_database or not cves:
+            return False
+        
+        conn = self.get_connection()
+        if not conn:
             return False
         
         try:
-            cursor = self.conn.cursor()
+            cursor = conn.cursor()
             
-            # Prepare data for batch insert - FIXED: using reference_links instead of references
+            # Prepare data for batch insert
             values = []
             for cve in cves:
                 values.append((
@@ -143,7 +136,7 @@ class DatabaseManager:
             
             # Use ON CONFLICT to update existing records
             execute_batch(cursor, """
-                INSERT INTO cves (id, description, severity, cvss_score, cwe, 
+                INSERT INTO cves (id, description, severity, cvss_score, cwe,
                                 published, last_modified, reference_links, products, metrics)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (id) DO UPDATE SET
@@ -159,29 +152,34 @@ class DatabaseManager:
                     updated_at = CURRENT_TIMESTAMP
             """, values)
             
-            self.conn.commit()
+            conn.commit()
             print(f"[Database] Saved {len(cves)} CVEs to database")
             return True
-            
         except Exception as e:
             print(f"[Database] Error saving CVEs: {e}")
-            self.conn.rollback()
+            conn.rollback()
             return False
+        finally:
+            cursor.close()
+            self.return_connection(conn)
     
     def get_all_cves(self) -> List[Dict[str, Any]]:
         """Get all CVEs from database"""
-        if not self.conn:
+        if not self.use_database:
+            return []
+        
+        conn = self.get_connection()
+        if not conn:
             return []
         
         try:
-            cursor = self.conn.cursor()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             cursor.execute("""
                 SELECT id, description, severity, cvss_score, cwe,
                        published, last_modified, reference_links, products, metrics
                 FROM cves
                 ORDER BY published DESC
             """)
-            
             rows = cursor.fetchall()
             
             # Convert to list of dicts
@@ -202,92 +200,24 @@ class DatabaseManager:
                 cves.append(cve)
             
             return cves
-            
         except Exception as e:
             print(f"[Database] Error fetching CVEs: {e}")
             return []
-    
-    def get_cve_by_id(self, cve_id: str) -> Optional[Dict[str, Any]]:
-        """Get a specific CVE by ID"""
-        if not self.conn:
-            return None
-        
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute("""
-                SELECT id, description, severity, cvss_score, cwe,
-                       published, last_modified, reference_links, products, metrics
-                FROM cves
-                WHERE id = %s
-            """, (cve_id,))
-            
-            row = cursor.fetchone()
-            if not row:
-                return None
-            
-            return {
-                'ID': row['id'],
-                'Description': row['description'],
-                'Severity': row['severity'],
-                'CVSS_Score': row['cvss_score'],
-                'CWE': row['cwe'],
-                'Published': row['published'],
-                'lastModified': row['last_modified'],
-                'References': row['reference_links'] if isinstance(row['reference_links'], list) else [],
-                'Products': row['products'] if isinstance(row['products'], list) else [],
-                'metrics': row['metrics'] if isinstance(row['metrics'], dict) else {}
-            }
-            
-        except Exception as e:
-            print(f"[Database] Error fetching CVE {cve_id}: {e}")
-            return None
-    
-    def get_recent_cves(self, days: int = 30) -> List[Dict[str, Any]]:
-        """Get CVEs from the last N days"""
-        if not self.conn:
-            return []
-        
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute("""
-                SELECT id, description, severity, cvss_score, cwe,
-                       published, last_modified, reference_links, products, metrics
-                FROM cves
-                WHERE published >= TO_CHAR(CURRENT_DATE - INTERVAL '%s days', 'YYYY-MM-DD')
-                ORDER BY published DESC
-            """, (days,))
-            
-            rows = cursor.fetchall()
-            
-            cves = []
-            for row in rows:
-                cve = {
-                    'ID': row['id'],
-                    'Description': row['description'],
-                    'Severity': row['severity'],
-                    'CVSS_Score': row['cvss_score'],
-                    'CWE': row['cwe'],
-                    'Published': row['published'],
-                    'lastModified': row['last_modified'],
-                    'References': row['reference_links'] if isinstance(row['reference_links'], list) else [],
-                    'Products': row['products'] if isinstance(row['products'], list) else [],
-                    'metrics': row['metrics'] if isinstance(row['metrics'], dict) else {}
-                }
-                cves.append(cve)
-            
-            return cves
-            
-        except Exception as e:
-            print(f"[Database] Error fetching recent CVEs: {e}")
-            return []
+        finally:
+            cursor.close()
+            self.return_connection(conn)
     
     def update_cache_metadata(self, key: str, total_records: int, metadata: Dict = None):
         """Update cache metadata"""
-        if not self.conn:
+        if not self.use_database:
+            return
+        
+        conn = self.get_connection()
+        if not conn:
             return
         
         try:
-            cursor = self.conn.cursor()
+            cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO cache_metadata (key, last_updated, total_records, metadata)
                 VALUES (%s, CURRENT_TIMESTAMP, %s, %s)
@@ -296,27 +226,32 @@ class DatabaseManager:
                     total_records = EXCLUDED.total_records,
                     metadata = EXCLUDED.metadata
             """, (key, total_records, json.dumps(metadata or {})))
-            
-            self.conn.commit()
-            
+            conn.commit()
         except Exception as e:
             print(f"[Database] Error updating metadata: {e}")
-            self.conn.rollback()
+            conn.rollback()
+        finally:
+            cursor.close()
+            self.return_connection(conn)
     
     def get_cache_metadata(self, key: str) -> Optional[Dict]:
         """Get cache metadata"""
-        if not self.conn:
+        if not self.use_database:
+            return None
+        
+        conn = self.get_connection()
+        if not conn:
             return None
         
         try:
-            cursor = self.conn.cursor()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             cursor.execute("""
                 SELECT last_updated, total_records, metadata
                 FROM cache_metadata
                 WHERE key = %s
             """, (key,))
-            
             row = cursor.fetchone()
+            
             if row:
                 return {
                     'last_updated': row['last_updated'],
@@ -324,56 +259,36 @@ class DatabaseManager:
                     'metadata': row['metadata']
                 }
             return None
-            
         except Exception as e:
             print(f"[Database] Error fetching metadata: {e}")
             return None
+        finally:
+            cursor.close()
+            self.return_connection(conn)
     
     def clear_all_cves(self):
         """Clear all CVE data (for refresh)"""
-        if not self.conn:
+        if not self.use_database:
+            return
+        
+        conn = self.get_connection()
+        if not conn:
             return
         
         try:
-            cursor = self.conn.cursor()
+            cursor = conn.cursor()
             cursor.execute("DELETE FROM cves")
-            self.conn.commit()
+            conn.commit()
             print("[Database] Cleared all CVEs from database")
-            
         except Exception as e:
             print(f"[Database] Error clearing CVEs: {e}")
-            self.conn.rollback()
-    
-    def get_stats(self) -> Dict[str, Any]:
-        """Get database statistics"""
-        if not self.conn:
-            return {'enabled': False}
-        
-        try:
-            cursor = self.conn.cursor()
-            
-            cursor.execute("SELECT COUNT(*) as total FROM cves")
-            total = cursor.fetchone()['total']
-            
-            cursor.execute("""
-                SELECT severity, COUNT(*) as count
-                FROM cves
-                GROUP BY severity
-            """)
-            severity_counts = {row['severity']: row['count'] for row in cursor.fetchall()}
-            
-            return {
-                'enabled': True,
-                'total_cves': total,
-                'severity_counts': severity_counts
-            }
-            
-        except Exception as e:
-            print(f"[Database] Error getting stats: {e}")
-            return {'enabled': True, 'error': str(e)}
+            conn.rollback()
+        finally:
+            cursor.close()
+            self.return_connection(conn)
     
     def close(self):
-        """Close database connection"""
-        if self.conn:
-            self.conn.close()
-            print("[Database] Connection closed")
+        """Close all connections in pool"""
+        if self.connection_pool:
+            self.connection_pool.closeall()
+            print("[Database] Connection pool closed")
