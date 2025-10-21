@@ -47,7 +47,7 @@ class DatabaseManager:
         try:
             cursor = self.conn.cursor()
             
-            # CVE table
+            # CVE table - FIXED: changed "references" to "reference_links"
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS cves (
                     id VARCHAR(50) PRIMARY KEY,
@@ -57,7 +57,7 @@ class DatabaseManager:
                     cwe VARCHAR(50),
                     published VARCHAR(50),
                     last_modified VARCHAR(50),
-                    references JSONB,
+                    reference_links JSONB,
                     products JSONB,
                     metrics JSONB,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -103,7 +103,7 @@ class DatabaseManager:
         try:
             cursor = self.conn.cursor()
             
-            # Prepare data for batch insert
+            # Prepare data for batch insert - FIXED: using reference_links instead of references
             values = []
             for cve in cves:
                 values.append((
@@ -122,7 +122,7 @@ class DatabaseManager:
             # Use ON CONFLICT to update existing records
             execute_batch(cursor, """
                 INSERT INTO cves (id, description, severity, cvss_score, cwe, 
-                                published, last_modified, references, products, metrics)
+                                published, last_modified, reference_links, products, metrics)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (id) DO UPDATE SET
                     description = EXCLUDED.description,
@@ -131,7 +131,7 @@ class DatabaseManager:
                     cwe = EXCLUDED.cwe,
                     published = EXCLUDED.published,
                     last_modified = EXCLUDED.last_modified,
-                    references = EXCLUDED.references,
+                    reference_links = EXCLUDED.reference_links,
                     products = EXCLUDED.products,
                     metrics = EXCLUDED.metrics,
                     updated_at = CURRENT_TIMESTAMP
@@ -155,14 +155,14 @@ class DatabaseManager:
             cursor = self.conn.cursor()
             cursor.execute("""
                 SELECT id, description, severity, cvss_score, cwe,
-                       published, last_modified, references, products, metrics
+                       published, last_modified, reference_links, products, metrics
                 FROM cves
                 ORDER BY published DESC
             """)
             
             rows = cursor.fetchall()
             
-            # Convert to list of dicts (RealDictCursor already gives us dicts)
+            # Convert to list of dicts
             cves = []
             for row in rows:
                 cve = {
@@ -173,7 +173,7 @@ class DatabaseManager:
                     'CWE': row['cwe'],
                     'Published': row['published'],
                     'lastModified': row['last_modified'],
-                    'References': row['references'] if isinstance(row['references'], list) else [],
+                    'References': row['reference_links'] if isinstance(row['reference_links'], list) else [],
                     'Products': row['products'] if isinstance(row['products'], list) else [],
                     'metrics': row['metrics'] if isinstance(row['metrics'], dict) else {}
                 }
@@ -194,7 +194,7 @@ class DatabaseManager:
             cursor = self.conn.cursor()
             cursor.execute("""
                 SELECT id, description, severity, cvss_score, cwe,
-                       published, last_modified, references, products, metrics
+                       published, last_modified, reference_links, products, metrics
                 FROM cves
                 WHERE id = %s
             """, (cve_id,))
@@ -211,7 +211,7 @@ class DatabaseManager:
                 'CWE': row['cwe'],
                 'Published': row['published'],
                 'lastModified': row['last_modified'],
-                'References': row['references'] if isinstance(row['references'], list) else [],
+                'References': row['reference_links'] if isinstance(row['reference_links'], list) else [],
                 'Products': row['products'] if isinstance(row['products'], list) else [],
                 'metrics': row['metrics'] if isinstance(row['metrics'], dict) else {}
             }
@@ -229,7 +229,7 @@ class DatabaseManager:
             cursor = self.conn.cursor()
             cursor.execute("""
                 SELECT id, description, severity, cvss_score, cwe,
-                       published, last_modified, references, products, metrics
+                       published, last_modified, reference_links, products, metrics
                 FROM cves
                 WHERE published >= TO_CHAR(CURRENT_DATE - INTERVAL '%s days', 'YYYY-MM-DD')
                 ORDER BY published DESC
@@ -247,7 +247,7 @@ class DatabaseManager:
                     'CWE': row['cwe'],
                     'Published': row['published'],
                     'lastModified': row['last_modified'],
-                    'References': row['references'] if isinstance(row['references'], list) else [],
+                    'References': row['reference_links'] if isinstance(row['reference_links'], list) else [],
                     'Products': row['products'] if isinstance(row['products'], list) else [],
                     'metrics': row['metrics'] if isinstance(row['metrics'], dict) else {}
                 }
