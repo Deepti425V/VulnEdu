@@ -27,10 +27,9 @@ CWE_XML_PATH = os.path.join(DATA_DIR, 'CWE_Catalog.xml')
 # NVD Data Feeds
 NVD_FEEDS_BASE_URL = "https://nvd.nist.gov/feeds/json/cve/1.1"
 
-# Historical years configuration - ALWAYS FETCH FROM GITHUB
-# Start with last 3 years for memory efficiency
+# CRITICAL: DO NOT LOAD ANY HISTORICAL DATA ON STARTUP
 current_year = 2025
-HISTORICAL_YEARS = [current_year - 2, current_year - 1, current_year]  # 2023, 2024, 2025
+HISTORICAL_YEARS = []  # EMPTY - NO AUTO LOAD
 
 # Cache Configuration
 CACHE_DURATION = timedelta(minutes=30)
@@ -38,9 +37,12 @@ MAX_CACHE_ENTRIES = 100
 
 # Data Loading Strategy
 RECENT_DAYS_THRESHOLD = 30
-USE_LOCAL_FEEDS = False  # Changed to False - always use GitHub
+USE_LOCAL_FEEDS = False
 AUTO_UPDATE_FEEDS = False
-USE_GITHUB_DATA = True  # Enable GitHub data fetching
+USE_GITHUB_DATA = True
+
+# MEMORY SAFETY: Maximum file size to download (50MB compressed)
+MAX_GITHUB_FILE_SIZE = 50 * 1024 * 1024
 
 # API Rate Limiting
 API_REQUESTS_PER_30_SECONDS = 50
