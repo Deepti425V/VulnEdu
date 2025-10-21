@@ -25,13 +25,17 @@ def index():
         
         print(f"[Flask] Filters: year={year}, month={month}, day={day}, severity={severity_filter}, search={search_query}, timeline_years={timeline_years}")
         
+        # Only load historical if timeline_years > 0 AND user explicitly changed the dropdown
+        # This prevents memory issues on initial page load
+        load_historical = (timeline_years > 0 and request.args.get('timeline_years') is not None)
+        
         dashboard_data = data_orchestrator.get_dashboard_data(
             year=year,
             month=month,
             day=day,
             severity_filter=severity_filter,
             timeline_years=timeline_years,
-            load_historical=True
+            load_historical=load_historical
         )
         
         if search_query:
