@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+<!-- Head block injection for dashboard-specific styling -->
+{% block head %}
+<style>
+/* Dashboard-specific styles embedded in template for co-location and performance */
+
+/* Main dashboard grid container - vertical organization with consistent spacing */
+.dashboard-grid {
+    display: grid;
+    gap: 25px;
+    margin-bottom: 25px;
+}
+
+/* Top dashboard row - horizontal flex layout for metrics and quick stats */
+.dashboard-row-1 {
+    display: flex;
+    gap: 25px;
+}
+
+/* Main dashboard row - horizontal flex with stretch alignment for equal heights */
+.dashboard-row-2 {
+    display: flex;
+    gap: 25px;
+    align-items: stretch;
+}
+
+/* Trend visualization blocks - compact containers for sparklines and metrics */
+.trend-sevi-blocks {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: #1a2236;
+    border-radius: 18px;
+    padding: 20px;
+    width: 380px;
+    height: 110px;
+}
+
+/* Severity cards grid - 4-column layout for vulnerability severity display */
+.severity-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    flex: 1;
+    align-items: stretch;
+}
+
+/* Individual severity card styling - interactive cards with hover effects */
+.severity-card {
+    background: #1a2236;
+    cursor: pointer;
+    border-radius: 18px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: box-shadow 0.2s;
+}
+
+/* Responsive breakpoint for tablets and smaller laptops */
+@media (max-width: 1200px) {
+    /* Convert horizontal dashboard rows to vertical stacking */
+    .dashboard-row-1,
+    .dashboard-row-2 {
+        flex-direction: column;
+    }
+    
+    /* Reduce severity cards from 4 to 2 columns for better mobile readability */
+    .severity-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+{% endblock %}
+
+<!-- Content block placeholder - child templates inject dashboard components here -->
+{% block content %}
+{% endblock %}

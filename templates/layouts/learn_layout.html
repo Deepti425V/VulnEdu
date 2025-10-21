@@ -1,0 +1,105 @@
+<!-- Learning module template extending base site template for consistent navigation -->
+{% extends "base.html" %}
+
+<!-- Head block injection for learning platform-specific styling -->
+{% block head %}
+<style>
+/* Learning platform-specific styles embedded for co-location and performance */
+
+/* Main learning container - centered with maximum width constraint */
+.learn-container {
+    max-width: 1400px;
+    margin: 0 auto 32px auto;
+    padding-top: 20px;
+}
+
+/* Two-column CSS Grid layout for sidebar navigation and main content */
+.learn-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 36px;
+}
+
+/* Left sidebar container for CWE navigation and controls */
+.learn-sidebar {
+    background: #1a2236;
+    border-radius: 14px;
+    padding: 18px 0 18px 0;
+    height: fit-content;
+}
+
+/* Main content area for educational materials and documentation */
+.learn-content {
+    background: #1a2236;
+    border-radius: 14px;
+    padding: 28px 26px;
+    min-height: 390px;
+}
+
+/* Scrollable container for CWE list with maximum height constraint */
+.cwe-list-scroll {
+    max-height: 550px;
+    overflow-y: auto;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+/* Individual CWE list item styling with interactive states */
+.cwe-list-item {
+    padding: 8px 24px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #e3e7f2;
+    user-select: none;
+    border-left: 4px solid transparent;
+    transition: background 0.13s, border-left 0.13s, color 0.13s;
+}
+
+/* Hover state for CWE list items - provides immediate visual feedback */
+.cwe-list-item:hover {
+    background: #212d46;
+    color: #ffffff;
+}
+
+/* Selected state for CWE list items - blue accent border and text */
+.cwe-list-item.selected {
+    background: #212d46;
+    border-left: 4px solid #63a4ff;
+    color: #63a4ff;
+}
+
+/* Toggle button styling with micro-interaction effects */
+.toggle-button {
+    margin: 16px 0 0 24px;
+    background: #263159;
+    color: #63a4ff;
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.97em;
+    transition: background 0.2s, transform 0.1s;
+}
+
+/* Toggle button hover state with subtle lift effect */
+.toggle-button:hover {
+    background: #2d3d6b;
+    transform: translateY(-1px);
+}
+
+/* Responsive breakpoint for tablets and mobile devices */
+@media (max-width: 1024px) {
+    /* Convert two-column grid to single-column stacking layout */
+    .learn-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+}
+</style>
+{% endblock %}
+
+<!-- Content block placeholder - child templates inject learning content here -->
+{% block content %}
+{% endblock %}

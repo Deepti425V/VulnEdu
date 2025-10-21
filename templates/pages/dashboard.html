@@ -1,0 +1,75 @@
+{% extends "layouts/dashboard_layout.html" %}
+
+{% block content %}
+<div style="display: flex; flex-direction: column; gap: 36px">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <h1 style="margin:0;color:#F5E8D8;letter-spacing:1px;font-size:1.8rem;">
+                Educational CVE Analysis Tool
+            </h1>
+            <div style="color:#a9adc1;margin-top:4px;font-size:1.07rem;">
+                Dashboard & Analytics
+            </div>
+        </div>
+        {% include 'components/filters/search_filters.html' %}
+    </div>
+
+    {% if note_text %}
+    <div style="font-size: 0.85em; color: #a9adc1; margin-bottom: 12px; font-style: italic;">
+        {{ note_text }}
+    </div>
+    {% endif %}
+
+    <div class="dashboard-row-1">
+        <div class="trend-sevi-blocks">
+            <div style="font-weight:700; color:#F5E8D8; margin-bottom:8px; font-size: 1.02rem; letter-spacing:0.15px; text-align:left;">
+                CVE Trends (Last 30 days)
+            </div>
+            <canvas id="dailyTrendChart" height="70"></canvas>
+        </div>
+        {% include 'components/severity_cards.html' %}
+    </div>
+
+    <div class="dashboard-row-2">
+        {% include 'components/charts/pie_chart.html' %}
+        <section style="background:#1a2236; border-radius:14px; padding:30px 30px 10px 30px; flex:2; display: flex; flex-direction:column; min-width: 350px; min-height:250px; height: 300px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div style="font-weight:700; color:#F5E8D8; font-size: 1.02rem; letter-spacing:0.15px;">
+                    Vulnerabilities Over Time
+                </div>
+                <select id="timelineYearsFilter" style="background:#263159; color:#63a4ff; padding:6px 12px; border-radius:6px; border:none; cursor:pointer;">
+                    <option value="1" {% if timeline_years == 1 %}selected{% endif %}>Last 1 Year</option>
+                    <option value="2" {% if timeline_years == 2 %}selected{% endif %}>Last 2 Years</option>
+                    <option value="3" {% if timeline_years == 3 %}selected{% endif %}>Last 3 Years</option>
+                    <option value="5" {% if timeline_years == 5 %}selected{% endif %}>Last 5 Years</option>
+                </select>
+            </div>
+            <div style="position: relative; height:250px;">
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </section>
+    </div>
+
+    <div style="display: flex; gap: 25px; align-items: stretch;">
+        {% include 'components/charts/radar_chart.html' %}
+    </div>
+
+    <script>
+        window.timelineData = {{ timeline_data_years | tojson }};
+        window.timelineDataDaily = {{ timeline_data_days | tojson }};
+        window.severityStats = {{ severity_stats | tojson }};
+        window.cweRadar = {{ cwe_radar | tojson }};
+        window.cweRadarAll = {{ cwe_radar_all | tojson }};
+        window.cweRadarWeighted = {{ cwe_radar_weighted | tojson }};
+        window.cweRadarDescriptions = {{ cwe_radar_descriptions | tojson }};
+        {% if cwe_radar_all and cwe_radar_all.cwe_30_day_counts %}
+        window.cwe30DayCounts = {{ cwe_radar_all.cwe_30_day_counts | tojson }};
+        {% else %}
+        window.cwe30DayCounts = {};
+        {% endif %}
+        window.cweMitigations = {};
+        window.currentTimelineYears = {{ timeline_years }};
+    </script>
+    <script src="{{ url_for('static', filename='js/pages/dashboard.js') }}"></script>
+</div>
+{% endblock %}
