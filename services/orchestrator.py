@@ -94,24 +94,20 @@ class DataOrchestrator:
                 severity_percentages = {k: "0%" for k in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']}
             
             # 5. Vendor Risk Analysis - ONLY if explicitly requested OR use cache
-            if load_historical:
-                print("[Orchestrator] Loading vendor risk analysis (HISTORICAL DATA)")
+            if self._vendor_risk_cache:
+                print("[Orchestrator] Using cached vendor risk analysis")
+                vendor_risk, weighted_vendor_risk = self._vendor_risk_cache
+            else:
+                print("[Orchestrator] Loading vendor risk analysis (FIRST TIME)")
                 try:
                     vendor_risk = get_vendor_risk_analysis()
                     weighted_vendor_risk = get_weighted_cwe_analysis()
-                    # Cache the result
+                    # Cache the result for future requests
                     self._vendor_risk_cache = (vendor_risk, weighted_vendor_risk)
                 except Exception as e:
                     print(f"[Orchestrator] Error loading vendor risk analysis: {e}")
                     vendor_risk = self._get_empty_vendor_risk()
                     weighted_vendor_risk = {'indices': [], 'labels': [], 'values': []}
-            elif self._vendor_risk_cache:
-                print("[Orchestrator] Using cached vendor risk analysis")
-                vendor_risk, weighted_vendor_risk = self._vendor_risk_cache
-            else:
-                print("[Orchestrator] Skipping vendor risk analysis (not requested, no cache)")
-                vendor_risk = self._get_empty_vendor_risk()
-                weighted_vendor_risk = {'indices': [], 'labels': [], 'values': []}
             
             # Generate proper note text with data source info for transparency
             cutoff_info, explanation = data_source_config.get_data_source_cutoff()
