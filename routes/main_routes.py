@@ -29,19 +29,24 @@ def index():
         search_query = request.args.get('q')
         timeline_years = request.args.get('timeline_years', default=1, type=int)
         
+        # NEW: Check if user wants to load historical data
+        load_historical = request.args.get('load_historical', 'false').lower() == 'true'
+        
         # Validate timeline_years
         if timeline_years not in [1, 2, 3, 5]:
             timeline_years = 1
         
-        print(f"[Flask] Filters: year={year}, month={month}, day={day}, severity={severity_filter}, search={search_query}, timeline_years={timeline_years}")
+        print(f"[Flask] Filters: year={year}, month={month}, day={day}, severity={severity_filter}, search={search_query}, timeline_years={timeline_years}, load_historical={load_historical}")
         
         # Get comprehensive dashboard data with temporal filters applied
+        # CRITICAL: Pass load_historical flag
         dashboard_data = data_orchestrator.get_dashboard_data(
             year=year,
             month=month,
             day=day,
             severity_filter=severity_filter,
-            timeline_years=timeline_years
+            timeline_years=timeline_years,
+            load_historical=load_historical  # NEW PARAMETER
         )
         
         # Apply search filter if specified and recalculate metrics
@@ -100,6 +105,7 @@ def index():
             cwe_radar_weighted=dashboard_data['cwe_radar_weighted'],
             cwe_radar_descriptions=dashboard_data['cwe_radar_descriptions'],
             note_text=dashboard_data['note_text'],
+            historical_loaded=dashboard_data.get('historical_loaded', False),  # NEW
             # Pass filter values to template for form persistence
             year_filter=year,
             month_filter=month,
@@ -108,7 +114,7 @@ def index():
             search_query=search_query,
             timeline_years=timeline_years
         )
-        
+    
     except Exception as e:
         # Log dashboard errors for debugging
         print(f"[Flask] Dashboard error: {e}")
@@ -131,6 +137,7 @@ def index():
             cwe_radar_weighted={},
             cwe_radar_descriptions={},
             note_text="Error loading data. Please try again.",
+            historical_loaded=False,
             timeline_years=1
         )
 
