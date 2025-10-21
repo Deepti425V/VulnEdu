@@ -1,19 +1,14 @@
-# Web framework for building the Flask application
-# Version 2.3.0 includes security fixes and async support
+# Web framework
 flask>=2.3.3
 
-# HTTP client library for making API calls to NVD and other services
-# Version 2.31.0 includes critical security patches and HTTP/2 support
+# HTTP client
 requests>=2.31.0
 
-# HTML/XML parsing library for processing web content and XML feeds
-# Version 4.12.0 offers improved performance and Python 3.11 optimizations
-beautifulsoup4>=4.12.2
+# HTML/XML parsing (only if you use it)
+beautifulsoup4==4.12.2
 
-# Production WSGI server for deploying Flask applications
-# Version 21.0.0 provides modern Python support and better container integration
+# Production WSGI server
 gunicorn>=21.2.0
 
-# PostgreSQL database adapter for Python
-# Version 2.9.9 includes connection pooling and async support
+# PostgreSQL adapter
 psycopg2-binary>=2.9.9

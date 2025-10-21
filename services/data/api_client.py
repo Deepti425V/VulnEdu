@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class NVDApiClient:
-    """Enhanced NVD API client with database support and memory optimization"""
+    """Enhanced NVD API client with database support and aggressive memory optimization"""
     
     def __init__(self):
         self.base_url = config.NVD_API_URL
@@ -38,13 +38,12 @@ class NVDApiClient:
         # Database integration
         from database import db_manager
         self.db = db_manager
-    
+        
     def _rate_limit(self):
         """Proper rate limiting with logging"""
         elapsed = time.time() - self.last_request_time
         if elapsed < self.min_request_interval:
             sleep_time = self.min_request_interval - elapsed
-            logger.info(f"Rate limiting: sleeping for {sleep_time:.2f} seconds")
             time.sleep(sleep_time)
         self.last_request_time = time.time()
     
@@ -62,7 +61,7 @@ class NVDApiClient:
             self._cache_timestamps[cache_key] = time.time()
     
     def get_cves_last_30_days(self) -> List[Dict[str, Any]]:
-        """Get CVEs from last 30 days - with database support and memory optimization"""
+        """Get CVEs from last 30 days - OPTIMIZED for memory"""
         cache_key = "cves_30_days"
         
         # Try database first if available
@@ -110,7 +109,6 @@ class NVDApiClient:
                 logger.info(f"API request: startIndex={start_index}, resultsPerPage={results_per_page}")
                 
                 self._rate_limit()
-                
                 response = self.session.get(
                     self.base_url,
                     params=params,
@@ -130,7 +128,7 @@ class NVDApiClient:
                 if not vulnerabilities:
                     break
                 
-                # Process CVEs in smaller batches to reduce memory
+                # Process CVEs in SMALLER batches to reduce memory
                 batch = []
                 for item in vulnerabilities:
                     cve_data = item.get("cve", {})
@@ -138,10 +136,12 @@ class NVDApiClient:
                     if processed:
                         batch.append(processed)
                     
-                    # Save to DB in batches of 500 to reduce memory
+                    # Save in smaller batches of 500
                     if len(batch) >= 500 and self.db.use_database:
                         self.db.save_cves_batch(batch)
                         all_cves.extend(batch)
+                        batch = []  # Clear batch immediately
+                        del batch
                         batch = []
                 
                 # Save remaining items
@@ -149,6 +149,7 @@ class NVDApiClient:
                     if self.db.use_database:
                         self.db.save_cves_batch(batch)
                     all_cves.extend(batch)
+                    del batch
                 
                 # Check if we've got all results or hit our limit
                 if len(vulnerabilities) < results_per_page or start_index + len(vulnerabilities) >= total_results:
@@ -167,7 +168,6 @@ class NVDApiClient:
             # Update cache metadata
             if self.db.use_database:
                 self.db.update_cache_metadata(cache_key, len(all_cves))
-            
             self._set_cache_timestamp(cache_key)
             
             logger.info(f"Successfully fetched and cached {len(all_cves)} CVEs")
@@ -182,7 +182,6 @@ class NVDApiClient:
                 if cves:
                     return cves
             return []
-            
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
             # Try database as fallback
@@ -193,7 +192,7 @@ class NVDApiClient:
             return []
     
     def _process_cve_item(self, cve_data: Dict) -> Optional[Dict]:
-        """Convert NVD CVE format to internal format"""
+        """Convert NVD CVE format to internal format - MEMORY OPTIMIZED"""
         try:
             cve_id = cve_data.get("id", "")
             if not cve_id:
@@ -212,7 +211,7 @@ class NVDApiClient:
             metrics = cve_data.get("metrics", {})
             
             # Try different CVSS versions
-            for version in ["cvssMetricV40", "cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
+            for version in ["cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
                 if version in metrics and metrics[version]:
                     try:
                         metric = metrics[version][0]
@@ -239,9 +238,9 @@ class NVDApiClient:
                 if cwe:
                     break
             
-            # Extract references (limit to first 10 to save memory)
+            # Extract references (limit to first 5 to save memory)
             references = []
-            for ref in cve_data.get("references", [])[:10]:
+            for ref in cve_data.get("references", [])[:5]:
                 url = ref.get("url")
                 if url:
                     references.append(url)
@@ -255,10 +254,9 @@ class NVDApiClient:
                 "Published": cve_data.get("published", ""),
                 "lastModified": cve_data.get("lastModified", ""),
                 "References": references,
-                "Products": [],
-                "metrics": metrics
+                "Products": [],  # Skip products to save memory
+                "metrics": {}  # Skip full metrics to save memory
             }
-            
         except Exception as e:
             logger.error(f"Error processing CVE: {e}")
             return None
@@ -286,12 +284,12 @@ class NVDApiClient:
             for key, timestamp in self._cache_timestamps.items():
                 age_minutes = int((current_time - timestamp) / 60)
                 stats['cache_ages'][key] = f"{age_minutes} minutes"
-        
-        # Add database stats if available
-        if self.db.use_database:
-            stats['database'] = self.db.get_stats()
-        
-        return stats
+            
+            # Add database stats if available
+            if self.db.use_database:
+                stats['database'] = self.db.get_stats()
+            
+            return stats
 
 # Global API client instance
 api_client = NVDApiClient()

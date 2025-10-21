@@ -1,0 +1,31 @@
+# Documentation (not needed at runtime)
+*.md
+*.pdf
+*.txt
+README.md
+LICENSE
+
+# Git metadata
+.git/
+.gitignore
+.gitattributes
+
+# Development files
+tests/
+docs/
+examples/
+.vscode/
+.idea/
+
+# Python cache (regenerated automatically)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs
+*.log
+
+# Environment files (secrets should be in Render env vars)
+.env
+.env.local

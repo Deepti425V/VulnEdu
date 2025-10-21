@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: vulnedu
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 1 --timeout 120 --max-requests 100 --max-requests-jitter 10 vulnedu:app"
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: NVD_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vulnedu-db
+          property: connectionString
+
+databases:
+  - name: vulnedu-db
+    plan: free
+    databaseName: vulnedu
+    user: postgres

@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 
 class DatabaseManager:
-    """Manages PostgreSQL database connections with connection pooling"""
+    """Manages PostgreSQL database connections with connection pooling - MEMORY OPTIMIZED"""
     
     def __init__(self):
         # Get database URL from environment variable
@@ -23,7 +23,7 @@ class DatabaseManager:
             print("[Database] No DATABASE_URL found, database mode DISABLED (using memory)")
     
     def init_connection_pool(self):
-        """Initialize connection pool"""
+        """Initialize connection pool with MINIMAL connections"""
         if not self.database_url:
             return False
         
@@ -31,13 +31,14 @@ class DatabaseManager:
             # Fix URL format
             database_url = self.database_url.replace('postgres://', 'postgresql://', 1)
             
-            # Create connection pool with limited connections
+            # Create connection pool with MINIMAL connections to save memory
             self.connection_pool = pool.SimpleConnectionPool(
                 1,  # Min connections
-                3,  # Max connections (reduced for memory)
+                2,  # Max connections (REDUCED from 3 to 2)
                 database_url
             )
-            print("[Database] Connection pool initialized (1-3 connections)")
+            
+            print("[Database] Connection pool initialized (1-2 connections)")
             return True
         except Exception as e:
             print(f"[Database] Connection pool error: {e}")
@@ -107,7 +108,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def save_cves_batch(self, cves: List[Dict[str, Any]]) -> bool:
-        """Save multiple CVEs to database"""
+        """Save multiple CVEs to database - MEMORY OPTIMIZED"""
         if not self.use_database or not cves:
             return False
         
@@ -118,9 +119,12 @@ class DatabaseManager:
         try:
             cursor = conn.cursor()
             
-            # Prepare data for batch insert
+            # Prepare data for batch insert - LIMIT reference_links to save space
             values = []
             for cve in cves:
+                # Limit references to first 3 to save database space
+                refs = cve.get('References', [])[:3]
+                
                 values.append((
                     cve.get('ID', ''),
                     cve.get('Description', ''),
@@ -129,9 +133,9 @@ class DatabaseManager:
                     cve.get('CWE'),
                     cve.get('Published', ''),
                     cve.get('lastModified', ''),
-                    json.dumps(cve.get('References', [])),
-                    json.dumps(cve.get('Products', [])),
-                    json.dumps(cve.get('metrics', {}))
+                    json.dumps(refs),
+                    json.dumps([]),  # Empty products to save space
+                    json.dumps({})   # Empty metrics to save space
                 ))
             
             # Use ON CONFLICT to update existing records
@@ -180,6 +184,7 @@ class DatabaseManager:
                 FROM cves
                 ORDER BY published DESC
             """)
+            
             rows = cursor.fetchall()
             
             # Convert to list of dicts
@@ -226,6 +231,7 @@ class DatabaseManager:
                     total_records = EXCLUDED.total_records,
                     metadata = EXCLUDED.metadata
             """, (key, total_records, json.dumps(metadata or {})))
+            
             conn.commit()
         except Exception as e:
             print(f"[Database] Error updating metadata: {e}")
@@ -250,8 +256,8 @@ class DatabaseManager:
                 FROM cache_metadata
                 WHERE key = %s
             """, (key,))
-            row = cursor.fetchone()
             
+            row = cursor.fetchone()
             if row:
                 return {
                     'last_updated': row['last_updated'],
@@ -283,6 +289,31 @@ class DatabaseManager:
         except Exception as e:
             print(f"[Database] Error clearing CVEs: {e}")
             conn.rollback()
+        finally:
+            cursor.close()
+            self.return_connection(conn)
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get database statistics"""
+        if not self.use_database:
+            return {}
+        
+        conn = self.get_connection()
+        if not conn:
+            return {}
+        
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM cves")
+            total_cves = cursor.fetchone()[0]
+            
+            return {
+                'total_cves': total_cves,
+                'database_enabled': True
+            }
+        except Exception as e:
+            print(f"[Database] Error getting stats: {e}")
+            return {}
         finally:
             cursor.close()
             self.return_connection(conn)

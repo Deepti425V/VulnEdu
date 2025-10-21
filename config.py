@@ -9,12 +9,6 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 NVD_API_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 NVD_API_KEY = os.environ.get('NVD_API_KEY', '9d289859-60a3-4f9f-af3c-30fdcddf3918')
 
-# GitHub Repository Configuration for Historical Data
-GITHUB_REPO_OWNER = "Deepti425V"
-GITHUB_REPO_NAME = "vulnedu-data"
-GITHUB_REPO_BRANCH = "main"
-GITHUB_RAW_BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/{GITHUB_REPO_BRANCH}"
-
 # Data Storage Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'data')
@@ -27,8 +21,8 @@ CWE_XML_PATH = os.path.join(DATA_DIR, 'CWE_Catalog.xml')
 # NVD Data Feeds
 NVD_FEEDS_BASE_URL = "https://nvd.nist.gov/feeds/json/cve/1.1"
 
-# Historical years configuration - ALWAYS FETCH FROM GITHUB
-# Start with last 3 years for memory efficiency
+# Historical years configuration - USE LOCAL FILES
+# REDUCED to 3 years for memory efficiency
 current_year = 2025
 HISTORICAL_YEARS = [current_year - 2, current_year - 1, current_year]  # 2023, 2024, 2025
 
@@ -38,9 +32,9 @@ MAX_CACHE_ENTRIES = 100
 
 # Data Loading Strategy
 RECENT_DAYS_THRESHOLD = 30
-USE_LOCAL_FEEDS = False  # Changed to False - always use GitHub
+USE_LOCAL_FEEDS = True  # CHANGED: Use local files
 AUTO_UPDATE_FEEDS = False
-USE_GITHUB_DATA = True  # Enable GitHub data fetching
+USE_GITHUB_DATA = False  # CHANGED: Disable GitHub
 
 # API Rate Limiting
 API_REQUESTS_PER_30_SECONDS = 50

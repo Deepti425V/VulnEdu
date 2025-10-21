@@ -3,49 +3,56 @@ import json
 import gzip
 from typing import List, Dict, Any
 from datetime import datetime
-import requests
 import config
 
 class DataProcessor:
-    """Process and extract insights from historical NVD data - LAZY LOADING with GitHub priority"""
+    """Process and extract insights from historical NVD data - LOCAL FILES ONLY"""
     
     def __init__(self):
         self.historical_dir = config.NVD_HISTORICAL_DIR
         self.processed_dir = config.NVD_PROCESSED_DIR
-        self.use_github = config.USE_GITHUB_DATA
-        self.github_base_url = config.GITHUB_RAW_BASE_URL if self.use_github else None
         
         # CRITICAL: In-memory cache for SINGLE year only
         self._year_cache = {}
         self._max_cache_size = 1  # Only cache 1 year at a time
         
         print(f"[Historical] DataProcessor initialized")
-        print(f"[Historical] GitHub mode: {self.use_github}")
-        print(f"[Historical] GitHub URL: {self.github_base_url}")
+        print(f"[Historical] Local directory: {self.historical_dir}")
+        
+        # Check what files are available
+        self._check_available_files()
     
-    def get_last_5_years_data(self) -> Dict[str, List[Dict]]:
-        """DISABLED - Load years on demand instead"""
-        print("[Historical] get_last_5_years_data() is DISABLED - use get_year_data() instead")
-        # Return only current year to prevent memory issues
-        current_year = datetime.now().year
-        return {str(current_year): self.get_year_data(current_year)}
+    def _check_available_files(self):
+        """Check what historical files are available"""
+        if not os.path.exists(self.historical_dir):
+            print(f"[Historical] Directory does not exist: {self.historical_dir}")
+            print(f"[Historical] Creating directory...")
+            os.makedirs(self.historical_dir, exist_ok=True)
+            return
+        
+        files = os.listdir(self.historical_dir)
+        if files:
+            print(f"[Historical] Found {len(files)} files: {files}")
+        else:
+            print(f"[Historical] WARNING: No files found in {self.historical_dir}")
+            print(f"[Historical] Please add CVE-XXXX.json files to this directory")
     
     def get_year_data(self, year: int) -> List[Dict]:
-        """Load CVEs from a specific year file - WITH CACHING and GitHub priority"""
+        """Load CVEs from a specific year file - WITH CACHING"""
         # Check cache first
         year_str = str(year)
         if year_str in self._year_cache:
             print(f"[Historical] Using cached data for {year}")
             return self._year_cache[year_str]
         
-        # Load from GitHub or file
+        # Load from local file
         data = self._load_year_file(year)
         
         # Cache management - only keep 1 year in memory
         if len(self._year_cache) >= self._max_cache_size:
             # Clear oldest cache entry
             oldest_year = next(iter(self._year_cache))
-            print(f"[Historical] Evicting {oldest_year} from cache")
+            print(f"[Historical] Evicting {oldest_year} from cache to save memory")
             del self._year_cache[oldest_year]
         
         # Store in cache
@@ -54,116 +61,49 @@ class DataProcessor:
         
         return data
     
-    def get_multiple_years_data(self, years: List[int]) -> Dict[str, List[Dict]]:
-        """Load CVEs from multiple specific years - ONE AT A TIME"""
-        all_data = {}
-        for year in years:
-            print(f"[Historical] Loading {year} data...")
-            year_data = self.get_year_data(year)  # Uses cache
-            all_data[str(year)] = year_data
-            print(f"[Historical] Loaded {len(year_data)} CVEs for {year}")
-        return all_data
-    
-    def _fetch_from_github(self, filename: str) -> bytes:
-        """Fetch file from GitHub repository"""
-        if not self.use_github or not self.github_base_url:
-            raise Exception("GitHub data fetching is not enabled")
-        
-        url = f"{self.github_base_url}/{filename}"
-        print(f"[Historical] Fetching from GitHub: {url}")
-        
-        try:
-            response = requests.get(url, timeout=60)  # 60 second timeout for large files
-            if response.status_code == 200:
-                print(f"[Historical] Successfully fetched {filename} from GitHub ({len(response.content)} bytes)")
-                return response.content
-            else:
-                print(f"[Historical] GitHub fetch failed: HTTP {response.status_code}")
-                raise Exception(f"Failed to fetch from GitHub: HTTP {response.status_code}")
-        except requests.exceptions.RequestException as e:
-            print(f"[Historical] GitHub fetch error: {e}")
-            raise Exception(f"GitHub fetch error: {e}")
-    
     def _load_year_file(self, year: int) -> List[Dict]:
-        """Load CVEs from a specific year file - GitHub FIRST, then local fallback"""
+        """Load CVEs from a specific year file - LOCAL FILES ONLY"""
         try:
             # Try different file patterns
             possible_filenames = [
-                f"CVE-{year}.json.gz",
                 f"CVE-{year}.json",
-                f"nvdcve-1.1-{year}.json.gz",
-                f"nvdcve-2.0-{year}.json.gz",
                 f"nvdcve-1.1-{year}.json",
-                f"nvdcve-2.0-{year}.json"
+                f"nvdcve-2.0-{year}.json",
             ]
             
-            data = None
+            # Check if directory exists
+            if not os.path.exists(self.historical_dir):
+                print(f"[Historical] Directory does not exist: {self.historical_dir}")
+                return []
+            
+            # Find the first available file
+            target_file = None
             filename_used = None
             
-            # PRIORITY 1: Try GitHub first if enabled
-            if self.use_github:
-                print(f"[Historical] Trying GitHub for {year}...")
-                for filename in possible_filenames:
-                    try:
-                        file_content = self._fetch_from_github(filename)
-                        filename_used = filename
-                        
-                        # Handle gzipped files
-                        if filename.endswith('.gz'):
-                            file_content = gzip.decompress(file_content)
-                            print(f"[Historical] Decompressed gzipped file for {year}")
-                        
-                        # Parse JSON
-                        data = json.loads(file_content.decode('utf-8'))
-                        print(f"[Historical] Successfully loaded {filename} from GitHub for {year}")
-                        break
-                    except Exception as e:
-                        # Try next filename pattern
-                        print(f"[Historical] GitHub attempt failed for {filename}: {e}")
-                        continue
+            for filename in possible_filenames:
+                file_path = os.path.join(self.historical_dir, filename)
+                if os.path.exists(file_path):
+                    target_file = file_path
+                    filename_used = filename
+                    print(f"[Historical] Found file: {filename}")
+                    break
             
-            # PRIORITY 2: Fallback to local files if GitHub fails or is disabled
-            if data is None:
-                print(f"[Historical] GitHub fetch failed or disabled, trying local files for {year}")
-                
-                if os.path.exists(self.historical_dir):
-                    files = os.listdir(self.historical_dir)
-                    print(f"[Historical] Local files available: {files[:10]}...")
-                else:
-                    print(f"[Historical] Local directory does not exist: {self.historical_dir}")
-                    return []
-                
-                # Find the first available file from the pattern list
-                target_file = None
-                for filename in possible_filenames:
-                    file_path = os.path.join(self.historical_dir, filename)
-                    if os.path.exists(file_path):
-                        target_file = file_path
-                        filename_used = filename
-                        print(f"[Historical] Found local file: {filename}")
-                        break
-                
-                if not target_file:
-                    print(f"[Historical] No file found for {year}. Tried: {possible_filenames}")
-                    return []
-                
-                print(f"[Historical] Processing local file: {target_file}")
-                
-                # Load the file based on extension
-                if target_file.endswith('.gz'):
-                    # Handle gzipped files
-                    with gzip.open(target_file, 'rt', encoding='utf-8') as f:
-                        data = json.load(f)
-                    print(f"[Historical] Successfully loaded local gzipped file for {year}")
-                else:
-                    # Handle plain JSON files
-                    with open(target_file, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    print(f"[Historical] Successfully loaded local plain JSON file for {year}")
-            
-            if not data:
-                print(f"[Historical] No data loaded for {year}")
+            if not target_file:
+                print(f"[Historical] No file found for {year}. Tried: {possible_filenames}")
+                print(f"[Historical] Available files: {os.listdir(self.historical_dir)}")
                 return []
+            
+            print(f"[Historical] Loading file: {target_file}")
+            
+            # Check file size
+            file_size = os.path.getsize(target_file)
+            print(f"[Historical] File size: {file_size:,} bytes ({file_size/1024/1024:.2f} MB)")
+            
+            # Load the file
+            with open(target_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            print(f"[Historical] Successfully loaded JSON file for {year}")
             
             # Process CVEs based on detected format
             cves = []
@@ -194,42 +134,44 @@ class DataProcessor:
             
         except Exception as e:
             print(f"[Historical] Error loading {year}: {e}")
-            # Print full traceback for debugging complex issues
             import traceback
             traceback.print_exc()
             return []
     
     def _process_json_2_0_cve(self, item: Dict) -> Dict:
-        """Process JSON 2.0 format CVE"""
+        """Process JSON 2.0 format CVE - MEMORY OPTIMIZED"""
         try:
             cve_data = item.get("cve", {})
             cve_id = cve_data.get("id", "")
+            
             if not cve_id:
                 return None
             
-            # Extract English description from descriptions array
+            # Extract English description
             description = ""
             for desc in cve_data.get("descriptions", []):
                 if desc.get("lang") == "en":
                     description = desc.get("value", "")
                     break
             
-            # Extract severity with CVSS version preference (newer versions first)
+            # Extract severity
             severity = "UNKNOWN"
             metrics = cve_data.get("metrics", {})
-            for version in ["cvssMetricV40", "cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
+            
+            for version in ["cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
                 if version in metrics and metrics[version]:
                     try:
                         metric = metrics[version][0]
                         cvss_data = metric.get("cvssData", {})
                         potential_severity = cvss_data.get("baseSeverity", "")
+                        
                         if potential_severity and potential_severity.upper() != "UNKNOWN":
                             severity = potential_severity.upper()
                             break
                     except (IndexError, KeyError):
                         continue
             
-            # Extract CWE (Common Weakness Enumeration) classification
+            # Extract CWE
             cwe = None
             for weakness in cve_data.get("weaknesses", []):
                 for desc in weakness.get("description", []):
@@ -241,7 +183,6 @@ class DataProcessor:
                 if cwe:
                     break
             
-            # Return standardized internal format
             return {
                 "ID": cve_id,
                 "Description": description,
@@ -249,25 +190,25 @@ class DataProcessor:
                 "CWE": cwe,
                 "Published": cve_data.get("published", ""),
                 "lastModified": cve_data.get("lastModified", ""),
-                "References": [],  # Not extracted in current implementation
-                "Products": [],  # Not extracted in current implementation
-                "CVSS_Score": None,  # Could be extracted if needed
-                "metrics": {}  # Simplified for current use
+                "References": [],
+                "Products": [],
+                "CVSS_Score": None,
+                "metrics": {}
             }
-            
         except Exception as e:
             print(f"[Historical] Error processing JSON 2.0 CVE: {e}")
             return None
     
     def _process_json_1_1_cve(self, item: Dict) -> Dict:
-        """Process JSON 1.1 format CVE"""
+        """Process JSON 1.1 format CVE - MEMORY OPTIMIZED"""
         try:
             cve_data = item.get("cve", {})
             cve_id = cve_data.get("CVE_data_meta", {}).get("ID", "")
+            
             if not cve_id:
                 return None
             
-            # Extract English description from nested description structure
+            # Extract English description
             description = ""
             descriptions = cve_data.get("description", {}).get("description_data", [])
             for desc in descriptions:
@@ -275,14 +216,13 @@ class DataProcessor:
                     description = desc.get("value", "")
                     break
             
-            # Extract severity from impact section with version preference
+            # Extract severity
             severity = "UNKNOWN"
             impact = item.get("impact", {})
+            
             if "baseMetricV3" in impact:
-                # Use CVSS v3 severity if available
                 severity = impact["baseMetricV3"].get("cvssV3", {}).get("baseSeverity", "UNKNOWN").upper()
             elif "baseMetricV2" in impact:
-                # Convert CVSS v2 score to severity level using standard thresholds
                 score = impact["baseMetricV2"].get("cvssV2", {}).get("baseScore", 0)
                 if score >= 7.0:
                     severity = "HIGH"
@@ -291,7 +231,7 @@ class DataProcessor:
                 else:
                     severity = "LOW"
             
-            # Extract CWE from problemtype section
+            # Extract CWE
             cwe = None
             problem_types = cve_data.get("problemtype", {}).get("problemtype_data", [])
             for problem_type in problem_types:
@@ -304,7 +244,6 @@ class DataProcessor:
                 if cwe:
                     break
             
-            # Return standardized internal format compatible with other components
             return {
                 "ID": cve_id,
                 "Description": description,
@@ -312,17 +251,14 @@ class DataProcessor:
                 "CWE": cwe,
                 "Published": cve_data.get("publishedDate", ""),
                 "lastModified": cve_data.get("lastModifiedDate", ""),
-                "References": [],  # Not extracted in current implementation
-                "Products": [],  # Not extracted in current implementation
-                "CVSS_Score": None,  # Could be extracted if needed
-                "metrics": {}  # Simplified for current use
+                "References": [],
+                "Products": [],
+                "CVSS_Score": None,
+                "metrics": {}
             }
-            
         except Exception as e:
-            # Log processing errors but continue with batch processing
             print(f"[Historical] Error processing JSON 1.1 CVE: {e}")
             return None
 
-
-# Global historical loader instance for application-wide use (maintaining interface compatibility)
+# Global historical loader instance
 historical_loader = DataProcessor()
