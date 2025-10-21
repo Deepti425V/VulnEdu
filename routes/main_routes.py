@@ -1,18 +1,11 @@
-# Flask blueprint system for modular route organization
 from flask import Blueprint, render_template, request, redirect, url_for
-# Date/time handling for temporal filtering and timestamps
 from datetime import datetime, timezone, timedelta
-# Mathematical operations for pagination calculations
 import math
-# Central data coordination service for CVE operations
+
 from services.orchestrator import data_orchestrator
-# Filtering and pagination utilities for data processing
 from utils.filters import FilterService
 
-# Create main application blueprint for core route registration
 main_bp = Blueprint('main', __name__)
-
-# Instantiate filter service for shared filtering operations across routes
 filter_service = FilterService()
 
 @main_bp.route("/")
@@ -29,24 +22,21 @@ def index():
         search_query = request.args.get('q')
         timeline_years = request.args.get('timeline_years', default=1, type=int)
         
-        # NEW: Check if user wants to load historical data
-        load_historical = request.args.get('load_historical', 'false').lower() == 'true'
-        
         # Validate timeline_years
-        if timeline_years not in [1, 2, 3, 5]:
+        if timeline_years not in [1, 2, 3]:
             timeline_years = 1
         
-        print(f"[Flask] Filters: year={year}, month={month}, day={day}, severity={severity_filter}, search={search_query}, timeline_years={timeline_years}, load_historical={load_historical}")
+        print(f"[Flask] Filters: year={year}, month={month}, day={day}, severity={severity_filter}, search={search_query}, timeline_years={timeline_years}")
         
         # Get comprehensive dashboard data with temporal filters applied
-        # CRITICAL: Pass load_historical flag
+        # ALWAYS load historical data for timeline charts (timeline_years > 0)
         dashboard_data = data_orchestrator.get_dashboard_data(
             year=year,
             month=month,
             day=day,
             severity_filter=severity_filter,
             timeline_years=timeline_years,
-            load_historical=load_historical  # NEW PARAMETER
+            load_historical=False  # Let timeline_years control historical loading
         )
         
         # Apply search filter if specified and recalculate metrics
@@ -104,8 +94,7 @@ def index():
             cwe_radar_all=dashboard_data['cwe_radar_all'],
             cwe_radar_weighted=dashboard_data['cwe_radar_weighted'],
             cwe_radar_descriptions=dashboard_data['cwe_radar_descriptions'],
-            note_text=dashboard_data['note_text'],
-            historical_loaded=dashboard_data.get('historical_loaded', False),  # NEW
+            historical_loaded=dashboard_data.get('historical_loaded', False),
             # Pass filter values to template for form persistence
             year_filter=year,
             month_filter=month,
@@ -114,7 +103,7 @@ def index():
             search_query=search_query,
             timeline_years=timeline_years
         )
-    
+        
     except Exception as e:
         # Log dashboard errors for debugging
         print(f"[Flask] Dashboard error: {e}")
@@ -219,9 +208,9 @@ def vulnerabilities():
         
         # Return safe fallback page with minimal data
         return render_template("pages/vulnerabilities.html",
-                             latest_cves=[],
-                             total_results=0,
-                             note_text="Error loading vulnerabilities")
+            latest_cves=[],
+            total_results=0,
+            note_text="Error loading vulnerabilities")
 
 @main_bp.route("/cve/<cve_id>")
 def cve_detail(cve_id):
@@ -239,4 +228,4 @@ def cve_detail(cve_id):
         
         # Return safe fallback page with minimal CVE data
         return render_template("pages/cve_detail.html",
-                             cve={'ID': cve_id, 'Description': 'Error loading CVE details'})
+            cve={'ID': cve_id, 'Description': 'Error loading CVE details'})

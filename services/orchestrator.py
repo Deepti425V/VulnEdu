@@ -1,27 +1,15 @@
-# Operating system interface for file and cache operations
 import os
-# JSON processing for cache file operations (imported but not directly used)
 import json
-# Type annotations for complex data structures and function returns
 from typing import Dict, List, Any
-# Date and time operations for temporal filtering and processing
 from datetime import datetime, timezone, timedelta
 
-# Trend analysis service for temporal vulnerability patterns
 from services.analysis.trend_analyzer import get_cve_trends_last_30_days
-# Severity analysis service for vulnerability classification metrics
 from services.analysis.severity_analyzer import get_severity_card_counts, get_severity_percentages
-# Updated import to use the new modular structure for CWE analysis
 from services.analysis.cwe_processor import get_vendor_risk_analysis, get_weighted_cwe_analysis
-# Real-time API client for current vulnerability data
 from services.data.api_client import api_client
-# Cache management service for performance optimization
 from services.cache.cache_manager import cache_manager
-# Dynamic data source configuration for intelligent routing
 from services.data.data_source_config import data_source_config
-# Application configuration for system settings
 import config
-
 
 class DataOrchestrator:
     """Clean orchestrator using separate visualization modules with caching and dynamic data sources"""
@@ -41,16 +29,16 @@ class DataOrchestrator:
         print(f"[Orchestrator] Loading dashboard data with filters: year={year}, month={month}, day={day}, severity={severity_filter}, timeline_years={timeline_years}, load_historical={load_historical}")
         
         try:
-            # 1. CVE Trends (Last 30 days) – ALWAYS unfiltered, last 30 days only
+            # 1. CVE Trends (Last 30 days) - ALWAYS unfiltered, last 30 days only
             print("[Orchestrator] Getting CVE trends (last 30 days) - unfiltered")
             cve_trends = self._get_always_30_day_trends()
             
-            # 2. Vulnerabilities Over Time – ONLY if explicitly requested
-            if load_historical and timeline_years > 0:
+            # 2. Vulnerabilities Over Time - LOAD if timeline_years > 0 OR load_historical=True
+            if timeline_years > 0:
                 print(f"[Orchestrator] Getting vulnerabilities over time (last {timeline_years} years) - HISTORICAL LOAD")
                 vulnerabilities_timeline = self._get_timeline(timeline_years)
             else:
-                print("[Orchestrator] Skipping historical timeline (not requested)")
+                print("[Orchestrator] Skipping historical timeline (timeline_years=0)")
                 vulnerabilities_timeline = {'labels': [], 'values': [], 'total_cves': 0, 'months_covered': 0, 'raw_data': {}}
             
             # 3. Filtered data for Cards and Pie Chart ONLY
@@ -93,9 +81,9 @@ class DataOrchestrator:
             else:
                 severity_percentages = {k: "0%" for k in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']}
             
-            # 5. Vendor Risk Analysis - ONLY if explicitly requested OR use cache
-            if load_historical:
-                print("[Orchestrator] Loading vendor risk analysis (HISTORICAL DATA)")
+            # 5. Vendor Risk Analysis - LOAD if load_historical=True OR timeline_years > 1 OR use cache
+            if load_historical or timeline_years > 1:
+                print("[Orchestrator] Loading vendor risk analysis - HISTORICAL DATA")
                 try:
                     vendor_risk = get_vendor_risk_analysis()
                     weighted_vendor_risk = get_weighted_cwe_analysis()
@@ -126,7 +114,7 @@ class DataOrchestrator:
             else:
                 note_text = f"Cards & Pie Chart: Last 30 days | Trends: Last 30 days"
             
-            if load_historical:
+            if timeline_years > 0:
                 note_text += f" | Timeline: Last {timeline_years} year(s)"
             
             # Log comprehensive operation summary
@@ -143,7 +131,7 @@ class DataOrchestrator:
                 'total_cves': len(filtered_cves),
                 'severity_percentage': severity_percentages,
                 
-                # Chart data – SEPARATED by purpose for clarity
+                # Chart data - SEPARATED by purpose for clarity
                 'timeline_data_days': cve_trends,  # Always last 30 days
                 'timeline_data_years': vulnerabilities_timeline,  # Dynamic years (if loaded)
                 'cwe_radar': vendor_risk.get('top_10_cwes', {'indices': [], 'labels': [], 'values': []}),
@@ -158,12 +146,12 @@ class DataOrchestrator:
                 
                 # Status info for transparency
                 'note_text': note_text,
-                'historical_loaded': load_historical
+                'historical_loaded': load_historical or timeline_years > 0
             }
             
             print(f"[Orchestrator] Dashboard data structure created successfully")
             return dashboard_data
-        
+            
         except Exception as e:
             print(f"[Orchestrator] Error in get_dashboard_data: {e}")
             import traceback
@@ -183,7 +171,7 @@ class DataOrchestrator:
         }
     
     def _get_always_30_day_trends(self) -> Dict[str, Any]:
-        """Always get last 30 days trends from API – unfiltered"""
+        """Always get last 30 days trends from API - unfiltered"""
         try:
             return get_cve_trends_last_30_days()
         except Exception as e:
@@ -213,7 +201,7 @@ class DataOrchestrator:
             }
     
     def get_filtered_cves(self, year=None, month=None, day=None) -> List[Dict[str, Any]]:
-        """Get filtered CVE data using dynamic data source selection – ENHANCED DEBUG"""
+        """Get filtered CVE data using dynamic data source selection - ENHANCED DEBUG"""
         print(f"[Orchestrator] Getting filtered CVEs: year={year}, month={month}, day={day}")
         
         cutoff_info, explanation = data_source_config.get_data_source_cutoff()
@@ -244,7 +232,6 @@ class DataOrchestrator:
                     print(f"[Orchestrator] Sample CVE dates: {sample_dates}")
                 
                 return cves
-            
             except Exception as e:
                 print(f"[Orchestrator] Error loading historical data: {e}")
                 import traceback
@@ -294,6 +281,7 @@ class DataOrchestrator:
         try:
             recent_cves = api_client.get_cves_last_30_days()
             for cve in recent_cves:
+                # services/orchestrator.py (continued)
                 if cve.get('ID') == cve_id:
                     print(f"[Orchestrator] Found CVE {cve_id} in API data")
                     return cve
@@ -321,7 +309,7 @@ class DataOrchestrator:
     def _get_cwe_descriptions(self) -> Dict[str, str]:
         """Get CWE descriptions for tooltips and user education"""
         return {
-            "CWE-79": "Cross-Site Scripting (XSS) – allows script/code injection into web pages viewed by others.",
+            "CWE-79": "Cross-Site Scripting (XSS) - allows script/code injection into web pages viewed by others.",
             "CWE-89": "SQL Injection – improper input handling lets attackers run malicious database queries.",
             "CWE-20": "Improper Input Validation – fails to properly check user input data.",
             "CWE-22": "Path Traversal – file access outside allowed directories.",
@@ -357,12 +345,10 @@ class DataOrchestrator:
         data_source_config._cache_date = None
         # Clear vendor risk cache
         self._vendor_risk_cache = None
-        
         # Remove specific cache files
         cache_file = os.path.join(config.CACHE_DIR, "recent_api_cache.json")
         if os.path.exists(cache_file):
             os.remove(cache_file)
-        
         print("[Orchestrator] All caches cleared, including data source config cache")
     
     def get_data_source_status(self) -> Dict[str, Any]:

@@ -1,23 +1,15 @@
-# Operating system interface for file and directory operations
 import os
-# JSON parsing for processing NVD vulnerability data files
 import json
-# Gzip compression handling for compressed NVD data files
 import gzip
-# Type annotations for function signatures and data structures
 from typing import List, Dict, Any
-# Date operations for calculating year ranges
 from datetime import datetime
-# HTTP requests for GitHub data fetching
 import requests
-# Application configuration for directory paths and settings
 import config
 
 class DataProcessor:
-    """Process and extract insights from historical NVD data - LAZY LOADING"""
+    """Process and extract insights from historical NVD data - LAZY LOADING with GitHub priority"""
     
     def __init__(self):
-        # Load directory paths from centralized configuration
         self.historical_dir = config.NVD_HISTORICAL_DIR
         self.processed_dir = config.NVD_PROCESSED_DIR
         self.use_github = config.USE_GITHUB_DATA
@@ -26,23 +18,27 @@ class DataProcessor:
         # CRITICAL: In-memory cache for SINGLE year only
         self._year_cache = {}
         self._max_cache_size = 1  # Only cache 1 year at a time
-
+        
+        print(f"[Historical] DataProcessor initialized")
+        print(f"[Historical] GitHub mode: {self.use_github}")
+        print(f"[Historical] GitHub URL: {self.github_base_url}")
+    
     def get_last_5_years_data(self) -> Dict[str, List[Dict]]:
         """DISABLED - Load years on demand instead"""
         print("[Historical] get_last_5_years_data() is DISABLED - use get_year_data() instead")
         # Return only current year to prevent memory issues
         current_year = datetime.now().year
         return {str(current_year): self.get_year_data(current_year)}
-
+    
     def get_year_data(self, year: int) -> List[Dict]:
-        """Load CVEs from a specific year file - WITH CACHING"""
+        """Load CVEs from a specific year file - WITH CACHING and GitHub priority"""
         # Check cache first
         year_str = str(year)
         if year_str in self._year_cache:
             print(f"[Historical] Using cached data for {year}")
             return self._year_cache[year_str]
         
-        # Load from file/GitHub
+        # Load from GitHub or file
         data = self._load_year_file(year)
         
         # Cache management - only keep 1 year in memory
@@ -57,7 +53,7 @@ class DataProcessor:
         print(f"[Historical] Cached {len(data)} CVEs for {year}")
         
         return data
-
+    
     def get_multiple_years_data(self, years: List[int]) -> Dict[str, List[Dict]]:
         """Load CVEs from multiple specific years - ONE AT A TIME"""
         all_data = {}
@@ -67,7 +63,7 @@ class DataProcessor:
             all_data[str(year)] = year_data
             print(f"[Historical] Loaded {len(year_data)} CVEs for {year}")
         return all_data
-
+    
     def _fetch_from_github(self, filename: str) -> bytes:
         """Fetch file from GitHub repository"""
         if not self.use_github or not self.github_base_url:
@@ -78,27 +74,25 @@ class DataProcessor:
         
         try:
             response = requests.get(url, timeout=60)  # 60 second timeout for large files
-            
             if response.status_code == 200:
                 print(f"[Historical] Successfully fetched {filename} from GitHub ({len(response.content)} bytes)")
                 return response.content
             else:
                 print(f"[Historical] GitHub fetch failed: HTTP {response.status_code}")
                 raise Exception(f"Failed to fetch from GitHub: HTTP {response.status_code}")
-        
         except requests.exceptions.RequestException as e:
             print(f"[Historical] GitHub fetch error: {e}")
             raise Exception(f"GitHub fetch error: {e}")
-
+    
     def _load_year_file(self, year: int) -> List[Dict]:
-        """Load CVEs from a specific year file – GitHub or local fallback"""
+        """Load CVEs from a specific year file - GitHub FIRST, then local fallback"""
         try:
             # Try different file patterns
             possible_filenames = [
                 f"CVE-{year}.json.gz",
+                f"CVE-{year}.json",
                 f"nvdcve-1.1-{year}.json.gz",
                 f"nvdcve-2.0-{year}.json.gz",
-                f"CVE-{year}.json",
                 f"nvdcve-1.1-{year}.json",
                 f"nvdcve-2.0-{year}.json"
             ]
@@ -106,8 +100,9 @@ class DataProcessor:
             data = None
             filename_used = None
             
-            # Try GitHub first if enabled
+            # PRIORITY 1: Try GitHub first if enabled
             if self.use_github:
+                print(f"[Historical] Trying GitHub for {year}...")
                 for filename in possible_filenames:
                     try:
                         file_content = self._fetch_from_github(filename)
@@ -122,12 +117,12 @@ class DataProcessor:
                         data = json.loads(file_content.decode('utf-8'))
                         print(f"[Historical] Successfully loaded {filename} from GitHub for {year}")
                         break
-                    
                     except Exception as e:
                         # Try next filename pattern
+                        print(f"[Historical] GitHub attempt failed for {filename}: {e}")
                         continue
             
-            # Fallback to local files if GitHub fails or is disabled
+            # PRIORITY 2: Fallback to local files if GitHub fails or is disabled
             if data is None:
                 print(f"[Historical] GitHub fetch failed or disabled, trying local files for {year}")
                 
@@ -196,20 +191,19 @@ class DataProcessor:
             
             print(f"[Historical] Successfully processed {len(cves)} CVEs for {year}")
             return cves
-        
+            
         except Exception as e:
             print(f"[Historical] Error loading {year}: {e}")
             # Print full traceback for debugging complex issues
             import traceback
             traceback.print_exc()
             return []
-
+    
     def _process_json_2_0_cve(self, item: Dict) -> Dict:
         """Process JSON 2.0 format CVE"""
         try:
             cve_data = item.get("cve", {})
             cve_id = cve_data.get("id", "")
-            
             if not cve_id:
                 return None
             
@@ -229,7 +223,6 @@ class DataProcessor:
                         metric = metrics[version][0]
                         cvss_data = metric.get("cvssData", {})
                         potential_severity = cvss_data.get("baseSeverity", "")
-                        
                         if potential_severity and potential_severity.upper() != "UNKNOWN":
                             severity = potential_severity.upper()
                             break
@@ -261,17 +254,16 @@ class DataProcessor:
                 "CVSS_Score": None,  # Could be extracted if needed
                 "metrics": {}  # Simplified for current use
             }
-        
+            
         except Exception as e:
             print(f"[Historical] Error processing JSON 2.0 CVE: {e}")
             return None
-
+    
     def _process_json_1_1_cve(self, item: Dict) -> Dict:
         """Process JSON 1.1 format CVE"""
         try:
             cve_data = item.get("cve", {})
             cve_id = cve_data.get("CVE_data_meta", {}).get("ID", "")
-            
             if not cve_id:
                 return None
             
@@ -286,7 +278,6 @@ class DataProcessor:
             # Extract severity from impact section with version preference
             severity = "UNKNOWN"
             impact = item.get("impact", {})
-            
             if "baseMetricV3" in impact:
                 # Use CVSS v3 severity if available
                 severity = impact["baseMetricV3"].get("cvssV3", {}).get("baseSeverity", "UNKNOWN").upper()
@@ -326,7 +317,7 @@ class DataProcessor:
                 "CVSS_Score": None,  # Could be extracted if needed
                 "metrics": {}  # Simplified for current use
             }
-        
+            
         except Exception as e:
             # Log processing errors but continue with batch processing
             print(f"[Historical] Error processing JSON 1.1 CVE: {e}")

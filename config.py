@@ -2,7 +2,7 @@ import os
 from datetime import timedelta
 
 # Application Configuration
-APP_NAME = "VulnEdu – Educational CVE Analysis Tool"
+APP_NAME = "VulnEdu - Educational CVE Analysis Tool"
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 
 # NVD API Configuration
@@ -27,18 +27,18 @@ CWE_XML_PATH = os.path.join(DATA_DIR, 'CWE_Catalog.xml')
 # NVD Data Feeds
 NVD_FEEDS_BASE_URL = "https://nvd.nist.gov/feeds/json/cve/1.1"
 
-# CRITICAL: ONLY LOAD CURRENT YEAR ON STARTUP
-# Historical years will be loaded on-demand
-current_year = 2025  # Update this as needed
-HISTORICAL_YEARS = [current_year]  # ONLY current year
+# Historical years configuration - ALWAYS FETCH FROM GITHUB
+# Start with last 3 years for memory efficiency
+current_year = 2025
+HISTORICAL_YEARS = [current_year - 2, current_year - 1, current_year]  # 2023, 2024, 2025
 
-# Cache Configuration – REDUCED for memory optimization
+# Cache Configuration
 CACHE_DURATION = timedelta(minutes=30)
-MAX_CACHE_ENTRIES = 100  # Reduced from 1000
+MAX_CACHE_ENTRIES = 100
 
 # Data Loading Strategy
 RECENT_DAYS_THRESHOLD = 30
-USE_LOCAL_FEEDS = True
+USE_LOCAL_FEEDS = False  # Changed to False - always use GitHub
 AUTO_UPDATE_FEEDS = False
 USE_GITHUB_DATA = True  # Enable GitHub data fetching
 
