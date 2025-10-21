@@ -18,6 +18,16 @@ import config
 class DataProcessor:
     """Process and extract insights from historical NVD data"""
     
+    # Return empty immediately - no historical data
+    def get_last_5_years_data(self) -> Dict[str, List[Dict]]:
+    """Disabled - no historical data to save memory"""
+    return {}
+
+    def get_year_data(self, year: int) -> List[Dict]:
+    """Disabled - no historical data"""
+    return []
+
+    
     def __init__(self):
         # Load directory paths from centralized configuration
         self.historical_dir = config.NVD_HISTORICAL_DIR
