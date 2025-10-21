@@ -14,54 +14,40 @@ from .utils import get_cwe_title
 
 
 def get_vendor_risk_analysis() -> Dict[str, Any]:
-    """Get CWE analysis for last 2 years - LAZY LOADING"""
-    print("[Vendor Risk Analysis] Analyzing CWE patterns for last 2 years...")
-    
+    """Get CWE analysis for 2025 ONLY - MEMORY OPTIMIZED"""
+    print("[Vendor Risk Analysis] Analyzing CWE patterns for 2025 only...")
     try:
-        # Define 2-year analysis window for trend significance
-        current_year = datetime.now().year
-        years_to_analyze = [current_year - 1, current_year]
-        
-        # Load historical vulnerability data - ONE YEAR AT A TIME
         from services.data.data_processor import historical_loader
         
-        # Initialize counters for frequency and severity analysis
-        cwe_counts = Counter()  # Overall CWE frequency
-        cwe_severity_matrix = {}  # Severity distribution per CWE
+        # ONLY LOAD 2025 - saves memory!
+        current_year = datetime.now().year
+        years_to_analyze = [current_year]  # CHANGED: Only current year!
+        
+        cwe_counts = Counter()
+        cwe_severity_matrix = {}
         total_cves = 0
         
-        # Process each year in analysis window - SEPARATELY
         for year in years_to_analyze:
-            year_cves = historical_loader.get_year_data(year)  # Lazy load
+            year_cves = historical_loader.get_year_data(year)
             print(f"[Vendor Risk Analysis] Processing {year}: {len(year_cves)} CVEs")
             total_cves += len(year_cves)
             
-            # Count CWE occurrences and build severity matrix
             for cve in year_cves:
                 cwe = cve.get('CWE')
-                
-                # Validate CWE format and count occurrences
                 if cwe and cwe.startswith('CWE'):
                     cwe_counts[cwe] += 1
-                    
-                    # Initialize severity tracking for this CWE
                     if cwe not in cwe_severity_matrix:
                         cwe_severity_matrix[cwe] = Counter()
-                    
-                    # Track severity distribution per CWE
                     severity = cve.get('Severity', 'UNKNOWN').upper()
                     cwe_severity_matrix[cwe][severity] += 1
         
-        # Integrate recent trends with 30-day analysis
         print("[Vendor Risk Analysis] Calculating 30-day CWE counts...")
         cwe_30_day_counts = get_cwe_30_day_counts()
         
-        # Generate ranked CWE lists for different use cases
         top_cwes = cwe_counts.most_common(20) if cwe_counts else []
-        top_5_cwes = top_cwes[:5]  # Executive summary
-        top_10_cwes = top_cwes[:10]  # Strategic analysis
+        top_5_cwes = top_cwes[:5]
+        top_10_cwes = top_cwes[:10]
         
-        # Build comprehensive result structure for multiple use cases
         result = {
             'top_5_cwes': {
                 'indices': [cwe for cwe, count in top_5_cwes],
@@ -78,7 +64,6 @@ def get_vendor_risk_analysis() -> Dict[str, Any]:
                 'labels': [get_cwe_title(cwe) for cwe, count in top_cwes],
                 'values': [count for cwe, count in top_cwes]
             },
-            # Convert Counter objects to standard dicts for JSON compatibility
             'severity_matrix': {
                 cwe: dict(severity_counts) for cwe, severity_counts in cwe_severity_matrix.items()
             },
@@ -91,9 +76,8 @@ def get_vendor_risk_analysis() -> Dict[str, Any]:
         print(f"[Vendor Risk Analysis] Top 5 CWEs: {[cwe for cwe, count in top_5_cwes]}")
         
         return result
-    
+        
     except Exception as e:
-        # Log error but provide safe fallback data for continued operation
         print(f"[Vendor Risk Analysis] Error in analysis: {e}")
         return {
             'top_5_cwes': {'indices': [], 'labels': [], 'values': []},
@@ -104,6 +88,7 @@ def get_vendor_risk_analysis() -> Dict[str, Any]:
             'total_cves_analyzed': 0,
             'years_analyzed': []
         }
+
 
 
 def get_cwe_30_day_counts() -> Dict[str, int]:

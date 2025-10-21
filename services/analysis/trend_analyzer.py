@@ -51,30 +51,25 @@ def get_cve_trends_last_30_days() -> Dict[str, Any]:
     return result
 
 def get_vulnerabilities_over_time_last_n_years(years=1) -> Dict[str, Any]:
-    """Get vulnerability timeline for last N years - LAZY LOADING - MEMORY OPTIMIZED"""
-    print(f"[Vulnerabilities Over Time] Loading last {years} years historical data...")
+    """Get vulnerability timeline - ALWAYS LOADS 2025 ONLY - MEMORY OPTIMIZED"""
+    print(f"[Vulnerabilities Over Time] Loading 2025 data only (ignoring years parameter for memory optimization)...")
     
-    # Lazy import to avoid circular dependencies
     from services.data.data_processor import historical_loader
     
-    # Calculate which years to load
+    # FORCE 2025 ONLY - ignore years parameter to save memory!
     current_year = datetime.now().year
-    years_to_load = list(range(current_year - years + 1, current_year + 1))
+    years_to_load = [current_year]  # CHANGED: Always only current year!
     
     print(f"[Vulnerabilities Over Time] Loading years: {years_to_load}")
     
-    # Initialize monthly counting structure
     monthly_counts = defaultdict(int)
     total_cves = 0
     
-    # Process each year of historical data - ONE AT A TIME
     for year in years_to_load:
-        year_cves = historical_loader.get_year_data(year)  # Lazy load
+        year_cves = historical_loader.get_year_data(year)
         print(f"[Vulnerabilities Over Time] Processing {year}: {len(year_cves)} CVEs")
-        
         total_cves += len(year_cves)
         
-        # Process each CVE in the year
         for cve in year_cves:
             pub_date = cve.get('Published', '')
             if pub_date:
@@ -83,28 +78,28 @@ def get_vulnerabilities_over_time_last_n_years(years=1) -> Dict[str, Any]:
                         dt = datetime.fromisoformat(pub_date.replace('Z', '+00:00'))
                     else:
                         dt = datetime.strptime(pub_date[:10], '%Y-%m-%d')
-                    
                     month_key = dt.strftime('%Y-%m')
                     monthly_counts[month_key] += 1
                 except Exception as e:
                     continue
         
-        # CRITICAL: Clear year cache after processing to save memory
+        # Clear cache after processing to save memory
         if str(year) in historical_loader._year_cache:
             print(f"[Vulnerabilities Over Time] Clearing cache for {year} to save memory")
             del historical_loader._year_cache[str(year)]
     
-    # Sort chronologically
     sorted_months = sorted(monthly_counts.items())
     
     result = {
         'labels': [item[0] for item in sorted_months],
         'values': [item[1] for item in sorted_months],
-        'total_cves': total_cves,'months_covered': len(sorted_months),
+        'total_cves': total_cves,
+        'months_covered': len(sorted_months),
         'raw_data': dict(monthly_counts)
     }
     
     print(f"[Vulnerabilities Over Time] Generated timeline: {result['total_cves']} CVEs across {result['months_covered']} months")
+    
     return result
 
 def get_filtered_historical_cves(year: int = None, month: int = None, day: int = None) -> List[Dict[str, Any]]:
