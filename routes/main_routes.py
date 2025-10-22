@@ -185,20 +185,9 @@ def vulnerabilities():
         import traceback
         traceback.print_exc()
         
-        # Provide a fallback with valid template variables to prevent template errors
         return render_template(
             "pages/vulnerabilities.html",
             latest_cves=[],
-            year_filter=year,
-            month_filter=month,
-            day_filter=day,
-            severity_filter=severity_filter,
-            search_query=search_query,
-            available_years=list(range(datetime.now().year, 1998, -1)),
-            available_months=list(range(1, 13)),
-            current_page=1,
-            total_pages=1,
-            page_numbers=[1],
             total_results=0,
             note_text="Error loading vulnerabilities"
         )
