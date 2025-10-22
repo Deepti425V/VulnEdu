@@ -51,14 +51,21 @@ def get_cve_trends_last_30_days() -> Dict[str, Any]:
     return result
 
 def get_vulnerabilities_over_time_last_n_years(years=1) -> Dict[str, Any]:
-    """Get vulnerability timeline - ALWAYS LOADS 2025 ONLY - MEMORY OPTIMIZED"""
-    print(f"[Vulnerabilities Over Time] Loading 2025 data only (ignoring years parameter for memory optimization)...")
+    """Get vulnerability timeline - SUPPORTS MULTIPLE YEARS"""
+    print(f"[Vulnerabilities Over Time] Requested data for {years} years")
+    
+    # Validate years parameter
+    years = max(1, min(5, int(years)))  # Limit between 1 and 5 years
     
     from services.data.data_processor import historical_loader
     
-    # FORCE 2025 ONLY - ignore years parameter to save memory!
+    # Get years to load based on parameter - THE KEY FIX!
+    # REMOVED: current_year = datetime.now().year
+    # REMOVED: years_to_load = [current_year]  # CHANGED: Always only current year!
+    
+    # NEW CODE: Respect the years parameter
     current_year = datetime.now().year
-    years_to_load = [current_year]  # CHANGED: Always only current year!
+    years_to_load = [current_year - i for i in range(years)]
     
     print(f"[Vulnerabilities Over Time] Loading years: {years_to_load}")
     
@@ -95,7 +102,8 @@ def get_vulnerabilities_over_time_last_n_years(years=1) -> Dict[str, Any]:
         'values': [item[1] for item in sorted_months],
         'total_cves': total_cves,
         'months_covered': len(sorted_months),
-        'raw_data': dict(monthly_counts)
+        'raw_data': dict(monthly_counts),
+        'years_included': years_to_load  # Added this to track which years are included
     }
     
     print(f"[Vulnerabilities Over Time] Generated timeline: {result['total_cves']} CVEs across {result['months_covered']} months")
