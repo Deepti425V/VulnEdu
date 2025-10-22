@@ -7,19 +7,29 @@ import json
 from datetime import datetime
 
 class DatabaseManager:
-    """Manages PostgreSQL database connections - MEMORY OPTIMIZED WITH PAGINATION"""
+    """Manages PostgreSQL database connections - LAZY INITIALIZATION"""
     
     def __init__(self):
         self.database_url = os.environ.get('DATABASE_URL')
         self.connection_pool = None
         self.use_database = bool(self.database_url)
+        self._initialized = False
         
         if self.use_database:
             print("[Database] Database URL found, database mode ENABLED")
-            self.init_connection_pool()
-            self.init_tables()
         else:
             print("[Database] No DATABASE_URL found, database mode DISABLED (using memory)")
+    
+    def _lazy_init(self):
+        """Lazy initialization - only init when actually needed"""
+        if self._initialized:
+            return
+        
+        if self.use_database:
+            self.init_connection_pool()
+            self.init_tables()
+        
+        self._initialized = True
     
     def init_connection_pool(self):
         """Initialize connection pool with MINIMAL connections"""
@@ -30,7 +40,7 @@ class DatabaseManager:
             database_url = self.database_url.replace('postgres://', 'postgresql://', 1)
             self.connection_pool = pool.SimpleConnectionPool(
                 1,  # Min connections
-                2,  # Max connections - OPTIMIZED FOR LOW MEMORY
+                2,  # Max connections
                 database_url
             )
             print("[Database] Connection pool initialized (1-2 connections)")
@@ -41,7 +51,8 @@ class DatabaseManager:
             return False
     
     def get_connection(self):
-        """Get connection from pool"""
+        """Get connection from pool - LAZY INIT"""
+        self._lazy_init()
         if self.connection_pool:
             return self.connection_pool.getconn()
         return None
@@ -60,7 +71,6 @@ class DatabaseManager:
         try:
             cursor = conn.cursor()
             
-            # CVE table with optimized indexes
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS cves (
                     id VARCHAR(50) PRIMARY KEY,
@@ -82,7 +92,6 @@ class DatabaseManager:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_cves_published ON cves(published)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_cves_cwe ON cves(cwe)")
             
-            # Cache metadata table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS cache_metadata (
                     key VARCHAR(100) PRIMARY KEY,
@@ -92,7 +101,6 @@ class DatabaseManager:
                 )
             """)
             
-            # Vendor risk cache table for 24h caching
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS vendor_risk_cache (
                     id SERIAL PRIMARY KEY,
@@ -113,7 +121,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def save_cves_batch(self, cves: List[Dict[str, Any]]) -> bool:
-        """Save multiple CVEs to database - MEMORY OPTIMIZED"""
+        """Save multiple CVEs to database"""
         if not self.use_database or not cves:
             return False
         
@@ -126,21 +134,20 @@ class DatabaseManager:
             values = []
             
             for cve in cves:
-                refs = cve.get('References', [])[:3]  # Limit references to save space
+                refs = cve.get('References', [])[:3]
                 values.append((
                     cve.get('ID'),
-                    cve.get('Description', '')[:500],  # Limit description length
+                    cve.get('Description', '')[:500],
                     cve.get('Severity'),
                     cve.get('CVSSScore'),
                     cve.get('CWE'),
                     cve.get('Published'),
                     cve.get('LastModified'),
                     json.dumps(refs),
-                    None,  # products - not stored to save space
-                    None   # metrics - not stored to save space
+                    None,
+                    None
                 ))
             
-            # Use ON CONFLICT to update existing records
             query = """
                 INSERT INTO cves (id, description, severity, cvss_score, cwe, published, 
                     last_modified, reference_links, products, metrics)
@@ -167,7 +174,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def get_all_cves(self, limit=100, offset=0) -> List[Dict[str, Any]]:
-        """Get all CVEs with PAGINATION - MEMORY SAFE - ONLY ESSENTIAL FIELDS"""
+        """Get all CVEs with PAGINATION"""
         if not self.use_database:
             return []
         
@@ -178,7 +185,6 @@ class DatabaseManager:
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
-            # Only select essential fields to reduce memory usage
             cursor.execute("""
                 SELECT id, description, severity, cvss_score, cwe, published, 
                     last_modified, reference_links
@@ -211,7 +217,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def get_cve_count(self) -> int:
-        """Get total count of CVEs in database"""
+        """Get total count of CVEs"""
         if not self.use_database:
             return 0
         
@@ -232,7 +238,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def search_cves(self, keyword: str, limit=50) -> List[Dict[str, Any]]:
-        """Search CVEs by keyword - MEMORY SAFE - ONLY ESSENTIAL FIELDS"""
+        """Search CVEs by keyword"""
         if not self.use_database:
             return []
         
@@ -244,7 +250,6 @@ class DatabaseManager:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             search_pattern = f"%{keyword}%"
             
-            # Only select essential fields
             cursor.execute("""
                 SELECT id, description, severity, cvss_score, cwe, published, 
                     last_modified, reference_links
@@ -328,7 +333,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def save_vendor_risk_cache(self, vendor_risk: Dict, weighted_risk: Dict) -> bool:
-        """Save vendor risk analysis to cache (24h cache)"""
+        """Save vendor risk to cache"""
         if not self.use_database:
             return False
         
@@ -338,11 +343,7 @@ class DatabaseManager:
         
         try:
             cursor = conn.cursor()
-            
-            # Clear old cache entries
             cursor.execute("DELETE FROM vendor_risk_cache")
-            
-            # Insert new cache
             cursor.execute("""
                 INSERT INTO vendor_risk_cache (vendor_risk, weighted_risk, updated_at)
                 VALUES (%s, %s, CURRENT_TIMESTAMP)
@@ -360,7 +361,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def get_vendor_risk_cache(self) -> Optional[Dict[str, Any]]:
-        """Get vendor risk analysis from cache"""
+        """Get vendor risk from cache"""
         if not self.use_database:
             return None
         
@@ -391,3 +392,6 @@ class DatabaseManager:
         finally:
             cursor.close()
             self.return_connection(conn)
+
+# Create singleton instance - BUT DON'T INITIALIZE YET
+db_manager = DatabaseManager()
