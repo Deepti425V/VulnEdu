@@ -1,64 +1,43 @@
-# Flask blueprint system for modular API route organization
 from flask import Blueprint, jsonify, request
-# Central data coordination service for CVE/CWE operations
 from services.orchestrator import data_orchestrator
 
-# Create API blueprint with name 'api' for route registration
 api_bp = Blueprint('api', __name__)
 
 @api_bp.route("/cve/<cve_id>")
 def api_cve_detail(cve_id):
     """API endpoint for CVE details"""
     try:
-        # Delegate CVE data retrieval to orchestrator service
         cve = data_orchestrator.get_cve_detail(cve_id)
-        
-        # Return structured JSON response with CVE data
         return jsonify({'success': True, 'data': cve})
     except Exception as e:
-        # Return JSON error response with HTTP 500 status
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @api_bp.route("/clear-cache", methods=['POST'])
 def clear_cache():
     """API endpoint to clear cache"""
     try:
-        # Delegate cache clearing to orchestrator service
         data_orchestrator.clear_cache()
-        
-        # Return success confirmation for administrative feedback
         return jsonify({'success': True, 'message': 'Cache cleared'})
     except Exception as e:
-        # Return JSON error response with HTTP 500 status
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @api_bp.route("/force-refresh")
 def force_refresh():
     """Force refresh API data"""
     try:
-        # Print debug message for logging refresh operations
         print("[API] Forcing data refresh...")
-        
-        # Clear existing cache to ensure fresh data
         data_orchestrator.clear_cache()
         
-        # Import severity analyzer locally to avoid circular imports
         from services.analysis.severity_analyzer import get_severity_card_counts
-        
-        # Get fresh vulnerability statistics after cache clear
         severity_counts = get_severity_card_counts()
         
-        # Return success with updated counts and summary message
         return jsonify({
             'success': True,
             'counts': severity_counts,
             'message': f'Refreshed with {severity_counts["total_cves"]} CVEs'
         })
     except Exception as e:
-        # Import traceback for enhanced error information
         import traceback
-        
-        # Return detailed error info for debugging refresh issues
         return jsonify({
             'success': False,
             'error': str(e),
@@ -69,29 +48,25 @@ def force_refresh():
 def data_source_status():
     """API endpoint to check current data source configuration"""
     try:
-        # Get data source configuration from orchestrator
         status = data_orchestrator.get_data_source_status()
-        
-        # Return JSON response with system status information
         return jsonify({'success': True, 'data': status})
     except Exception as e:
-        # Return JSON error response with HTTP 500 status
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @api_bp.route("/timeline-data")
 def get_timeline_data():
-    """API endpoint for dynamic timeline loading"""
+    """API endpoint for dynamic timeline loading - LOADS HISTORICAL DATA"""
     try:
         years = request.args.get('years', default=1, type=int)
         
-        # Validate years parameter
         if years not in [1, 2, 3, 5]:
             years = 1
         
-        print(f"[API] Loading timeline data for {years} year(s)")
+        print(f"[API] Loading timeline data for {years} year(s) from historical files")
         
-        # Get timeline data from orchestrator
-        timeline_data = data_orchestrator._get_timeline(years)
+        # Use historical data
+        from services.analysis.trend_analyzer import get_vulnerabilities_over_time_last_n_years
+        timeline_data = get_vulnerabilities_over_time_last_n_years(years)
         
         return jsonify({
             'success': True,
@@ -108,10 +83,8 @@ def get_timeline_data():
 
 @api_bp.route("/cwe/<cwe_code>")
 def api_cwe_detail(cwe_code):
-    """API endpoint for CWE details – Enhanced with MITRE scraping simulation"""
+    """API endpoint for CWE details"""
     try:
-        # Hardcoded CWE database for reliable educational content
-        # In production, this would fetch from MITRE or local CWE database
         cwe_details = {
             "CWE-79": {
                 "name": "Cross-Site Scripting (XSS)",
@@ -171,7 +144,6 @@ def api_cwe_detail(cwe_code):
             }
         }
         
-        # Get requested CWE data or return generic fallback structure
         cwe_info = cwe_details.get(cwe_code, {
             "name": f"CWE {cwe_code}",
             "description": f"Detailed information for {cwe_code} would be fetched from MITRE database.",
@@ -181,10 +153,8 @@ def api_cwe_detail(cwe_code):
             "source": "placeholder"
         })
         
-        # Return JSON response with CWE data
         return jsonify({'success': True, 'data': cwe_info})
     except Exception as e:
-        # Return JSON error response with HTTP 500 status
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @api_bp.route("/test-api-connection")
@@ -194,10 +164,8 @@ def test_api_connection():
         from services.data.api_client import api_client
         from datetime import datetime
         
-        # Get cache stats
         cache_stats = api_client.get_cache_stats()
         
-        # Test basic functionality
         test_results = {
             'api_key_configured': bool(api_client.api_key),
             'cache_stats': cache_stats,

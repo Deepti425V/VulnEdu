@@ -7,10 +7,9 @@ import json
 from datetime import datetime
 
 class DatabaseManager:
-    """Manages PostgreSQL database connections with connection pooling - MEMORY OPTIMIZED"""
+    """Manages PostgreSQL database connections - MEMORY OPTIMIZED"""
     
     def __init__(self):
-        # Get database URL from environment variable
         self.database_url = os.environ.get('DATABASE_URL')
         self.connection_pool = None
         self.use_database = bool(self.database_url)
@@ -28,16 +27,13 @@ class DatabaseManager:
             return False
         
         try:
-            # Fix URL format
             database_url = self.database_url.replace('postgres://', 'postgresql://', 1)
             
-            # Create connection pool with MINIMAL connections to save memory
             self.connection_pool = pool.SimpleConnectionPool(
                 1,  # Min connections
-                2,  # Max connections (REDUCED from 3 to 2)
+                2,  # Max connections
                 database_url
             )
-            
             print("[Database] Connection pool initialized (1-2 connections)")
             return True
         except Exception as e:
@@ -83,7 +79,6 @@ class DatabaseManager:
                 )
             """)
             
-            # Create indexes
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_cves_severity ON cves(severity)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_cves_published ON cves(published)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_cves_cwe ON cves(cwe)")
@@ -95,6 +90,17 @@ class DatabaseManager:
                     last_updated TIMESTAMP,
                     total_records INTEGER,
                     metadata JSONB
+                )
+            """)
+            
+            # Vendor risk cache table - NEW
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS vendor_risk_cache (
+                    id SERIAL PRIMARY KEY,
+                    vendor_risk JSONB,
+                    weighted_risk JSONB,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             
@@ -119,12 +125,9 @@ class DatabaseManager:
         try:
             cursor = conn.cursor()
             
-            # Prepare data for batch insert - LIMIT reference_links to save space
             values = []
             for cve in cves:
-                # Limit references to first 3 to save database space
                 refs = cve.get('References', [])[:3]
-                
                 values.append((
                     cve.get('ID', ''),
                     cve.get('Description', ''),
@@ -134,14 +137,13 @@ class DatabaseManager:
                     cve.get('Published', ''),
                     cve.get('lastModified', ''),
                     json.dumps(refs),
-                    json.dumps([]),  # Empty products to save space
-                    json.dumps({})   # Empty metrics to save space
+                    json.dumps([]),
+                    json.dumps({})
                 ))
             
-            # Use ON CONFLICT to update existing records
             execute_batch(cursor, """
                 INSERT INTO cves (id, description, severity, cvss_score, cwe,
-                                published, last_modified, reference_links, products, metrics)
+                    published, last_modified, reference_links, products, metrics)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (id) DO UPDATE SET
                     description = EXCLUDED.description,
@@ -180,14 +182,12 @@ class DatabaseManager:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             cursor.execute("""
                 SELECT id, description, severity, cvss_score, cwe,
-                       published, last_modified, reference_links, products, metrics
+                    published, last_modified, reference_links, products, metrics
                 FROM cves
                 ORDER BY published DESC
             """)
-            
             rows = cursor.fetchall()
             
-            # Convert to list of dicts
             cves = []
             for row in rows:
                 cve = {
@@ -267,6 +267,71 @@ class DatabaseManager:
             return None
         except Exception as e:
             print(f"[Database] Error fetching metadata: {e}")
+            return None
+        finally:
+            cursor.close()
+            self.return_connection(conn)
+    
+    def save_vendor_risk_cache(self, vendor_risk: Dict, weighted_risk: Dict) -> bool:
+        """Save vendor risk analysis to database cache"""
+        if not self.use_database:
+            return False
+        
+        conn = self.get_connection()
+        if not conn:
+            return False
+        
+        try:
+            cursor = conn.cursor()
+            
+            # Delete old cache
+            cursor.execute("DELETE FROM vendor_risk_cache")
+            
+            # Insert new cache
+            cursor.execute("""
+                INSERT INTO vendor_risk_cache (vendor_risk, weighted_risk, updated_at)
+                VALUES (%s, %s, CURRENT_TIMESTAMP)
+            """, (json.dumps(vendor_risk), json.dumps(weighted_risk)))
+            
+            conn.commit()
+            print("[Database] Vendor risk cache saved to database")
+            return True
+        except Exception as e:
+            print(f"[Database] Error saving vendor risk cache: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cursor.close()
+            self.return_connection(conn)
+    
+    def get_vendor_risk_cache(self) -> Optional[Dict]:
+        """Get vendor risk analysis from database cache"""
+        if not self.use_database:
+            return None
+        
+        conn = self.get_connection()
+        if not conn:
+            return None
+        
+        try:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute("""
+                SELECT vendor_risk, weighted_risk, updated_at
+                FROM vendor_risk_cache
+                ORDER BY updated_at DESC
+                LIMIT 1
+            """)
+            
+            row = cursor.fetchone()
+            if row:
+                return {
+                    'vendor_risk': row['vendor_risk'],
+                    'weighted_risk': row['weighted_risk'],
+                    'updated_at': row['updated_at']
+                }
+            return None
+        except Exception as e:
+            print(f"[Database] Error fetching vendor risk cache: {e}")
             return None
         finally:
             cursor.close()
