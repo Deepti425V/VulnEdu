@@ -7,42 +7,54 @@ import json
 from datetime import datetime
 
 class DatabaseManager:
-    """Manages PostgreSQL database connections - LAZY INITIALIZATION"""
+    """Manages PostgreSQL database connections - SINGLETON with LAZY INIT"""
+    
+    _instance = None
+    _lock = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(DatabaseManager, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
     
     def __init__(self):
-        self.database_url = os.environ.get('DATABASE_URL')
-        self.connection_pool = None
-        self.use_database = bool(self.database_url)
-        self._initialized = False
-        
-        if self.use_database:
-            print("[Database] Database URL found, database mode ENABLED")
-        else:
-            print("[Database] No DATABASE_URL found, database mode DISABLED (using memory)")
-    
-    def _lazy_init(self):
-        """Lazy initialization - only init when actually needed"""
         if self._initialized:
             return
         
+        self.database_url = os.environ.get('DATABASE_URL')
+        self.connection_pool = None
+        self.use_database = bool(self.database_url)
+        self._db_initialized = False
+        
+        # DO NOT initialize connection pool here!
+        # Only print status
         if self.use_database:
-            self.init_connection_pool()
-            self.init_tables()
+            print("[Database] Database URL found, will initialize on first use")
+        else:
+            print("[Database] No DATABASE_URL found, database mode DISABLED")
         
         self._initialized = True
     
+    def _lazy_init(self):
+        """Lazy initialization - only when actually needed"""
+        if self._db_initialized:
+            return
+        
+        if self.use_database and not self.connection_pool:
+            self.init_connection_pool()
+            self.init_tables()
+        
+        self._db_initialized = True
+    
     def init_connection_pool(self):
-        """Initialize connection pool with MINIMAL connections"""
-        if not self.database_url:
+        """Initialize connection pool"""
+        if not self.database_url or self.connection_pool:
             return False
         
         try:
             database_url = self.database_url.replace('postgres://', 'postgresql://', 1)
-            self.connection_pool = pool.SimpleConnectionPool(
-                1,  # Min connections
-                2,  # Max connections
-                database_url
-            )
+            self.connection_pool = pool.SimpleConnectionPool(1, 2, database_url)
             print("[Database] Connection pool initialized (1-2 connections)")
             return True
         except Exception as e:
@@ -51,7 +63,7 @@ class DatabaseManager:
             return False
     
     def get_connection(self):
-        """Get connection from pool - LAZY INIT"""
+        """Get connection from pool"""
         self._lazy_init()
         if self.connection_pool:
             return self.connection_pool.getconn()
@@ -63,7 +75,7 @@ class DatabaseManager:
             self.connection_pool.putconn(conn)
     
     def init_tables(self):
-        """Initialize database tables if they don't exist"""
+        """Initialize database tables"""
         conn = self.get_connection()
         if not conn:
             return
@@ -121,7 +133,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def save_cves_batch(self, cves: List[Dict[str, Any]]) -> bool:
-        """Save multiple CVEs to database"""
+        """Save CVEs to database"""
         if not self.use_database or not cves:
             return False
         
@@ -163,7 +175,6 @@ class DatabaseManager:
             
             execute_batch(cursor, query, values, page_size=100)
             conn.commit()
-            print(f"[Database] Saved {len(cves)} CVEs successfully")
             return True
         except Exception as e:
             print(f"[Database] Error saving CVEs: {e}")
@@ -174,7 +185,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def get_all_cves(self, limit=100, offset=0) -> List[Dict[str, Any]]:
-        """Get all CVEs with PAGINATION"""
+        """Get all CVEs with pagination"""
         if not self.use_database:
             return []
         
@@ -184,17 +195,13 @@ class DatabaseManager:
         
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
-            
             cursor.execute("""
                 SELECT id, description, severity, cvss_score, cwe, published, 
                     last_modified, reference_links
-                FROM cves
-                ORDER BY published DESC
-                LIMIT %s OFFSET %s
+                FROM cves ORDER BY published DESC LIMIT %s OFFSET %s
             """, (limit, offset))
             
             rows = cursor.fetchall()
-            
             cves = []
             for row in rows:
                 cves.append({
@@ -207,7 +214,6 @@ class DatabaseManager:
                     'LastModified': row['last_modified'],
                     'References': json.loads(row['reference_links']) if row['reference_links'] else []
                 })
-            
             return cves
         except Exception as e:
             print(f"[Database] Error getting CVEs: {e}")
@@ -217,7 +223,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def get_cve_count(self) -> int:
-        """Get total count of CVEs"""
+        """Get total CVE count"""
         if not self.use_database:
             return 0
         
@@ -238,7 +244,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def search_cves(self, keyword: str, limit=50) -> List[Dict[str, Any]]:
-        """Search CVEs by keyword"""
+        """Search CVEs"""
         if not self.use_database:
             return []
         
@@ -249,18 +255,14 @@ class DatabaseManager:
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             search_pattern = f"%{keyword}%"
-            
             cursor.execute("""
                 SELECT id, description, severity, cvss_score, cwe, published, 
                     last_modified, reference_links
-                FROM cves
-                WHERE id ILIKE %s OR description ILIKE %s
-                ORDER BY published DESC
-                LIMIT %s
+                FROM cves WHERE id ILIKE %s OR description ILIKE %s
+                ORDER BY published DESC LIMIT %s
             """, (search_pattern, search_pattern, limit))
             
             rows = cursor.fetchall()
-            
             cves = []
             for row in rows:
                 cves.append({
@@ -273,7 +275,6 @@ class DatabaseManager:
                     'LastModified': row['last_modified'],
                     'References': json.loads(row['reference_links']) if row['reference_links'] else []
                 })
-            
             return cves
         except Exception as e:
             print(f"[Database] Error searching CVEs: {e}")
@@ -297,7 +298,6 @@ class DatabaseManager:
             row = cursor.fetchone()
             return dict(row) if row else None
         except Exception as e:
-            print(f"[Database] Error getting cache metadata: {e}")
             return None
         finally:
             cursor.close()
@@ -321,11 +321,9 @@ class DatabaseManager:
                     last_updated = EXCLUDED.last_updated,
                     total_records = EXCLUDED.total_records
             """, (key, datetime.now(), total_records))
-            
             conn.commit()
             return True
         except Exception as e:
-            print(f"[Database] Error updating cache metadata: {e}")
             conn.rollback()
             return False
         finally:
@@ -333,7 +331,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def save_vendor_risk_cache(self, vendor_risk: Dict, weighted_risk: Dict) -> bool:
-        """Save vendor risk to cache"""
+        """Save vendor risk cache"""
         if not self.use_database:
             return False
         
@@ -348,12 +346,9 @@ class DatabaseManager:
                 INSERT INTO vendor_risk_cache (vendor_risk, weighted_risk, updated_at)
                 VALUES (%s, %s, CURRENT_TIMESTAMP)
             """, (json.dumps(vendor_risk), json.dumps(weighted_risk)))
-            
             conn.commit()
-            print("[Database] Vendor risk cache saved successfully")
             return True
         except Exception as e:
-            print(f"[Database] Error saving vendor risk cache: {e}")
             conn.rollback()
             return False
         finally:
@@ -361,7 +356,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def get_vendor_risk_cache(self) -> Optional[Dict[str, Any]]:
-        """Get vendor risk from cache"""
+        """Get vendor risk cache"""
         if not self.use_database:
             return None
         
@@ -374,10 +369,8 @@ class DatabaseManager:
             cursor.execute("""
                 SELECT vendor_risk, weighted_risk, updated_at
                 FROM vendor_risk_cache
-                ORDER BY updated_at DESC
-                LIMIT 1
+                ORDER BY updated_at DESC LIMIT 1
             """)
-            
             row = cursor.fetchone()
             if row:
                 return {
@@ -387,11 +380,20 @@ class DatabaseManager:
                 }
             return None
         except Exception as e:
-            print(f"[Database] Error getting vendor risk cache: {e}")
             return None
         finally:
             cursor.close()
             self.return_connection(conn)
 
-# Create singleton instance - BUT DON'T INITIALIZE YET
-db_manager = DatabaseManager()
+# Singleton instance - but DON'T call __init__ yet!
+_db_manager_instance = None
+
+def get_db_manager():
+    """Get singleton database manager instance"""
+    global _db_manager_instance
+    if _db_manager_instance is None:
+        _db_manager_instance = DatabaseManager()
+    return _db_manager_instance
+
+# For backward compatibility
+db_manager = get_db_manager()
