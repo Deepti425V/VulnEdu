@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 
 class DatabaseManager:
-    """Manages PostgreSQL database connections - MEMORY OPTIMIZED"""
+    """Manages PostgreSQL database connections - MEMORY OPTIMIZED WITH PAGINATION"""
     
     def __init__(self):
         self.database_url = os.environ.get('DATABASE_URL')
@@ -28,10 +28,9 @@ class DatabaseManager:
         
         try:
             database_url = self.database_url.replace('postgres://', 'postgresql://', 1)
-            
             self.connection_pool = pool.SimpleConnectionPool(
                 1,  # Min connections
-                2,  # Max connections
+                2,  # Max connections - OPTIMIZED FOR LOW MEMORY
                 database_url
             )
             print("[Database] Connection pool initialized (1-2 connections)")
@@ -61,7 +60,7 @@ class DatabaseManager:
         try:
             cursor = conn.cursor()
             
-            # CVE table
+            # CVE table with optimized indexes
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS cves (
                     id VARCHAR(50) PRIMARY KEY,
@@ -93,7 +92,7 @@ class DatabaseManager:
                 )
             """)
             
-            # Vendor risk cache table - NEW
+            # Vendor risk cache table for 24h caching
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS vendor_risk_cache (
                     id SERIAL PRIMARY KEY,
@@ -124,42 +123,40 @@ class DatabaseManager:
         
         try:
             cursor = conn.cursor()
-            
             values = []
+            
             for cve in cves:
-                refs = cve.get('References', [])[:3]
+                refs = cve.get('References', [])[:3]  # Limit references to save space
                 values.append((
-                    cve.get('ID', ''),
-                    cve.get('Description', ''),
-                    cve.get('Severity', 'UNKNOWN'),
-                    cve.get('CVSS_Score'),
+                    cve.get('ID'),
+                    cve.get('Description', '')[:500],  # Limit description length
+                    cve.get('Severity'),
+                    cve.get('CVSSScore'),
                     cve.get('CWE'),
-                    cve.get('Published', ''),
-                    cve.get('lastModified', ''),
+                    cve.get('Published'),
+                    cve.get('LastModified'),
                     json.dumps(refs),
-                    json.dumps([]),
-                    json.dumps({})
+                    None,  # products - not stored to save space
+                    None   # metrics - not stored to save space
                 ))
             
-            execute_batch(cursor, """
-                INSERT INTO cves (id, description, severity, cvss_score, cwe,
-                    published, last_modified, reference_links, products, metrics)
+            # Use ON CONFLICT to update existing records
+            query = """
+                INSERT INTO cves (id, description, severity, cvss_score, cwe, published, 
+                    last_modified, reference_links, products, metrics)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (id) DO UPDATE SET
                     description = EXCLUDED.description,
                     severity = EXCLUDED.severity,
                     cvss_score = EXCLUDED.cvss_score,
                     cwe = EXCLUDED.cwe,
-                    published = EXCLUDED.published,
                     last_modified = EXCLUDED.last_modified,
-                    reference_links = EXCLUDED.reference_links,
-                    products = EXCLUDED.products,
-                    metrics = EXCLUDED.metrics,
                     updated_at = CURRENT_TIMESTAMP
-            """, values)
+            """
             
+            execute_batch(cursor, query, values, page_size=100)
             conn.commit()
-            print(f"[Database] Saved {len(cves)} CVEs to database")
+            print(f"[Database] Saved {len(cves)} CVEs successfully")
             return True
         except Exception as e:
             print(f"[Database] Error saving CVEs: {e}")
@@ -169,8 +166,8 @@ class DatabaseManager:
             cursor.close()
             self.return_connection(conn)
     
-    def get_all_cves(self) -> List[Dict[str, Any]]:
-        """Get all CVEs from database"""
+    def get_all_cves(self, limit=100, offset=0) -> List[Dict[str, Any]]:
+        """Get all CVEs with PAGINATION - MEMORY SAFE - ONLY ESSENTIAL FIELDS"""
         if not self.use_database:
             return []
         
@@ -180,67 +177,107 @@ class DatabaseManager:
         
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            # Only select essential fields to reduce memory usage
             cursor.execute("""
-                SELECT id, description, severity, cvss_score, cwe,
-                    published, last_modified, reference_links, products, metrics
+                SELECT id, description, severity, cvss_score, cwe, published, 
+                    last_modified, reference_links
                 FROM cves
                 ORDER BY published DESC
-            """)
+                LIMIT %s OFFSET %s
+            """, (limit, offset))
+            
             rows = cursor.fetchall()
             
             cves = []
             for row in rows:
-                cve = {
+                cves.append({
                     'ID': row['id'],
                     'Description': row['description'],
                     'Severity': row['severity'],
-                    'CVSS_Score': row['cvss_score'],
+                    'CVSSScore': row['cvss_score'],
                     'CWE': row['cwe'],
                     'Published': row['published'],
-                    'lastModified': row['last_modified'],
-                    'References': row['reference_links'] if isinstance(row['reference_links'], list) else [],
-                    'Products': row['products'] if isinstance(row['products'], list) else [],
-                    'metrics': row['metrics'] if isinstance(row['metrics'], dict) else {}
-                }
-                cves.append(cve)
+                    'LastModified': row['last_modified'],
+                    'References': json.loads(row['reference_links']) if row['reference_links'] else []
+                })
             
             return cves
         except Exception as e:
-            print(f"[Database] Error fetching CVEs: {e}")
+            print(f"[Database] Error getting CVEs: {e}")
             return []
         finally:
             cursor.close()
             self.return_connection(conn)
     
-    def update_cache_metadata(self, key: str, total_records: int, metadata: Dict = None):
-        """Update cache metadata"""
+    def get_cve_count(self) -> int:
+        """Get total count of CVEs in database"""
         if not self.use_database:
-            return
+            return 0
         
         conn = self.get_connection()
         if not conn:
-            return
+            return 0
         
         try:
             cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO cache_metadata (key, last_updated, total_records, metadata)
-                VALUES (%s, CURRENT_TIMESTAMP, %s, %s)
-                ON CONFLICT (key) DO UPDATE SET
-                    last_updated = CURRENT_TIMESTAMP,
-                    total_records = EXCLUDED.total_records,
-                    metadata = EXCLUDED.metadata
-            """, (key, total_records, json.dumps(metadata or {})))
-            
-            conn.commit()
+            cursor.execute("SELECT COUNT(*) FROM cves")
+            count = cursor.fetchone()[0]
+            return count
         except Exception as e:
-            print(f"[Database] Error updating metadata: {e}")
-            conn.rollback()
+            print(f"[Database] Error getting CVE count: {e}")
+            return 0
         finally:
             cursor.close()
             self.return_connection(conn)
     
-    def get_cache_metadata(self, key: str) -> Optional[Dict]:
+    def search_cves(self, keyword: str, limit=50) -> List[Dict[str, Any]]:
+        """Search CVEs by keyword - MEMORY SAFE - ONLY ESSENTIAL FIELDS"""
+        if not self.use_database:
+            return []
+        
+        conn = self.get_connection()
+        if not conn:
+            return []
+        
+        try:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            search_pattern = f"%{keyword}%"
+            
+            # Only select essential fields
+            cursor.execute("""
+                SELECT id, description, severity, cvss_score, cwe, published, 
+                    last_modified, reference_links
+                FROM cves
+                WHERE id ILIKE %s OR description ILIKE %s
+                ORDER BY published DESC
+                LIMIT %s
+            """, (search_pattern, search_pattern, limit))
+            
+            rows = cursor.fetchall()
+            
+            cves = []
+            for row in rows:
+                cves.append({
+                    'ID': row['id'],
+                    'Description': row['description'],
+                    'Severity': row['severity'],
+                    'CVSSScore': row['cvss_score'],
+                    'CWE': row['cwe'],
+                    'Published': row['published'],
+                    'LastModified': row['last_modified'],
+                    'References': json.loads(row['reference_links']) if row['reference_links'] else []
+                })
+            
+            return cves
+        except Exception as e:
+            print(f"[Database] Error searching CVEs: {e}")
+            return []
+        finally:
+            cursor.close()
+            self.return_connection(conn)
+    
+    def get_cache_metadata(self, key: str) -> Optional[Dict[str, Any]]:
         """Get cache metadata"""
         if not self.use_database:
             return None
@@ -251,29 +288,47 @@ class DatabaseManager:
         
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute("""
-                SELECT last_updated, total_records, metadata
-                FROM cache_metadata
-                WHERE key = %s
-            """, (key,))
-            
+            cursor.execute("SELECT * FROM cache_metadata WHERE key = %s", (key,))
             row = cursor.fetchone()
-            if row:
-                return {
-                    'last_updated': row['last_updated'],
-                    'total_records': row['total_records'],
-                    'metadata': row['metadata']
-                }
-            return None
+            return dict(row) if row else None
         except Exception as e:
-            print(f"[Database] Error fetching metadata: {e}")
+            print(f"[Database] Error getting cache metadata: {e}")
             return None
         finally:
             cursor.close()
             self.return_connection(conn)
     
+    def update_cache_metadata(self, key: str, total_records: int) -> bool:
+        """Update cache metadata"""
+        if not self.use_database:
+            return False
+        
+        conn = self.get_connection()
+        if not conn:
+            return False
+        
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO cache_metadata (key, last_updated, total_records)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (key) DO UPDATE SET
+                    last_updated = EXCLUDED.last_updated,
+                    total_records = EXCLUDED.total_records
+            """, (key, datetime.now(), total_records))
+            
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"[Database] Error updating cache metadata: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cursor.close()
+            self.return_connection(conn)
+    
     def save_vendor_risk_cache(self, vendor_risk: Dict, weighted_risk: Dict) -> bool:
-        """Save vendor risk analysis to database cache"""
+        """Save vendor risk analysis to cache (24h cache)"""
         if not self.use_database:
             return False
         
@@ -284,7 +339,7 @@ class DatabaseManager:
         try:
             cursor = conn.cursor()
             
-            # Delete old cache
+            # Clear old cache entries
             cursor.execute("DELETE FROM vendor_risk_cache")
             
             # Insert new cache
@@ -294,7 +349,7 @@ class DatabaseManager:
             """, (json.dumps(vendor_risk), json.dumps(weighted_risk)))
             
             conn.commit()
-            print("[Database] Vendor risk cache saved to database")
+            print("[Database] Vendor risk cache saved successfully")
             return True
         except Exception as e:
             print(f"[Database] Error saving vendor risk cache: {e}")
@@ -304,8 +359,8 @@ class DatabaseManager:
             cursor.close()
             self.return_connection(conn)
     
-    def get_vendor_risk_cache(self) -> Optional[Dict]:
-        """Get vendor risk analysis from database cache"""
+    def get_vendor_risk_cache(self) -> Optional[Dict[str, Any]]:
+        """Get vendor risk analysis from cache"""
         if not self.use_database:
             return None
         
@@ -331,60 +386,8 @@ class DatabaseManager:
                 }
             return None
         except Exception as e:
-            print(f"[Database] Error fetching vendor risk cache: {e}")
+            print(f"[Database] Error getting vendor risk cache: {e}")
             return None
         finally:
             cursor.close()
             self.return_connection(conn)
-    
-    def clear_all_cves(self):
-        """Clear all CVE data (for refresh)"""
-        if not self.use_database:
-            return
-        
-        conn = self.get_connection()
-        if not conn:
-            return
-        
-        try:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM cves")
-            conn.commit()
-            print("[Database] Cleared all CVEs from database")
-        except Exception as e:
-            print(f"[Database] Error clearing CVEs: {e}")
-            conn.rollback()
-        finally:
-            cursor.close()
-            self.return_connection(conn)
-    
-    def get_stats(self) -> Dict[str, Any]:
-        """Get database statistics"""
-        if not self.use_database:
-            return {}
-        
-        conn = self.get_connection()
-        if not conn:
-            return {}
-        
-        try:
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM cves")
-            total_cves = cursor.fetchone()[0]
-            
-            return {
-                'total_cves': total_cves,
-                'database_enabled': True
-            }
-        except Exception as e:
-            print(f"[Database] Error getting stats: {e}")
-            return {}
-        finally:
-            cursor.close()
-            self.return_connection(conn)
-    
-    def close(self):
-        """Close all connections in pool"""
-        if self.connection_pool:
-            self.connection_pool.closeall()
-            print("[Database] Connection pool closed")

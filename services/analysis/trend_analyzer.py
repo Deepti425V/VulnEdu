@@ -2,21 +2,52 @@ from typing import Dict, List, Any
 from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 from services.data.api_client import api_client
+import config
 
 def get_cve_trends_last_30_days() -> Dict[str, Any]:
-    """Get CVE trends for last 30 days - API ONLY"""
-    print("[CVE Trends] Fetching 30-day trends from API...")
+    """Get CVE trends for last 30 days - FETCH ALL CVEs IN BATCHES"""
+    print("[CVE Trends] Fetching 30-day trends from API with FULL PAGINATION...")
     
-    cves = api_client.get_cves_last_30_days()
+    # Fetch ALL CVEs from last 30 days in batches
+    all_cves = []
+    offset = 0
+    batch_size = config.API_BATCH_SIZE
+    max_iterations = 25  # Safety limit
+    iteration = 0
     
+    while iteration < max_iterations:
+        iteration += 1
+        print(f"[CVE Trends] → Batch {iteration} (offset={offset})")
+        
+        batch = api_client.get_cves_last_30_days(batch_size=batch_size, offset=offset)
+        
+        if not batch:
+            print(f"[CVE Trends] No more data at offset {offset}")
+            break
+        
+        all_cves.extend(batch)
+        print(f"[CVE Trends] Total loaded: {len(all_cves)} CVEs")
+        
+        # If we got less than batch_size, we've reached the end
+        if len(batch) < batch_size:
+            print(f"[CVE Trends] Got {len(batch)} < {batch_size}, end of data")
+            break
+        
+        offset += batch_size
+    
+    print(f"[CVE Trends] ✓ Fetched {len(all_cves)} CVEs total")
+    
+    # Process CVEs by day
     daily_counts = defaultdict(int)
     today = datetime.now(timezone.utc).date()
     
+    # Initialize all 30 days with 0
     for i in range(30):
         day = today - timedelta(days=29-i)
         daily_counts[day.strftime('%Y-%m-%d')] = 0
     
-    for cve in cves:
+    # Count CVEs by day
+    for cve in all_cves:
         pub_date = cve.get('Published', '')
         if pub_date:
             try:
@@ -31,10 +62,11 @@ def get_cve_trends_last_30_days() -> Dict[str, Any]:
                 continue
     
     sorted_dates = sorted(daily_counts.keys())
+    
     result = {
         'labels': sorted_dates,
         'values': [daily_counts[date] for date in sorted_dates],
-        'total_cves': len(cves),
+        'total_cves': len(all_cves),
         'date_range': {
             'start': sorted_dates[0] if sorted_dates else '',
             'end': sorted_dates[-1] if sorted_dates else ''
@@ -44,6 +76,7 @@ def get_cve_trends_last_30_days() -> Dict[str, Any]:
     print(f"[CVE Trends] Generated trends: {result['total_cves']} CVEs over {len(sorted_dates)} days")
     return result
 
+
 def get_vulnerabilities_over_time_last_n_years(years=1) -> Dict[str, Any]:
     """Get vulnerability timeline - LOADS HISTORICAL DATA FOR REAL TIMELINE"""
     print(f"[Vulnerabilities Over Time] Loading {years} year(s) of historical data...")
@@ -52,7 +85,6 @@ def get_vulnerabilities_over_time_last_n_years(years=1) -> Dict[str, Any]:
     
     current_year = datetime.now().year
     years_to_load = []
-    
     for i in range(years):
         year = current_year - i
         years_to_load.append(year)
@@ -66,8 +98,8 @@ def get_vulnerabilities_over_time_last_n_years(years=1) -> Dict[str, Any]:
         try:
             print(f"[Vulnerabilities Over Time] Loading {year}...")
             year_cves = historical_loader.get_year_data(year)
-            print(f"[Vulnerabilities Over Time] Processing {year}: {len(year_cves)} CVEs")
             
+            print(f"[Vulnerabilities Over Time] Processing {year}: {len(year_cves)} CVEs")
             total_cves += len(year_cves)
             
             for cve in year_cves:
@@ -84,15 +116,16 @@ def get_vulnerabilities_over_time_last_n_years(years=1) -> Dict[str, Any]:
                         continue
             
             # Clear cache after processing to save memory
-            if str(year) in historical_loader._year_cache:
+            if str(year) in historical_loader.year_cache:
                 print(f"[Vulnerabilities Over Time] Clearing cache for {year} to save memory")
-                del historical_loader._year_cache[str(year)]
-        
+                del historical_loader.year_cache[str(year)]
+                
         except Exception as e:
             print(f"[Vulnerabilities Over Time] Error loading {year}: {e}")
             continue
     
     sorted_months = sorted(monthly_counts.items())
+    
     result = {
         'labels': [item[0] for item in sorted_months],
         'values': [item[1] for item in sorted_months],
@@ -103,16 +136,3 @@ def get_vulnerabilities_over_time_last_n_years(years=1) -> Dict[str, Any]:
     
     print(f"[Vulnerabilities Over Time] Generated timeline: {result['total_cves']} CVEs across {result['months_covered']} months")
     return result
-
-def get_filtered_historical_cves(year: int = None, month: int = None, day: int = None) -> List[Dict[str, Any]]:
-    """Get filtered CVEs - FROM API"""
-    print(f"[Historical Filter] Filtering from API for year={year}, month={month}, day={day}")
-    
-    if not year:
-        return []
-    
-    # Use API to get data for specific year
-    cves = api_client.get_cves_for_date_range(year=year, month=month, day=day)
-    
-    print(f"[Historical Filter] Filtered result: {len(cves)} CVEs")
-    return cves
