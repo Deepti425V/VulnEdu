@@ -7,8 +7,7 @@ from datetime import datetime, timezone, timedelta
 import config
 from database import db_manager
 import logging
-import gzip
-from io import BytesIO
+import traceback
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -88,6 +87,14 @@ class NVDApiClient:
     
     def get_cves_last_30_days(self, batch_size: int = None, offset: int = 0) -> List[Dict[str, Any]]:
         """Get CVEs from last 30 days - SINGLE BATCH ONLY"""
+        
+        # ===== DEBUG: FIND WHO IS CALLING THIS DURING STARTUP =====
+        print("=" * 80)
+        print("[DEBUG] get_cves_last_30_days() called from:")
+        traceback.print_stack()
+        print("=" * 80)
+        # ===== END DEBUG =====
+        
         if batch_size is None:
             batch_size = config.API_BATCH_SIZE
         
