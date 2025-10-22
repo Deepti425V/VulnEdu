@@ -25,14 +25,13 @@ def index():
         
         print(f"[Flask] Filters: year={year}, month={month}, day={day}, severity={severity_filter}, search={search_query}, timeline_years={timeline_years}")
         
-        # ALWAYS load with historical=True (using API data only)
         dashboard_data = data_orchestrator.get_dashboard_data(
             year=year,
             month=month,
             day=day,
             severity_filter=severity_filter,
             timeline_years=timeline_years,
-            load_historical=True  # Always true
+            load_historical=True
         )
         
         if search_query:
@@ -82,7 +81,7 @@ def index():
             cwe_radar_all=dashboard_data['cwe_radar_all'],
             cwe_radar_weighted=dashboard_data['cwe_radar_weighted'],
             cwe_radar_descriptions=dashboard_data['cwe_radar_descriptions'],
-            historical_loaded=True,  # Always true
+            historical_loaded=dashboard_data.get('historical_loaded', False),
             year_filter=year,
             month_filter=month,
             day_filter=day,
@@ -90,7 +89,7 @@ def index():
             search_query=search_query,
             timeline_years=timeline_years
         )
-        
+    
     except Exception as e:
         print(f"[Flask] Dashboard error: {e}")
         import traceback
@@ -118,6 +117,7 @@ def index():
             search_query=None,
             timeline_years=1
         )
+
 
 @main_bp.route("/vulnerabilities")
 def vulnerabilities():
@@ -149,14 +149,13 @@ def vulnerabilities():
         total_results = len(all_cves)
         total_pages = max(1, math.ceil(total_results / per_page))
         current_page = max(1, min(page, total_pages))
-        
         start_index = (current_page - 1) * per_page
         end_index = start_index + per_page
         cves_page = all_cves[start_index:end_index]
         
         page_numbers = filter_service.generate_page_numbers(current_page, total_pages)
-        note_text = filter_service.generate_note_text(year, month, day)
         
+        note_text = filter_service.generate_note_text(year, month, day)
         if severity_filter:
             note_text += f" (filtered by {severity_filter.lower()} severity)"
         if search_query:
@@ -180,6 +179,7 @@ def vulnerabilities():
             total_results=total_results,
             note_text=note_text
         )
+    
     except Exception as e:
         print(f"[Flask] Vulnerabilities page error: {e}")
         import traceback
@@ -191,6 +191,7 @@ def vulnerabilities():
             total_results=0,
             note_text="Error loading vulnerabilities"
         )
+
 
 @main_bp.route("/cve/<cve_id>")
 def cve_detail(cve_id):

@@ -2,15 +2,13 @@
 from flask import Blueprint, render_template, redirect, url_for
 # Date/time handling for current timestamps and timezone awareness
 from datetime import datetime, timezone
-# Use orchestrator for cached data instead of direct API calls
-from services.orchestrator import data_orchestrator
+# CVE data retrieval service for educational content
+from services.data.api_client import api_client
 # CWE analysis and vendor risk assessment services
 from services.analysis.cwe_processor import cwe_processor, get_vendor_risk_analysis
 
-
 # Create learning blueprint with name 'learn' for route registration
 learn_bp = Blueprint('learn', __name__)
-
 
 # Static CWE titles for educational content - curated for learning value
 CWE_TITLES = {
@@ -24,13 +22,11 @@ CWE_TITLES = {
     "CWE-78": "OS Command Injection"
 }
 
-
 @learn_bp.route("/")
 def learn():
     """Redirect to main learn topic"""
     # Redirect root learning requests to default educational topic
     return redirect(url_for('learn.learn_topic', topic='what-is-cve'))
-
 
 @learn_bp.route("/<topic>")
 def learn_topic(topic):
@@ -46,12 +42,8 @@ def learn_topic(topic):
         return redirect(url_for('learn.learn_topic', topic='what-is-cve'))
 
     try:
-        # USE ORCHESTRATOR'S CACHED DATA - PREVENTS API CALLS DURING STARTUP/HEALTH CHECKS
-        try:
-            latest_cves = data_orchestrator.get_filtered_cves()[:25]
-        except:
-            # Fallback to empty list if data not yet loaded
-            latest_cves = []
+        # Get recent CVE data for educational examples (limit to 25 for performance)
+        latest_cves = api_client.get_cves_last_30_days()[:25]
 
         # Initialize data containers for template rendering
         cwe_dict = {}
@@ -109,10 +101,7 @@ def learn_topic(topic):
             # Basic data loading for non-CWE topics
             # Import severity analyzer locally to avoid circular imports
             from services.analysis.severity_analyzer import get_severity_card_counts
-            try:
-                cwe_severity = get_severity_card_counts()
-            except:
-                cwe_severity = {}
+            cwe_severity = get_severity_card_counts()
             # Use static CWE data for basic educational content
             key_cwes = list(CWE_TITLES.keys())
             key_cwe_titles = CWE_TITLES
