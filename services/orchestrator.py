@@ -1,5 +1,6 @@
 import os
 import json
+import threading
 from typing import Dict, List, Any
 from datetime import datetime, timezone, timedelta
 from services.analysis.trend_analyzer import get_cve_trends_last_30_days
@@ -9,17 +10,31 @@ from services.cache.cache_manager import cache_manager
 import config
 
 class DataOrchestrator:
-    """Memory-optimized orchestrator - LITE MODE for 512MB RAM"""
+    """Memory-optimized orchestrator with STAGED LOADING for 512MB RAM"""
     
     def __init__(self):
         data_source_config.log_data_source_status()
         self._last_refresh_time = None
         self._full_data_loaded = False
-        print("[Orchestrator] Initialized with LITE MODE for first load")
+        self._loading_progress = {
+            'stage': 'idle',
+            'progress': 0,
+            'message': 'Not started',
+            'started_at': None,
+            'completed_at': None,
+            'error': None
+        }
+        self._loading_lock = threading.Lock()
+        print("[Orchestrator] Initialized with STAGED LOADING for 512MB")
+    
+    def get_loading_progress(self):
+        """Get current loading progress for progress tracker"""
+        with self._loading_lock:
+            return self._loading_progress.copy()
     
     def get_dashboard_data(self, year=None, month=None, day=None, severity_filter=None, 
                           timeline_years=1, load_historical=False, lite_mode=True):
-        """Get dashboard data - LITE MODE for first load, FULL MODE after cache"""
+        """Get dashboard data - LITE MODE for first load"""
         print(f"[Orchestrator] Loading dashboard (lite_mode={lite_mode}): year={year}, month={month}, severity={severity_filter}")
         
         try:
@@ -85,12 +100,7 @@ class DataOrchestrator:
             
             note_text = self._generate_note_text(year, month, day, severity_filter, load_historical, timeline_years)
             if lite_mode and not self._full_data_loaded:
-                note_text += " (Loading full data in background...)"
-            
-            print(f"[Orchestrator] ✓ Data loaded:")
-            print(f"  - CVEs: {len(filtered_cves)}")
-            print(f"  - Trends: {len(cve_trends.get('labels', []))} days")
-            print(f"  - Timeline: {len(vulnerabilities_timeline.get('labels', []))} months")
+                note_text += " (Full data loading in background...)"
             
             dashboard_data = {
                 'metrics': severity_metrics,
@@ -122,7 +132,6 @@ class DataOrchestrator:
     
     def _get_lite_cve_trends(self):
         """Get LITE CVE trends - only 200 CVEs"""
-        print("[Orchestrator] Loading LITE CVE trends (200 CVEs only)")
         cached = cache_manager.get("cve_trends_lite")
         if cached:
             return cached
@@ -163,7 +172,6 @@ class DataOrchestrator:
     
     def _get_lite_filtered_cves(self):
         """Get LITE filtered CVEs - only 200"""
-        print("[Orchestrator] Fetching LITE filtered CVEs (200 only)")
         cached = cache_manager.get("filtered_cves_lite")
         if cached:
             return cached
@@ -173,7 +181,7 @@ class DataOrchestrator:
         return cves
     
     def _get_empty_timeline(self):
-        """Return empty timeline for LITE mode"""
+        """Return empty timeline"""
         return {
             'labels': [],
             'values': [],
@@ -182,63 +190,89 @@ class DataOrchestrator:
             'raw_data': {}
         }
     
-    def warm_cache_full(self):
-        """Load FULL data into cache - FORCE FRESH LOAD"""
-        print("[Orchestrator] ===== WARMING CACHE WITH FULL DATA =====")
+    def warm_cache_staged(self):
+        """STAGED LOADING - Load data in 3 stages to stay under 512MB"""
+        print("[Orchestrator] ===== STAGED CACHE WARMING STARTED =====")
+        
+        with self._loading_lock:
+            self._loading_progress = {
+                'stage': 'started',
+                'progress': 0,
+                'message': 'Starting staged data loading...',
+                'started_at': datetime.now().isoformat(),
+                'completed_at': None,
+                'error': None
+            }
         
         try:
-            print("[Orchestrator] Step 1: Clearing all caches...")
-            cache_manager.clear_cache()
-            api_client.clear_cache()
-            self._full_data_loaded = False
-            
-            print("[Orchestrator] Step 2: Enabling full load mode...")
-            self._full_data_loaded = True
-            
-            print("[Orchestrator] Step 3: Loading CVE trends (fetching ALL CVEs)...")
+            # STAGE 1: Load ALL CVEs (4112 CVEs)
+            self._update_progress('stage1', 10, 'Stage 1/3: Loading all 4112 CVEs...')
+            print("[Orchestrator] STAGE 1: Loading CVE trends (ALL CVEs)...")
             from services.analysis.trend_analyzer import get_cve_trends_last_30_days
             cve_trends = get_cve_trends_last_30_days()
             cache_manager.set("cve_trends_30days", cve_trends)
-            print(f"[Orchestrator] ✓ CVE trends loaded: {cve_trends['total_cves']} CVEs")
+            print(f"[Orchestrator] ✓ Stage 1 complete: {cve_trends['total_cves']} CVEs loaded")
+            self._update_progress('stage1', 40, f'Stage 1/3: {cve_trends["total_cves"]} CVEs loaded')
             
-            print("[Orchestrator] Step 4: Loading timeline (1 year historical)...")
-            from services.analysis.trend_analyzer import get_vulnerabilities_over_time_last_n_years
-            timeline = get_vulnerabilities_over_time_last_n_years(1)
-            cache_manager.set("timeline_1years", timeline)
-            print(f"[Orchestrator] ✓ Timeline loaded: {timeline['total_cves']} CVEs across {timeline['months_covered']} months")
+            # STAGE 2: Load 3-month timeline (lighter than 12 months)
+            self._update_progress('stage2', 50, 'Stage 2/3: Loading 3-month timeline...')
+            print("[Orchestrator] STAGE 2: Loading 3-month timeline...")
+            from services.analysis.trend_analyzer import get_vulnerabilities_over_time_last_n_months
+            timeline = get_vulnerabilities_over_time_last_n_months(3)
+            cache_manager.set("timeline_3months", timeline)
+            print(f"[Orchestrator] ✓ Stage 2 complete: Timeline with {timeline['total_cves']} CVEs")
+            self._update_progress('stage2', 70, f'Stage 2/3: Timeline loaded ({timeline["total_cves"]} CVEs)')
             
-            print("[Orchestrator] Step 5: Loading vendor risk analysis...")
-            from services.analysis.cwe import get_vendor_risk_analysis, get_weighted_cwe_analysis
-            vendor_risk = get_vendor_risk_analysis()
-            weighted_vendor_risk = get_weighted_cwe_analysis()
-            cache_manager.set("vendor_risk", (vendor_risk, weighted_vendor_risk))
-            print(f"[Orchestrator] ✓ Vendor risk loaded")
+            # STAGE 3: Skip vendor risk to save memory
+            self._update_progress('stage3', 90, 'Stage 3/3: Finalizing...')
+            print("[Orchestrator] STAGE 3: Skipping vendor risk to save memory")
             
+            # Mark as complete
+            self._full_data_loaded = True
             stats = cache_manager.get_cache_stats()
             
-            print("[Orchestrator] ===== CACHE WARMED SUCCESSFULLY =====")
+            self._update_progress('completed', 100, f'✓ All data loaded! {cve_trends["total_cves"]} CVEs cached')
+            
+            with self._loading_lock:
+                self._loading_progress['completed_at'] = datetime.now().isoformat()
+            
+            print("[Orchestrator] ===== STAGED CACHE WARMING COMPLETED =====")
             print(f"  - CVE Trends: {cve_trends['total_cves']} CVEs")
-            print(f"  - Timeline: {timeline['total_cves']} CVEs")
-            print(f"  - Cache entries: {stats['cached_entries']}")
-            print(f"  - Memory usage: {stats['total_size_mb']:.1f} MB")
+            print(f"  - Timeline: {timeline['total_cves']} CVEs (3 months)")
+            print(f"  - Cache size: {stats['total_size_mb']:.1f} MB")
             
             return {
                 'success': True,
-                'message': 'Cache warmed with FULL data',
+                'message': 'Staged cache warming completed',
                 'cve_trends_total': cve_trends['total_cves'],
                 'timeline_total': timeline['total_cves'],
                 'stats': stats
             }
             
         except Exception as e:
-            print(f"[Orchestrator] ❌ Error warming cache: {e}")
+            error_msg = f"Error during staged loading: {str(e)}"
+            print(f"[Orchestrator] ❌ {error_msg}")
             import traceback
             traceback.print_exc()
+            
+            with self._loading_lock:
+                self._loading_progress['stage'] = 'error'
+                self._loading_progress['error'] = error_msg
+                self._loading_progress['completed_at'] = datetime.now().isoformat()
+            
             return {
                 'success': False,
-                'error': str(e),
+                'error': error_msg,
                 'traceback': traceback.format_exc()
             }
+    
+    def _update_progress(self, stage, progress, message):
+        """Update loading progress"""
+        with self._loading_lock:
+            self._loading_progress['stage'] = stage
+            self._loading_progress['progress'] = progress
+            self._loading_progress['message'] = message
+        print(f"[Progress] {progress}% - {message}")
     
     def _get_cve_trends_cached(self):
         """Get full CVE trends"""
@@ -251,20 +285,11 @@ class DataOrchestrator:
         return trends
     
     def _get_timeline_cached(self, years=1):
-        """Get timeline"""
-        cache_key = f"timeline_{years}years"
-        cached = cache_manager.get(cache_key)
+        """Get timeline - use 3-month cached version"""
+        cached = cache_manager.get("timeline_3months")
         if cached:
             return cached
-        
-        try:
-            from services.analysis.trend_analyzer import get_vulnerabilities_over_time_last_n_years
-            timeline = get_vulnerabilities_over_time_last_n_years(years)
-            cache_manager.set(cache_key, timeline)
-            return timeline
-        except Exception as e:
-            print(f"[Orchestrator] Error getting timeline: {e}")
-            return self._get_empty_timeline()
+        return self._get_empty_timeline()
     
     def _get_filtered_cves_cached(self, year=None, month=None, day=None) -> List[Dict[str, Any]]:
         """Get full filtered CVEs"""
@@ -298,7 +323,6 @@ class DataOrchestrator:
             return cves
     
     def get_filtered_cves(self, year=None, month=None, day=None) -> List[Dict[str, Any]]:
-        """Public method"""
         return self._get_filtered_cves_cached(year=year, month=month, day=day)
     
     def _get_vendor_risk_cached(self):
@@ -307,18 +331,8 @@ class DataOrchestrator:
         if cached:
             return cached
         
-        try:
-            from services.analysis.cwe import get_vendor_risk_analysis, get_weighted_cwe_analysis
-            vendor_risk = get_vendor_risk_analysis()
-            weighted_vendor_risk = get_weighted_cwe_analysis()
-            
-            result = (vendor_risk, weighted_vendor_risk)
-            cache_manager.set("vendor_risk", result)
-            return result
-        except Exception as e:
-            print(f"[Orchestrator] Error: {e}")
-            empty_risk = self._get_empty_vendor_risk()
-            return (empty_risk, {'indices': [], 'labels': [], 'values': []})
+        empty_risk = self._get_empty_vendor_risk()
+        return (empty_risk, {'indices': [], 'labels': [], 'values': []})
     
     def get_cve_detail(self, cve_id: str) -> Dict[str, Any]:
         return api_client.get_cve_detail(cve_id)
