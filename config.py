@@ -19,28 +19,24 @@ NVD_PROCESSED_DIR = os.path.join(NVD_DIR, 'processed')
 CWE_XML_PATH = os.path.join(DATA_DIR, 'CWE_Catalog.xml')
 
 # Cache Configuration - OPTIMIZED FOR 512MB RAM
-CACHE_DURATION = timedelta(hours=1)  # 1 hour cache
+CACHE_DURATION = timedelta(hours=1)
 MAX_CACHE_ENTRIES = 100
-ENABLE_GZIP_CACHE = True  # Enable gzip compression for in-memory cache
-AUTO_REFRESH_INTERVAL_MINUTES = 60  # Auto-refresh every 60 minutes
+ENABLE_GZIP_CACHE = True
+AUTO_REFRESH_INTERVAL_MINUTES = 60
 
 # API Rate Limiting
 API_REQUESTS_PER_30_SECONDS = 50
 API_TIMEOUT = 30
 
-# Pagination Configuration - OPTIMIZED FOR LOW MEMORY
+# Pagination Configuration
 DEFAULT_PAGE_SIZE = 100
 MAX_PAGE_SIZE = 500
-API_BATCH_SIZE = 400  # Batch size for API requests
+API_BATCH_SIZE = 400
 
 # Memory Optimization Settings
-ENABLE_GZIP_COMPRESSION = True  # Enable gzip for API requests and responses
-DATABASE_CONNECTION_POOL_MIN = 1  # Minimum connections
-DATABASE_CONNECTION_POOL_MAX = 2  # Maximum connections
+ENABLE_GZIP_COMPRESSION = True
+DATABASE_CONNECTION_POOL_MIN = 1
+DATABASE_CONNECTION_POOL_MAX = 2
 
 # Startup Configuration
-LOAD_DATA_ON_STARTUP = False  # NO data loading on startup to save memory
-
-# Ensure directories exist
-for directory in [CACHE_DIR, NVD_DIR, NVD_HISTORICAL_DIR, NVD_PROCESSED_DIR]:
-    os.makedirs(directory, exist_ok=True)
+LOAD_DATA_ON_STARTUP = False

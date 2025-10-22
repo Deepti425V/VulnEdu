@@ -27,7 +27,7 @@ def create_app():
 # Create the app instance at module level for Gunicorn
 app = create_app()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # This only runs in local development
     print("[Flask] Starting VulnEdu in DEVELOPMENT mode...")
     
