@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from routes.main_routes import main_bp
 from routes.api_routes import api_bp
 from routes.learn_routes import learn_bp
@@ -11,16 +11,17 @@ def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = config.SECRET_KEY
     
+    # CRITICAL: Health check endpoint BEFORE any blueprints
+    # This prevents Render from triggering data loads during health checks
+    @app.route('/health')
+    def health():
+        return jsonify({'status': 'ok', 'service': 'VulnEdu'}), 200
+    
     # Register blueprints
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(learn_bp, url_prefix='/learn')
     app.register_blueprint(utility_bp)
-    
-    # Health check endpoint for Render
-    @app.route('/health')
-    def health():
-        return {'status': 'healthy', 'service': 'VulnEdu'}, 200
     
     return app
 
