@@ -192,75 +192,153 @@ class NVDApiClient:
             return []
     
     def _process_cve_item(self, cve_data: Dict) -> Optional[Dict]:
-        """Convert NVD CVE format to internal format - MEMORY OPTIMIZED"""
+        """Convert NVD CVE format to our internal format"""
         try:
             cve_id = cve_data.get("id", "")
             if not cve_id:
                 return None
-            
+        
             # Extract description
             description = ""
             for desc in cve_data.get("descriptions", []):
                 if desc.get("lang") == "en":
                     description = desc.get("value", "")
                     break
-            
+        
             # Extract severity and CVSS
             severity = "UNKNOWN"
             cvss_score = None
             metrics = cve_data.get("metrics", {})
-            
-            # Try different CVSS versions
-            for version in ["cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
+        
+            # Try CVSS v4.0, v3.1, v3.0, then v2.0
+            for version in ["cvssMetricV40", "cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
                 if version in metrics and metrics[version]:
                     try:
                         metric = metrics[version][0]
                         cvss_data = metric.get("cvssData", {})
                         potential_severity = cvss_data.get("baseSeverity", "")
                         potential_score = cvss_data.get("baseScore", None)
-                        
+                    
                         if potential_severity and potential_severity.upper() != "UNKNOWN":
-                            severity = potential_severity.upper()
+                            severity = potential_severity
                             cvss_score = potential_score
                             break
                     except (IndexError, KeyError):
                         continue
-            
+        
             # Extract CWE
             cwe = None
             for weakness in cve_data.get("weaknesses", []):
                 for desc in weakness.get("description", []):
                     if desc.get("lang") == "en":
-                        cwe_value = desc.get("value")
-                        if cwe_value and cwe_value.startswith("CWE"):
-                            cwe = cwe_value
-                            break
+                        cwe = desc.get("value")
+                        break
                 if cwe:
                     break
-            
-            # Extract references (limit to first 5 to save memory)
+        
+            # Extract references
             references = []
-            for ref in cve_data.get("references", [])[:5]:
+            for ref in cve_data.get("references", []):
                 url = ref.get("url")
                 if url:
                     references.append(url)
-            
+        
             return {
                 "ID": cve_id,
                 "Description": description or "No description available",
-                "Severity": severity,
+                "Severity": severity.upper() if severity else "UNKNOWN",
                 "CVSS_Score": cvss_score,
                 "CWE": cwe,
                 "Published": cve_data.get("published", ""),
                 "lastModified": cve_data.get("lastModified", ""),
                 "References": references,
-                "Products": [],  # Skip products to save memory
-                "metrics": {}  # Skip full metrics to save memory
+                "Products": [],
+                "metrics": metrics  # Preserving full metrics
             }
+        
         except Exception as e:
-            logger.error(f"Error processing CVE: {e}")
+            print(f"[API] Error processing CVE: {e}")
             return None
+
+    def get_cve_detail(self, cve_id: str) -> Dict[str, Any]:
+        try:
+            # 1. Check database first
+            if self.db.use_database:
+                db_cve = self.db.get_cve_detail(cve_id)
+                if db_cve:
+                    logger.info(f"CVE {cve_id} retrieved from database")
+                    return db_cve
+
+        # 2. Check local cache of recent CVEs
+            local_cves = self.get_cves_last_30_days()
+            matching_cve = next((cve for cve in local_cves if cve['ID'] == cve_id), None)
+        
+            if matching_cve:
+                logger.info(f"CVE {cve_id} retrieved from local cache")
+                return matching_cve
+
+        # 3. Fetch from NVD API with comprehensive error handling
+            logger.info(f"Attempting to fetch CVE {cve_id} from NVD API")
+            self._rate_limit()
+        
+            response = self.session.get(
+                f"{self.base_url}?cveId={cve_id}",
+                timeout=self.timeout
+            )
+        
+        # Detailed logging for API response
+            logger.info(f"API Response Status: {response.status_code}")
+            logger.info(f"API Response Text: {response.text[:500]}...")  # Limit log length
+        
+            if response.status_code != 200:
+                logger.warning(f"API request failed for {cve_id}: {response.status_code}")
+                return self._generate_fallback_cve(cve_id, f"API request failed with status {response.status_code}")
+        
+            try:
+                data = response.json()
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse JSON for {cve_id}")
+                return self._generate_fallback_cve(cve_id, "Invalid API response format")
+        
+            vulnerabilities = data.get("vulnerabilities", [])
+            if not vulnerabilities:
+                logger.warning(f"No vulnerability data found for {cve_id}")
+                return self._generate_fallback_cve(cve_id, "No vulnerability data available")
+        
+        # Process the first vulnerability (assuming single CVE)
+            cve_data = vulnerabilities[0].get("cve", {})
+            processed_cve = self._process_cve_item(cve_data)
+        
+            if not processed_cve:
+                logger.warning(f"Unable to process CVE details for {cve_id}")
+                return self._generate_fallback_cve(cve_id, "Unable to process CVE details")
+        
+        # Optionally save to database
+            if self.db.use_database:
+                self.db.save_cve_detail(processed_cve)
+        
+            return processed_cve
     
+        except Exception as e:
+            logger.error(f"Unexpected error retrieving CVE {cve_id}: {e}")
+            return self._generate_fallback_cve(cve_id, str(e))
+
+def _generate_fallback_cve(self, cve_id: str, error_message: str = "") -> Dict[str, Any]:
+    """Generate a fallback CVE structure when no details are available"""
+    return {
+        'ID': cve_id,
+        'Description': f'No details available for {cve_id}. {error_message}',
+        'Severity': 'UNKNOWN',
+        'CVSS_Score': None,
+        'CWE': 'Unknown',
+        'Published': '',
+        'lastModified': '',
+        'References': [],
+        'Products': [],
+        'metrics': {},
+        'Error': error_message
+    }
+
     def clear_cache(self):
         """Clear all cached data"""
         with self._cache_lock:

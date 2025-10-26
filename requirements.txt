@@ -4,11 +4,14 @@ flask>=2.3.3
 # HTTP client
 requests>=2.31.0
 
-# HTML/XML parsing (only if you use it)
+# HTML/XML parsing
 beautifulsoup4==4.12.2
 
 # Production WSGI server
 gunicorn>=21.2.0
 
-# PostgreSQL adapter
+# PostgreSQL adapter for Render database
 psycopg2-binary>=2.9.9
+
+# Memory monitoring (CRITICAL for Render free tier)
+psutil>=5.9.0

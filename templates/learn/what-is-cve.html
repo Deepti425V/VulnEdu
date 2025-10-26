@@ -4,17 +4,18 @@
 <div style="max-width:1400px; margin:0 auto 32px auto; padding-top:20px;">
     <!-- Page Title & Intro -->
     <!-- Blue color scheme matches the site's cybersecurity theme -->
-    <h1 style="color:#63a4ff;">What is a CVE?</h1>
+    <h1 style="color:#F5E8D8;">What is a CVE?</h1>
     <!-- Comprehensive introduction explaining CVE purpose and importance -->
     <p style="color:#e2e8f0; font-size:1.12em;">
-        <b>CVE</b> stands for <em>Common Vulnerabilities and Exposures</em>.
-        It is the universal system—managed by
+        <b>CVE</b> stands for 
+        <span style="color:#d3bb7a;"> Common Vulnerabilities and Exposures</span>.
+        It is the universal system managed by
         <!-- Color-coded organization names for visual distinction -->
-        <span style="color:#79a3f8;">MITRE</span> and
-        <span style="color:#fca045;">NVD</span>—for giving unique names to
+        <span style="color:#d3bb7a;">MITRE</span> and
+        <span style="color:#d3bb7a;">NVD</span> for giving unique names to
         publicly known cybersecurity vulnerabilities.
         <br><br>
-        <b>Why do CVEs matter?</b>
+        <span style="color:#d3bb7a;"> <b>Why do CVEs matter?</b></span>
         They allow security teams, researchers, and companies to discuss and fix the <u>same</u> problem consistently using a single ID.
         Every CVE describes a specific security flaw, explains its risk, and helps you learn about real-world threats and how to manage them.
     </p>
@@ -83,17 +84,17 @@
     <div style="display:flex; flex-wrap:wrap; gap:30px; align-items:flex-start;">
         <!-- Main content area with step-by-step guide -->
         <ul style="background:#1a2236; border-radius:13px; padding:26px 28px 16px 26px; color:#e3e8f0; font-size:1.09em; margin-bottom:22px;flex:2;">
-            <li><b>ID:</b> Unique reference for searching in vulnerability databases and security tools.</li>
-            <li><b>Description:</b> Review the summary—does it match your environment and risks?</li>
-            <li><b>Severity & Score:</b> The higher (e.g., <b>Critical</b>), the more urgent. Check CVSS number if present.</li>
-            <li><b>CWE:</b> Type or category of bug—helps guide fixes and mitigations. E.g., Deserialization, XSS</li>
-            <li><b>References:</b> Advisories—ALWAYS consult for patches or step-by-step guidance.</li>
-            <li><b>Products:</b> (If present) Specific affected software; always check compatibility before action.</li>
+            <li><b>     ID:</b> Unique reference for searching in vulnerability databases and security tools.</li>
+            <li><b>     Description:</b> Review the summary—does it match your environment and risks?</li>
+            <li><b>     Severity & Score:</b> The higher (e.g., <b>Critical</b>), the more urgent. Check CVSS number if present.</li>
+            <li><b>     CWE:</b> Type or category of bug—helps guide fixes and mitigations. E.g., Deserialization, XSS</li>
+            <li><b>     References:</b> Advisories—ALWAYS consult for patches or step-by-step guidance.</li>
+            <li><b>     Products:</b> (If present) Specific affected software; always check compatibility before action.</li>
         </ul>
         <!-- Sidebar with helpful tips and related links -->
         <div style="flex:1; min-width:210px;">
             <!-- Green accent color for tips section -->
-            <div style="background:#232b45; border-radius:13px; padding:18px 19px 19px 20px; color:#42d392; font-size:0.99em;">
+            <div style="background:#232b45; border-radius:13px; padding:18px 19px 19px 20px; color:#d3bb7a; font-size:0.99em;">
                 <b>Tips:</b>
                 <!-- Practical advice list -->
                 <ul style="font-size:0.99em; color:#a9adc1; margin-top:7px;">
@@ -103,8 +104,8 @@
                 </ul>
                 <!-- Related learning links using Flask url_for routing -->
                 <div style="margin-top:11px;">
-                    <a href="{{ url_for('learn.learn_topic', topic='what-is-cwe') }}" style="color:#63a4ff; text-decoration:underline;">What is a CWE?</a> |
-                    <a href="{{ url_for('learn.learn_topic', topic='cvss-scores') }}" style="color:#63a4ff; text-decoration:underline;">CVSS Score Guide</a>
+                    <a href="{{ url_for('learn.learn_topic', topic='what-is-cwe') }}" style="color:#F5E8D8; text-decoration:underline;">What is a CWE?</a> |
+                    <a href="{{ url_for('learn.learn_topic', topic='cvss-scores') }}" style="color:#F5E8D8; text-decoration:underline;">CVSS Score Guide</a>
                 </div>
             </div>
         </div>
@@ -119,7 +120,7 @@
             <div style="color:#94a3b8;font-size:1.01em;">
                 <span>Showing most recent vulnerabilities published in the last 24 hours.</span>
                 <!-- Link to full vulnerabilities page -->
-                <a href="{{ url_for('main.vulnerabilities') }}" style="margin-left:17px; color:#63a4ff;text-decoration:underline;font-weight:600;">SHOW ALL TODAY CVEs →</a>
+                <a href="{{ url_for('main.vulnerabilities') }}" style="margin-left:17px; color:#F5E8D8;text-decoration:underline;font-weight:600;">SHOW ALL TODAY CVEs →</a>
             </div>
             <!-- Collapsible indicator arrow -->
             <span id="todaysCvesIcon" style="color: #a9adc1; font-size: 1.2rem;">▼</span>
@@ -189,55 +190,59 @@
     <!-- Timeline of Major CVEs -->
     <h2 style="color:#cdd7ff; margin-top:34px;">Timeline of Major CVEs</h2>
     <!-- Historical context table -->
-    <div style="background:#232b45;border-radius:10px;padding:24px 18px 20px 18px; margin-bottom:18px;">
+    <div style="background:#1a2236;border-radius:10px;padding:24px 18px 20px 18px; margin-bottom:18px;">
         <!-- Structured table of famous CVEs -->
         <table style="width:100%; color:#e3e8f0; font-size:1.05em; border-collapse:collapse;">
             <thead>
                 <!-- Table headers -->
-                <tr style="background:#263159;">
-                    <th style="padding:10px 9px; text-align:left;">Year</th>
-                    <th style="padding:10px 9px; text-align:left;">CVE ID</th>
-                    <th style="padding:10px 9px; text-align:left;">Nickname</th>
-                    <th style="padding:10px 9px; text-align:left;">Impact & Legacy</th>
-                </tr>
+
+                <tr style="background: #212d46;">
+                    <th style="padding: 10px 9px; text-align: center; color: #e3e8f0; font-weight: 400; font-size: 1.1em; border-bottom: 1px solid #2a364f;">Year</th>
+                    <th style="padding: 10px 9px; text-align: center; color: #e3e8f0; font-weight: 400; font-size: 1.1em; border-bottom: 1px solid #2a364f;">CVE ID</th>
+                    <th style="padding: 10px 9px; text-align: center; color: #e3e8f0; font-weight: 400; font-size: 1.1em; border-bottom: 1px solid #2a364f;">Nickname</th>
+                    <th style="padding: 10px 9px; text-align: center; color: #e3e8f0; font-weight: 400; font-size: 1.1em; border-bottom: 1px solid #2a364f;">Impact & Legacy</th>
+                    </tr>
+
+
+
             </thead>
             <tbody>
                 <!-- Historical CVE entries with external NVD links -->
                 <tr>
-                    <td style="padding:9px 7px;">2014</td>
-                    <td style="padding:9px 7px;"><a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2014-0160" target="_blank">CVE-2014-0160</a></td>
-                    <td style="padding:9px 7px;">Heartbleed</td>
-                    <td style="padding:9px 7px;">SSL bug exposed private keys, triggered global emergency patching</td>
+                    <td style="padding:9px 7px; text-align: center;">2014</td>
+                    <td style="padding:9px 7px; text-align: center;"><a style="color:#F5E8D8;" href="https://nvd.nist.gov/vuln/detail/CVE-2014-0160" target="_blank">CVE-2014-0160</a></td>
+                    <td style="padding:9px 7px; text-align: center;">Heartbleed</td>
+                    <td style="padding:9px 7px; text-align: center;">SSL bug exposed private keys, triggered global emergency patching</td>
                 </tr>
                 <tr>
-                    <td style="padding:9px 7px;">2014</td>
-                    <td style="padding:9px 7px;"><a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2014-6271" target="_blank">CVE-2014-6271</a></td>
-                    <td style="padding:9px 7px;">Shellshock</td>
-                    <td style="padding:9px 7px;">Bash shell flaw affected millions of Linux servers</td>
+                    <td style="padding:9px 7px; text-align: center">2014</td>
+                    <td style="padding:9px 7px; text-align: center"><a style="color:#F5E8D8;" href="https://nvd.nist.gov/vuln/detail/CVE-2014-6271" target="_blank">CVE-2014-6271</a></td>
+                    <td style="padding:9px 7px; text-align: center">Shellshock</td>
+                    <td style="padding:9px 7px; text-align: center">Bash shell flaw affected millions of Linux servers</td>
                 </tr>
                 <tr>
-                    <td style="padding:9px 7px;">2017</td>
-                    <td style="padding:9px 7px;"><a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2017-0144" target="_blank">CVE-2017-0144</a></td>
-                    <td style="padding:9px 7px;">EternalBlue</td>
-                    <td style="padding:9px 7px;">Used in WannaCry ransomware; showed the danger of wormable network bugs</td>
+                    <td style="padding:9px 7px; text-align: center">2017</td>
+                    <td style="padding:9px 7px; text-align: center"><a style="color:#F5E8D8;" href="https://nvd.nist.gov/vuln/detail/CVE-2017-0144" target="_blank">CVE-2017-0144</a></td>
+                    <td style="padding:9px 7px; text-align: center">EternalBlue</td>
+                    <td style="padding:9px 7px; text-align: center">Used in WannaCry ransomware; showed the danger of wormable network bugs</td>
                 </tr>
                 <tr>
-                    <td style="padding:9px 7px;">2017</td>
-                    <td style="padding:9px 7px;"><a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2017-5638" target="_blank">CVE-2017-5638</a></td>
-                    <td style="padding:9px 7px;">Apache Struts</td>
-                    <td style="padding:9px 7px;">Enabled the Equifax breach, crucial lessons for enterprise patching</td>
+                    <td style="padding:9px 7px; text-align: center">2017</td>
+                    <td style="padding:9px 7px; text-align: center"><a style="color:#F5E8D8;" href="https://nvd.nist.gov/vuln/detail/CVE-2017-5638" target="_blank">CVE-2017-5638</a></td>
+                    <td style="padding:9px 7px; text-align: center">Apache Struts</td>
+                    <td style="padding:9px 7px; text-align: center">Enabled the Equifax breach, crucial lessons for enterprise patching</td>
                 </tr>
                 <tr>
-                    <td style="padding:9px 7px;">2021</td>
-                    <td style="padding:9px 7px;"><a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2021-44228" target="_blank">CVE-2021-44228</a></td>
-                    <td style="padding:9px 7px;">Log4Shell</td>
-                    <td style="padding:9px 7px;">Critical bug in Log4j2 affected cloud, apps, millions of devices worldwide</td>
+                    <td style="padding:9px 7px; text-align: center">2021</td>
+                    <td style="padding:9px 7px; text-align: center"><a style="color:#F5E8D8;" href="https://nvd.nist.gov/vuln/detail/CVE-2021-44228" target="_blank">CVE-2021-44228</a></td>
+                    <td style="padding:9px 7px; text-align: center">Log4Shell</td>
+                    <td style="padding:9px 7px; text-align: center">Critical bug in Log4j2 affected cloud, apps, millions of devices worldwide</td>
                 </tr>
                 <tr>
-                    <td style="padding:9px 7px;">2022</td>
-                    <td style="padding:9px 7px;"><a style="color:#63a4ff;" href="https://nvd.nist.gov/vuln/detail/CVE-2022-22965" target="_blank">CVE-2022-22965</a></td>
-                    <td style="padding:9px 7px;">Spring4Shell</td>
-                    <td style="padding:9px 7px;">New Java bug affected popular Spring framework (recent ecosystem risk)</td>
+                    <td style="padding:9px 7px; text-align: center">2022</td>
+                    <td style="padding:9px 7px; text-align: center"><a style="color:#F5E8D8;" href="https://nvd.nist.gov/vuln/detail/CVE-2022-22965" target="_blank">CVE-2022-22965</a></td>
+                    <td style="padding:9px 7px; text-align: center">Spring4Shell</td>
+                    <td style="padding:9px 7px; text-align: center">New Java bug affected popular Spring framework (recent ecosystem risk)</td>
                 </tr>
             </tbody>
         </table>
@@ -349,8 +354,7 @@
 
 <!-- Navigation back to main dashboard -->
 <div style="text-align:center; margin:2.5em 0 1em 0;">
-    <!-- Back button using Flask routing for dynamic URL generation -->
-    <a href="{{ url_for('main.index') }}" style="color:#63a4ff; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
+    <a href="{{ url_for('main.index') }}" style="color:#F5E8D8; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
         ← Back to Dashboard
     </a>
 </div>

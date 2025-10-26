@@ -98,17 +98,17 @@
 <!-- Main container with responsive max-width -->
 <div style="max-width:1400px;margin:0 auto 32px auto;padding-top:20px;">
     <!-- Page title with consistent blue theming -->
-    <h1 style="color:#63a4ff;">What is a CWE?</h1>
+    <h1 style="color:#F5E8D8;">What is a CWE?</h1>
     <!-- Comprehensive introduction explaining CWE concept and importance -->
     <p style="color:#e2e8f0;font-size:1.13em;">
-        <strong>CWE</strong> stands for <em><span style="color:#63a4ff">Common Weakness Enumeration</span></em>.<br> In
-        technology and computer science, we learn by identifying patterns—not just memorizing a list of past mistakes. The <b>CWE catalog</b> is a map of the <span style="color:#fca311;">most common
+        <strong>CWE</strong> stands for <em><span style="color:#d3bb7a">Common Weakness Enumeration</span></em>.<br> In
+        technology and computer science, we learn by identifying patterns—not just memorizing a list of past mistakes. The <b>CWE catalog</b> is a map of the <span style="color:#d3bb7a;">most common
         error patterns</span> that lead to vulnerabilities in software.<br>
         <br>
         <b>If you spot the pattern, you can prevent the problem:</b>
         <!-- Educational bullet points explaining CWE value proposition -->
         <ul style="color:#e2e8f0;margin-left:20px;">
-            <li>Just like a math book teaches "types of mistakes" (e.g., sign error, division by zero), CWE teaches you <span style="color:#42d392;">recurring security problems</span>.</li>
+            <li>Just like a math book teaches "types of mistakes" (e.g., sign error, division by zero), CWE teaches you <span style="color:#d3bb7a;">recurring security problems</span>.</li>
             <li><b>CWE entries</b> are like chapters in a textbook—each describes a different kind of software weakness.</li>
             <li>You'll see real-world examples (<b>CVEs</b>), but you'll learn the general idea with CWE.</li>
         </ul>
@@ -241,67 +241,6 @@
     });
     </script>
 
-    <!-- CWE Explorer Interface Section -->
-    <h2 style="color:#cdd7ff;margin-top:34px;">CWE List &amp; Explorer</h2>
-    <!-- Instructions for using the explorer -->
-    <div style="color:#94a3b8; font-size:0.95em; margin-bottom:12px;">
-        <strong>How it works:</strong> Click any CWE below to fetch live, detailed information from the official MITRE database. The first click may take a few seconds to load.
-    </div>
-    
-    <!-- Two-column grid layout for explorer interface -->
-    <div style="display:grid; grid-template-columns: 300px 1fr; gap: 36px;">
-        <!-- Left sidebar with CWE list -->
-        <aside style="background:#1a2236; border-radius:14px; padding:18px 0 18px 0; height: fit-content;">
-            <!-- Sidebar header with mode indicator -->
-            <div style="padding-left:24px;font-weight:700;color:#63a4ff;margin-bottom:10px;">
-                CWE List <span id="cweListModeTip" style="color:#94a3b8;font-size:0.93em;font-weight:400;">(Your Key Set)</span>
-            </div>
-            
-            <!-- Curated key CWEs list (default view) -->
-            <ul id="cweListColumn" class="cwe-list-scroll">
-                {% for cwe in key_cwes %}
-                <!-- Generate list items with data attributes for JavaScript -->
-                <li data-cwe="{{ cwe }}" class="cwe-list-item">
-                    {{ key_cwe_titles[cwe] }} <span class="cwe-code">({{ cwe }})</span>
-                </li>
-                {% endfor %}
-            </ul>
-            
-            <!-- Full CWE dictionary list (hidden by default) -->
-            <ul id="cweListFull" class="cwe-list-scroll" style="display:none;">
-                {% for code, entry in cwe_dict.items() %}
-                <!-- Generate complete list from CWE dictionary -->
-                <li data-cwe="{{ code }}" class="cwe-list-item">
-                    {{ entry.name }} <span class="cwe-code">({{ code }})</span>
-                </li>
-                {% endfor %}
-            </ul>
-            
-            <!-- Toggle button to switch between list views -->
-            <button id="toggleShowAllCwe" class="toggle-button">
-                Show All CWEs
-            </button>
-        </aside>
-
-        <!-- Right panel for detailed CWE information -->
-        <section style="background:#1a2236; border-radius:14px; padding:28px 26px;min-height:390px;">
-            <div id="cweDetailPanel">
-                <!-- Conditional rendering based on data availability -->
-                {% if cwe_dict|length > 0 %}
-                <!-- Default empty state with instructions -->
-                <div style="text-align: center; padding: 40px; color: #a9adc1;">
-                    <div style="font-size: 2.5rem; margin-bottom: 16px;">🔍</div>
-                    <div style="font-size: 1.1rem; margin-bottom: 8px;">Select a CWE to explore</div>
-                    <div style="margin-top: 12px; font-size: 0.9em;">Click any CWE from the list to see detailed information, mitigations, examples, and relationships.</div>
-                </div>
-                {% else %}
-                <!-- Error state when no CWE data available -->
-                <p style="color:#f47174;">No CWE data found in catalog or fallback.</p>
-                {% endif %}
-            </div>
-        </section>
-    </div>
-
     <!-- Pass server-side data to JavaScript global variables -->
     <script>
     // CWE severity data for chart rendering
@@ -323,7 +262,7 @@
 
 <!-- Navigation back to main dashboard -->
 <div style="text-align:center; margin:2.5em 0 1em 0;">
-    <a href="{{ url_for('main.index') }}" style="color:#63a4ff; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
+    <a href="{{ url_for('main.index') }}" style="color:#F5E8D8; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
         ← Back to Dashboard
     </a>
 </div>

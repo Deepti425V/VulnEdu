@@ -33,33 +33,32 @@
                     </span>
                 </div>
                 
-                <ul style="margin:14px 0 0 18px; color:#afc1ff; font-size:0.98em;list-style:none;">
+                <ul style="margin:14px 0 0 18px; color:#fcfcfc; font-size:0.98em;list-style:none;">
                     <li style="margin-bottom:9px;">
                         <span style="font-family:sans-serif;font-size:1em;margin-right:8px;vertical-align:-1px;">📊</span>
-                        Each axis is a <span style="color:#E6D5A8;font-weight:600;">CATEGORY</span>.
+                        Each axis is a <span style="color:#d3bb7a;font-weight:600;">CATEGORY</span>.
                     </li>
                     <li style="margin-bottom:9px;">
                         <span style="font-family:sans-serif;font-size:1em;margin-right:8px;vertical-align:-1px;">🔵</span>
-                        The blue area <span style="color:#E6D5A8;font-weight:700;">shows concentration of vulnerabilities</span> of the type!
+                        The blue area <span style="color:#d3bb7a;font-weight:700;">shows concentration of vulnerabilities</span> of the type!
                     </li>
                     <li style="margin-bottom:9px;">
                         <span style="font-family:sans-serif;font-size:1em;margin-right:8px;vertical-align:-1px;">🖱️</span>
-                        <span style="color:#f8a541;font-weight:700;">Click</span> on any spike for details or filtering.
+                        <span style="color:#d3bb7a;font-weight:700;">Click</span> on any spike for details or filtering.
                     </li>
                     <li style="margin-bottom:9px;">
                         <span style="font-family:sans-serif;font-size:1em;margin-right:8px;vertical-align:-1px;">⚠️</span>
-                        <span style="color:#f55855;font-weight:700;">Long spikes highlight your <span style="color:#f55855;">top risk areas</span>.</span>
+                        <span style="color:#d3bb7a;font-weight:700;">Long spikes highlight your <span style="color:#fcfcfc;">top risk areas</span>.</span>
                     </li>
                 </ul>
                 
                 <div style="margin-top:16px;">
+                    <a href="{{ url_for('learn.learn_topic', topic='what-is-cve') }}" style="color:#F5E8D8;font-weight:600;text-decoration:underline;margin-right:14px;">What is a CVE?</a>
                     <a href="{{ url_for('learn.learn_topic', topic='what-is-cwe') }}" style="color:#F5E8D8;font-weight:600;text-decoration:underline;margin-right:14px;">What is a CWE?</a>
-                    <a href="{{ url_for('learn.learn') }}" style="color:#F5E8D8;font-weight:600;text-decoration:underline;margin-right:14px;">See all CWE categories</a>
-                    <a href="{{ url_for('learn.learn_topic', topic='secure-coding') }}" style="color:#42d392;font-weight:600;text-decoration:underline;">CWE mitigation tips</a>
                 </div>
                 
                 <div id="legendBestPractice" style="margin-top:18px;background:#1a2236;padding:12px 13px;border-radius:7px;color:#eaf4fb;font-size:0.98em;">
-                    <span style="font-weight:700;color:#f8a541;">Best Practice:</span> Review CWE mitigations, schedule fixes for top risk types, and prioritize high-frequency weaknesses first.
+                    <span style="font-weight:700;color:#d3bb7a;">Best Practice:</span> Review CWE mitigations, schedule fixes for top risk types, and prioritize high-frequency weaknesses first.
                 </div>
                 
                 <div id="legendInfoPopover" style="display:none;position:absolute;top:55px;right:-5px;background:#101828;color:#eaf4fb;border-radius:8px;width:258px;padding:18px;box-shadow:0 4px 16px #0002;z-index:14;" aria-live="assertive" role="dialog">

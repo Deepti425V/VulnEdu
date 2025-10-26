@@ -5,7 +5,7 @@
 <div style="max-width:1400px;margin:0 auto 32px auto;padding-top:20px;">
 
 <!-- Page title with CVSS blue theme -->
-<h1 style="color:#63a4ff;">Understanding CVSS Scores</h1>
+<h1 style="color:#F5E8D8;">Understanding CVSS Scores</h1>
 
 <!-- Introduction explaining CVSS purpose and usage -->
 <div style="color:#e2e8f0; font-size:1.07em; margin-bottom:28px; margin-top:9px; line-height:1.66;">
@@ -82,7 +82,7 @@ CVSS scores help you measure, compare, and prioritize vulnerabilities. Use the r
 
 <!-- Exploitability metrics group -->
 <div style="background:#263159;border-radius:8px;padding:20px;border-top:3px solid #63a4ff;">
-<h3 style="color:#63a4ff;margin:0 0 12px 0;text-align:center;">Exploitability Metrics</h3>
+<h3 style="color:#F5E8D8;margin:0 0 12px 0;text-align:center;">Exploitability Metrics</h3>
 <div style="color:#e2e8f0;font-size:0.95em;line-height:1.5;">
 <p style="margin-bottom:8px;"><strong>How easy is it to exploit?</strong></p>
 <ul style="margin:0;padding-left:16px;color:#a9adc1;">
@@ -96,7 +96,7 @@ CVSS scores help you measure, compare, and prioritize vulnerabilities. Use the r
 
 <!-- Impact metrics group -->
 <div style="background:#263159;border-radius:8px;padding:20px;border-top:3px solid #42d392;">
-<h3 style="color:#42d392;margin:0 0 12px 0;text-align:center;">Impact Metrics</h3>
+<h3 style="color:#F5E8D8;margin:0 0 12px 0;text-align:center;">Impact Metrics</h3>
 <div style="color:#e2e8f0;font-size:0.95em;line-height:1.5;">
 <p style="margin-bottom:8px;"><strong>What damage can be done?</strong></p>
 <ul style="margin:0;padding-left:16px;color:#a9adc1;">
@@ -109,7 +109,7 @@ CVSS scores help you measure, compare, and prioritize vulnerabilities. Use the r
 
 <!-- Scope metric group -->
 <div style="background:#263159;border-radius:8px;padding:20px;border-top:3px solid #f8a541;">
-<h3 style="color:#f8a541;margin:0 0 12px 0;text-align:center;">Scope</h3>
+<h3 style="color:#F5E8D8;margin:0 0 12px 0;text-align:center;">Scope</h3>
 <div style="color:#e2e8f0;font-size:0.95em;line-height:1.5;">
 <p style="margin-bottom:8px;"><strong>Boundary consideration</strong></p>
 <ul style="margin:0;padding-left:16px;color:#a9adc1;">
@@ -117,13 +117,6 @@ CVSS scores help you measure, compare, and prioritize vulnerabilities. Use the r
 <li>Changed: Affects other components</li>
 </ul>
 </div>
-</div>
-</div>
-
-<!-- Mathematical formula explanation -->
-<div style="background:#1a2236;padding:12px;border-radius:8px;border-left:4px solid #63a4ff;font-family:monospace;font-size:0.9em;">
-<strong>BaseScore = min(10, Impact + Exploitability)</strong><br>
-Where Impact and Exploitability are calculated from the 8 metrics above.
 </div>
 </div>
 
@@ -138,7 +131,7 @@ Where Impact and Exploitability are calculated from the 8 metrics above.
 
 <!-- Exploitability metrics input group -->
 <div style="background:#263159;border-radius:8px;padding:20px;border-top:3px solid #63a4ff;">
-<h3 style="color:#63a4ff;margin:0 0 16px 0;text-align:center;">Exploitability</h3>
+<h3 style="color:#F5E8D8;margin:0 0 16px 0;text-align:center;">Exploitability</h3>
 <form id="cvss-calc-form" autocomplete="off">
 <div style="display:flex;flex-direction:column;gap:12px;">
 
@@ -185,7 +178,7 @@ Where Impact and Exploitability are calculated from the 8 metrics above.
 
 <!-- Impact metrics input group -->
 <div style="background:#263159;border-radius:8px;padding:20px;border-top:3px solid #42d392;">
-<h3 style="color:#42d392;margin:0 0 16px 0;text-align:center;">Impact</h3>
+<h3 style="color:#F5E8D8;margin:0 0 16px 0;text-align:center;">Impact</h3>
 <div style="display:flex;flex-direction:column;gap:12px;">
 
 <!-- Confidentiality Impact dropdown -->
@@ -222,7 +215,7 @@ Where Impact and Exploitability are calculated from the 8 metrics above.
 
 <!-- Scope metric input group -->
 <div style="background:#263159;border-radius:8px;padding:20px;border-top:3px solid #f8a541;">
-<h3 style="color:#f8a541;margin:0 0 16px 0;text-align:center;">Scope</h3>
+<h3 style="color:#F5E8D8;margin:0 0 16px 0;text-align:center;">Scope</h3>
 <div style="display:flex;flex-direction:column;gap:12px;">
 
 <!-- Scope dropdown -->
@@ -641,9 +634,9 @@ grid-template-columns: 1fr !important;
 
 <!-- Navigation back to main dashboard -->
 <div style="text-align:center; margin:2.5em 0 1em 0;">
-<a href="{{ url_for('main.index') }}" style="color:#63a4ff; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
-← Back to Dashboard
-</a>
+    <a href="{{ url_for('main.index') }}" style="color:#F5E8D8; padding:0.8em 2em; border-radius:6px; font-weight:600; text-decoration:none;">
+        ← Back to Dashboard
+    </a>
 </div>
 
 </div>
