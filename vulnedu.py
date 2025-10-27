@@ -18,7 +18,7 @@ def create_app():
     # Print environment variables related to database or Render
     print("[Flask] Environment variables:")
     for key in sorted(os.environ.keys()):
-        if any(term in key for term in ['DATABASE', 'POSTGRES', 'DB_', 'RENDER']):
+        if any(term in key for term in ['DATABASE', 'POSTGRES', 'DB_', 'RENDER', 'PORT']):
             value = os.environ[key]
             # Mask credentials in output
             if 'URL' in key or 'PASSWORD' in key or 'SECRET' in key:
@@ -61,30 +61,40 @@ def create_app():
             'database': db_status,
             'version': '1.1.0'  # Include version for tracking
         }), 200
-    
-    # Add debug route to show database information
-    @app.route('/debug-db')
-    def debug_db():
-        from database.db_manager import db_manager
-        
-        # Test database connection
-        connection_works = False
-        try:
-            conn = db_manager.get_connection()
-            if conn:
-                connection_works = True
-                db_manager.return_connection(conn)
-        except Exception as e:
-            pass
-        
-        # Get database stats
-        stats = db_manager.get_stats()
+
+    # Debug endpoint to show memory usage
+    @app.route('/memory-usage')
+    def memory_usage():
+        import psutil
+        process = psutil.Process(os.getpid())
+        memory_info = process.memory_info()
         
         return jsonify({
-            'database_enabled': config.DATABASE_ENABLED,
-            'connection_working': connection_works,
-            'database_url_exists': bool(config.DATABASE_URL),
-            'stats': stats
+            'rss': f"{memory_info.rss / (1024 * 1024):.2f} MB",
+            'vms': f"{memory_info.vms / (1024 * 1024):.2f} MB",
+            'percent': process.memory_percent(),
+            'cpu_percent': process.cpu_percent(interval=1.0)
+        })
+    
+    # Add debug route to show environment variables
+    @app.route('/debug')
+    def debug():
+        # Return filtered environment variables
+        env_vars = {}
+        for key in sorted(os.environ.keys()):
+            value = os.environ[key]
+            # Mask credentials
+            if 'URL' in key or 'PASSWORD' in key or 'SECRET' in key:
+                if value and len(value) > 12:
+                    value = value[:8] + '...' + value[-4:]
+            env_vars[key] = value
+            
+        # Add port information
+        port = os.environ.get('PORT', 'Not set')
+            
+        return jsonify({
+            'port': port,
+            'env_vars': env_vars
         })
     
     print("[Flask] VulnEdu application initialized successfully!")
@@ -93,6 +103,7 @@ def create_app():
 # Create the app instance at module level for Gunicorn
 app = create_app()
 
+# For local testing, ensure port is set correctly
 if __name__ == "__main__":
     # This only runs in local development
     print("[Flask] Starting VulnEdu in DEVELOPMENT mode...")
@@ -101,5 +112,9 @@ if __name__ == "__main__":
     for directory in [config.CACHE_DIR, config.NVD_DIR, config.NVD_HISTORICAL_DIR, config.NVD_PROCESSED_DIR]:
         os.makedirs(directory, exist_ok=True)
     
+    # Get port from environment or use default
+    port = int(os.environ.get('PORT', 5000))
+    print(f"[Flask] Running on port: {port}")
+    
     # Run with basic settings for local dev
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=True)
