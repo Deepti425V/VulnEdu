@@ -21,46 +21,44 @@ CWE_XML_PATH = os.path.join(DATA_DIR, 'CWE_Catalog.xml')
 # NVD Data Feeds
 NVD_FEEDS_BASE_URL = "https://nvd.nist.gov/feeds/json/cve/1.1"
 
-# CRITICAL MEMORY OPTIMIZATION: Reduce to only current year
+# Historical years configuration - USE LOCAL FILES
+# REDUCED to 3 years for memory efficiency
 current_year = 2025
-HISTORICAL_YEARS = [current_year]  # CHANGED: Only load current year
+HISTORICAL_YEARS = [current_year - 2, current_year - 1, current_year]  # 2023, 2024, 2025
 
-# Database Configuration
+# Database Configuration - CRITICAL: Enable database storage for Render
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
+    # Fix Render's postgres:// vs postgresql:// URL format issue
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 DATABASE_ENABLED = bool(DATABASE_URL)
 SQLALCHEMY_DATABASE_URI = DATABASE_URL
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-# Extreme Memory Optimization
+# Lazy Loading Configuration - NEW
 LAZY_LOAD_ENABLED = True
-MAX_MEMORY_USAGE_MB = 400  # Reduced from 450 to stay well under 512MB
-USE_MEMORY_EFFICIENT_MODE = True  # NEW FLAG for extreme memory optimization
-SKIP_HISTORICAL_LOADING = True  # NEW: Skip loading historical data completely
-MAX_CVES_TO_LOAD = 1000  # NEW: Maximum number of CVEs to load at once
+MAX_MEMORY_USAGE_MB = 450  # Set max memory to less than 512MB to prevent crashes
 
-# Cache Configuration - REDUCED
+# Cache Configuration
 CACHE_DURATION = timedelta(minutes=30)
-MAX_CACHE_ENTRIES = 5  # REDUCED from 10
+MAX_CACHE_ENTRIES = 10  # Reduced from 100 to save memory
 
-# Data Loading Strategy - OPTIMIZED
-RECENT_DAYS_THRESHOLD = 7  # REDUCED from 30 to 7 days
-USE_LOCAL_FEEDS = False  # CHANGED: Use API instead of local files
+# Data Loading Strategy
+RECENT_DAYS_THRESHOLD = 30
+USE_LOCAL_FEEDS = True  # CHANGED: Use local files
 AUTO_UPDATE_FEEDS = False
-USE_GITHUB_DATA = False
-USE_API_INSTEAD_OF_FILES = True  # NEW: Prefer API over files
+USE_GITHUB_DATA = False  # CHANGED: Disable GitHub
 
 # API Rate Limiting
 API_REQUESTS_PER_30_SECONDS = 50
 API_TIMEOUT = 30
 
-# Pagination - REDUCED
-DEFAULT_PAGE_SIZE = 10  # REDUCED from 25
-MAX_PAGE_SIZE = 25  # REDUCED from 100
+# Pagination
+DEFAULT_PAGE_SIZE = 25
+MAX_PAGE_SIZE = 100
 
 # Page-specific data loading flags
-LOAD_ALL_DATA_FOR_LEARN_PAGES = False
+LOAD_ALL_DATA_FOR_LEARN_PAGES = False  # NEW: Don't load all data for educational pages
 
 # Ensure directories exist
 for directory in [CACHE_DIR, NVD_DIR, NVD_HISTORICAL_DIR, NVD_PROCESSED_DIR]:
