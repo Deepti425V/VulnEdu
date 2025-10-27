@@ -1,10 +1,5 @@
 from .db_manager import DatabaseManager
-try:
-    from .models import CVEDatabase, CWEDatabase
-except ImportError:
-    # Models might not exist yet
-    CVEDatabase = None
-    CWEDatabase = None
+from .models import CVEDatabase, CWEDatabase
 
 # Global database instance
 db_manager = DatabaseManager()

@@ -192,72 +192,73 @@ class NVDApiClient:
             return []
     
     def _process_cve_item(self, cve_data: Dict) -> Optional[Dict]:
-        """Convert NVD CVE format to our internal format"""
+        """Convert NVD CVE format to internal format - MEMORY OPTIMIZED"""
         try:
             cve_id = cve_data.get("id", "")
             if not cve_id:
                 return None
-        
+            
             # Extract description
             description = ""
             for desc in cve_data.get("descriptions", []):
                 if desc.get("lang") == "en":
                     description = desc.get("value", "")
                     break
-        
+            
             # Extract severity and CVSS
             severity = "UNKNOWN"
             cvss_score = None
             metrics = cve_data.get("metrics", {})
-        
-            # Try CVSS v4.0, v3.1, v3.0, then v2.0
-            for version in ["cvssMetricV40", "cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
+            
+            # Try different CVSS versions
+            for version in ["cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
                 if version in metrics and metrics[version]:
                     try:
                         metric = metrics[version][0]
                         cvss_data = metric.get("cvssData", {})
                         potential_severity = cvss_data.get("baseSeverity", "")
                         potential_score = cvss_data.get("baseScore", None)
-                    
+                        
                         if potential_severity and potential_severity.upper() != "UNKNOWN":
-                            severity = potential_severity
+                            severity = potential_severity.upper()
                             cvss_score = potential_score
                             break
                     except (IndexError, KeyError):
                         continue
-        
+            
             # Extract CWE
             cwe = None
             for weakness in cve_data.get("weaknesses", []):
                 for desc in weakness.get("description", []):
                     if desc.get("lang") == "en":
-                        cwe = desc.get("value")
-                        break
+                        cwe_value = desc.get("value")
+                        if cwe_value and cwe_value.startswith("CWE"):
+                            cwe = cwe_value
+                            break
                 if cwe:
                     break
-        
-            # Extract references
+            
+            # Extract references (limit to first 5 to save memory)
             references = []
-            for ref in cve_data.get("references", []):
+            for ref in cve_data.get("references", [])[:5]:
                 url = ref.get("url")
                 if url:
                     references.append(url)
-        
+            
             return {
                 "ID": cve_id,
                 "Description": description or "No description available",
-                "Severity": severity.upper() if severity else "UNKNOWN",
+                "Severity": severity,
                 "CVSS_Score": cvss_score,
                 "CWE": cwe,
                 "Published": cve_data.get("published", ""),
                 "lastModified": cve_data.get("lastModified", ""),
                 "References": references,
-                "Products": [],
-                "metrics": metrics  # Preserving full metrics
+                "Products": [],  # Skip products to save memory
+                "metrics": {}  # Skip full metrics to save memory
             }
-        
         except Exception as e:
-            print(f"[API] Error processing CVE: {e}")
+            logger.error(f"Error processing CVE: {e}")
             return None
 
     def get_cve_detail(self, cve_id: str) -> Dict[str, Any]:

@@ -1,12 +1,24 @@
 import os
 from datetime import timedelta
+import sys
 
 # Application Configuration
 APP_NAME = "VulnEdu - Educational CVE Analysis Tool"
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 
-# Database Configuration for Render
-DATABASE_URL = os.environ.get('DATABASE_URL')
+# Debug environment variables
+print("[Config] Environment variables debug:")
+db_url = os.environ.get('DATABASE_URL')
+print(f"[Config] DATABASE_URL exists: {db_url is not None}")
+if db_url:
+    print(f"[Config] DATABASE_URL starts with: {db_url[:10]}...")
+else:
+    print("[Config] WARNING: No DATABASE_URL found")
+
+# Check Render specific variables
+print(f"[Config] Running on Render: {'RENDER' in os.environ}")
+if 'RENDER' in os.environ:
+    print(f"[Config] Render instance type: {os.environ.get('RENDER_SERVICE_TYPE', 'unknown')}")
 
 # NVD API Configuration
 NVD_API_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
@@ -24,82 +36,60 @@ CWE_XML_PATH = os.path.join(DATA_DIR, 'CWE_Catalog.xml')
 # NVD Data Feeds
 NVD_FEEDS_BASE_URL = "https://nvd.nist.gov/feeds/json/cve/1.1"
 
-# ===== MEMORY OPTIMIZATION FOR RENDER FREE TIER (512MB) =====
-
-# Detect if running on Render
-IS_RENDER = os.environ.get('RENDER') == 'true'
-
-# Historical years configuration - HEAVILY REDUCED for memory
+# Historical years configuration - USE LOCAL FILES
+# REDUCED to 3 years for memory efficiency
 current_year = 2025
-if IS_RENDER:
-    # On Render: Only load CURRENT year to save memory
-    HISTORICAL_YEARS = [current_year]  # Only 2025
-    print("[Config] RENDER MODE: Loading only current year data")
-else:
-    # Local dev: Can load more
-    HISTORICAL_YEARS = [current_year - 1, current_year]  # 2024, 2025
+HISTORICAL_YEARS = [current_year - 2, current_year - 1, current_year] # 2023, 2024, 2025
 
-# Cache Configuration - AGGRESSIVE LIMITS
-CACHE_DURATION = timedelta(hours=2)  # Increased from 30 min
-MAX_CACHE_ENTRIES = 20  # REDUCED from 100 to save memory
+# Database Configuration - CRITICAL: Enable database storage for Render
+DATABASE_URL = os.environ.get('DATABASE_URL')
+print(f"[Config] Original DATABASE_URL: {DATABASE_URL[:10] + '...' if DATABASE_URL else 'None'}")
 
-# Memory Limits (in MB)
-if IS_RENDER:
-    MAX_MEMORY_MB = 400  # Stay well under 512MB limit
-    MAX_CVES_IN_MEMORY = 500  # CRITICAL: Limit CVEs in memory
-    MAX_BATCH_SIZE = 100  # Small batches for database inserts
-    print(f"[Config] RENDER MODE: Max memory={MAX_MEMORY_MB}MB, Max CVEs={MAX_CVES_IN_MEMORY}")
-else:
-    MAX_MEMORY_MB = 1024  # Local can use more
-    MAX_CVES_IN_MEMORY = 2000  # More for local dev
-    MAX_BATCH_SIZE = 500
+# IMPORTANT FIX: Ensure DATABASE_URL is properly processed
+if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
+    # Fix Render's postgres:// vs postgresql:// URL format issue
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+    print(f"[Config] Fixed DATABASE_URL format: {DATABASE_URL[:15]}...")
 
-# Data Loading Strategy - OPTIMIZED FOR MEMORY
-RECENT_DAYS_THRESHOLD = 7  # REDUCED from 30 - only load last week
-USE_LOCAL_FEEDS = False  # CHANGED: Don't use local files (they're huge)
+# Only set DATABASE_ENABLED to True if we actually have a valid URL
+DATABASE_ENABLED = bool(DATABASE_URL)
+print(f"[Config] Database enabled: {DATABASE_ENABLED}")
+
+SQLALCHEMY_DATABASE_URI = DATABASE_URL
+SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+# Manually export DATABASE_URL to environment if it wasn't there
+if DATABASE_URL and not os.environ.get('DATABASE_URL'):
+    print("[Config] Re-exporting DATABASE_URL to environment")
+    os.environ['DATABASE_URL'] = DATABASE_URL
+
+# Lazy Loading Configuration - NEW
+LAZY_LOAD_ENABLED = True
+MAX_MEMORY_USAGE_MB = 450 # Set max memory to less than 512MB to prevent crashes
+
+# Cache Configuration
+CACHE_DURATION = timedelta(minutes=30)
+MAX_CACHE_ENTRIES = 10 # Reduced from 100 to save memory
+
+# Data Loading Strategy
+RECENT_DAYS_THRESHOLD = 30
+USE_LOCAL_FEEDS = True # CHANGED: Use local files
 AUTO_UPDATE_FEEDS = False
-USE_GITHUB_DATA = False
-LAZY_LOAD = True  # CRITICAL: Load data on-demand, not at startup
-
-# Database Strategy
-if IS_RENDER:
-    REQUIRE_DATABASE = True  # MUST use database on Render
-    PRELOAD_DATA = False  # DON'T preload at startup
-    USE_PAGINATION = True  # ALWAYS paginate
-else:
-    REQUIRE_DATABASE = False
-    PRELOAD_DATA = False  # Still don't preload locally
-    USE_PAGINATION = True
+USE_GITHUB_DATA = False # CHANGED: Disable GitHub
 
 # API Rate Limiting
 API_REQUESTS_PER_30_SECONDS = 50
 API_TIMEOUT = 30
 
-# Pagination - SMALLER PAGE SIZES
-DEFAULT_PAGE_SIZE = 20  # REDUCED from 25
-MAX_PAGE_SIZE = 50  # REDUCED from 100
+# Pagination
+DEFAULT_PAGE_SIZE = 25
+MAX_PAGE_SIZE = 100
 
-# Logging Configuration
-LOG_LEVEL = 'INFO'
-if IS_RENDER:
-    LOG_MEMORY = True  # Log memory usage on Render
-    LOG_VERBOSE = True  # Detailed logs
-else:
-    LOG_MEMORY = False
-    LOG_VERBOSE = False
+# Page-specific data loading flags
+LOAD_ALL_DATA_FOR_LEARN_PAGES = False # NEW: Don't load all data for educational pages
 
 # Ensure directories exist
 for directory in [CACHE_DIR, NVD_DIR, NVD_HISTORICAL_DIR, NVD_PROCESSED_DIR]:
     os.makedirs(directory, exist_ok=True)
 
-# Print configuration on load
-if IS_RENDER:
-    print("=" * 60)
-    print("🚀 RENDER FREE TIER OPTIMIZATION ACTIVE")
-    print("=" * 60)
-    print(f"✓ Max Memory: {MAX_MEMORY_MB}MB")
-    print(f"✓ Max CVEs in Memory: {MAX_CVES_IN_MEMORY}")
-    print(f"✓ Database Required: {REQUIRE_DATABASE}")
-    print(f"✓ Lazy Loading: {LAZY_LOAD}")
-    print(f"✓ Years Loading: {HISTORICAL_YEARS}")
-    print("=" * 60)
+print(f"[Config] Configuration loaded successfully. Database mode: {'ENABLED' if DATABASE_ENABLED else 'DISABLED'}")
