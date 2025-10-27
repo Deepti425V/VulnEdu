@@ -22,15 +22,21 @@ DEFAULT_CWE_SEVERITY_DATA = {
     "CWE-798": {"name": "Hard-coded Credentials", "severity": "CRITICAL", "count": 165}
 }
 
-# Default timeline data to ensure charts have data (reduced to save memory)
+# Default timeline data to ensure charts have data
 DEFAULT_TIMELINE_DATA = {
-    (2023, 1): 87, (2023, 4): 98, (2023, 7): 132, (2023, 10): 158,
-    (2024, 1): 152, (2024, 4): 168, (2024, 7): 201, (2024, 10): 235,
-    (2025, 1): 257, (2025, 4): 283, (2025, 7): 324, (2025, 10): 361
+    (2023, 1): 87, (2023, 2): 92, (2023, 3): 104, (2023, 4): 98,
+    (2023, 5): 115, (2023, 6): 129, (2023, 7): 132, (2023, 8): 128,
+    (2023, 9): 145, (2023, 10): 158, (2023, 11): 147, (2023, 12): 139,
+    (2024, 1): 152, (2024, 2): 163, (2024, 3): 175, (2024, 4): 168,
+    (2024, 5): 182, (2024, 6): 194, (2024, 7): 201, (2024, 8): 213,
+    (2024, 9): 228, (2024, 10): 235, (2024, 11): 249, (2024, 12): 242,
+    (2025, 1): 257, (2025, 2): 268, (2025, 3): 275, (2025, 4): 283,
+    (2025, 5): 296, (2025, 6): 312, (2025, 7): 324, (2025, 8): 343,
+    (2025, 9): 356, (2025, 10): 361
 }
 
 class DatabaseManager:
-    """Manages PostgreSQL database connections with connection pooling - MEMORY OPTIMIZED"""
+    """Manages PostgreSQL database connections with connection pooling"""
     def __init__(self):
         # Get database URL from both config and environment variable to ensure we check all sources
         self.database_url = config.DATABASE_URL or os.environ.get('DATABASE_URL')
@@ -63,11 +69,9 @@ class DatabaseManager:
             if pool_success:
                 self.init_tables()
                 try:
-                    # Initialize default data with memory protection
                     self.init_default_data()  # Add default data for visualizations
                 except Exception as e:
-                    print(f"[Database] Warning: Error in default data initialization: {str(e)}")
-                    print("[Database] Continuing without default data initialization")
+                    print(f"[Database] Error in default data initialization: {str(e)}")
             else:
                 self.use_database = False
                 print("[Database] Failed to initialize connection pool, falling back to memory mode")
@@ -75,7 +79,7 @@ class DatabaseManager:
             print("[Database] No DATABASE_URL found, database mode DISABLED (using memory)")
     
     def init_connection_pool(self):
-        """Initialize connection pool with MINIMAL connections"""
+        """Initialize connection pool with minimal connections"""
         if not self.database_url:
             return False
             
@@ -87,10 +91,10 @@ class DatabaseManager:
                 print("[Database] Fixed 'postgres://' to 'postgresql://' in connection URL")
             
             print("[Database] Attempting to create connection pool...")
-            # Create connection pool with MINIMAL connections to save memory
+            # Create connection pool with minimal connections to save memory
             self.connection_pool = pool.SimpleConnectionPool(
                 1, # Min connections
-                1, # Max connections (REDUCED from 2 to 1 to save memory)
+                2, # Max connections 
                 database_url
             )
             
@@ -99,7 +103,7 @@ class DatabaseManager:
             if conn:
                 print("[Database] Connection test successful")
                 self.connection_pool.putconn(conn)
-                print("[Database] Connection pool initialized (1-1 connections)")
+                print("[Database] Connection pool initialized (1-2 connections)")
                 return True
             else:
                 print("[Database] Connection test failed - no connection returned from pool")
@@ -310,7 +314,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def save_cves_batch(self, cves: List[Dict[str, Any]]) -> bool:
-        """Save multiple CVEs to database - MEMORY OPTIMIZED"""
+        """Save multiple CVEs to database"""
         if not self.use_database or not cves:
             return False
         
@@ -321,47 +325,46 @@ class DatabaseManager:
         
         try:
             cursor = conn.cursor()
-            # Process in smaller batches to manage memory
-            batch_size = min(50, len(cves))  # REDUCED batch size from 100 to 50
+            # Prepare data for batch insert
+            values = []
+            for cve in cves:
+                # Include all references
+                refs = cve.get('References', [])
+                values.append((
+                    cve.get('ID', ''),
+                    cve.get('Description', ''),
+                    cve.get('Severity', 'UNKNOWN'),
+                    cve.get('CVSS_Score'),
+                    cve.get('CWE'),
+                    cve.get('Published', ''),
+                    cve.get('lastModified', ''),
+                    json.dumps(refs),
+                    json.dumps(cve.get('Products', [])),
+                    json.dumps(cve.get('metrics', {}))
+                ))
             
-            for i in range(0, len(cves), batch_size):
-                # Clear memory between batches
-                values = []
-                batch_cves = cves[i:i+batch_size]
-                
-                for cve in batch_cves:
-                    # Limit references to first 2 to save database space (reduced from 3)
-                    refs = cve.get('References', [])[:2]
-                    # Extract only essential fields
-                    values.append((
-                        cve.get('ID', ''),
-                        cve.get('Description', '')[:500],  # Truncate long descriptions
-                        cve.get('Severity', 'UNKNOWN'),
-                        cve.get('CVSS_Score'),
-                        cve.get('CWE'),
-                        cve.get('Published', ''),
-                        cve.get('lastModified', ''),
-                        json.dumps(refs),
-                        json.dumps([]),  # Empty products to save space
-                        json.dumps({})   # Empty metrics to save space
-                    ))
-                
-                # Use ON CONFLICT to update existing records
+            # Use ON CONFLICT to update existing records
+            batch_size = 100
+            for i in range(0, len(values), batch_size):
+                batch_values = values[i:i+batch_size]
                 execute_batch(cursor, """
                 INSERT INTO cves (id, description, severity, cvss_score, cwe,
                     published, last_modified, reference_links, products, metrics)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (id) DO UPDATE SET
+                    description = EXCLUDED.description,
                     severity = EXCLUDED.severity,
                     cvss_score = EXCLUDED.cvss_score,
-                    cwe = EXCLUDED.cwe
-                """, values)
-                
-                conn.commit()
-                # Free up memory
-                values = []
-                batch_cves = []
+                    cwe = EXCLUDED.cwe,
+                    published = EXCLUDED.published,
+                    last_modified = EXCLUDED.last_modified,
+                    reference_links = EXCLUDED.reference_links,
+                    products = EXCLUDED.products,
+                    metrics = EXCLUDED.metrics,
+                    updated_at = CURRENT_TIMESTAMP
+                """, batch_values)
             
+            conn.commit()
             print(f"[Database] Saved {len(cves)} CVEs to database")
             return True
         except Exception as e:
@@ -372,9 +375,8 @@ class DatabaseManager:
             cursor.close()
             self.return_connection(conn)
     
-    def get_cves_by_filter(self, year=None, month=None, day=None, severity=None, limit=500) -> List[Dict[str, Any]]:
-        """Get CVEs with filters - MEMORY OPTIMIZED"""
-        # Reduced limit from 1000 to 500
+    def get_cves_by_filter(self, year=None, month=None, day=None, severity=None, limit=5000) -> List[Dict[str, Any]]:
+        """Get CVEs with filters"""
         if not self.use_database:
             return []
         
@@ -387,12 +389,11 @@ class DatabaseManager:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             # Build query based on filters
             query = """
-            SELECT id, severity, cvss_score, cwe, published, last_modified
+            SELECT id, description, severity, cvss_score, cwe,
+                published, last_modified, reference_links, products, metrics
             FROM cves
             WHERE 1=1
             """
-            # NOTE: Removed description, reference_links, products, metrics to save memory
-            
             params = []
             
             if year:
@@ -424,15 +425,15 @@ class DatabaseManager:
             for row in rows:
                 cve = {
                     'ID': row['id'],
-                    'Description': '',  # Empty description to save memory
+                    'Description': row['description'],
                     'Severity': row['severity'],
                     'CVSS_Score': row['cvss_score'],
                     'CWE': row['cwe'],
                     'Published': row['published'],
                     'lastModified': row['last_modified'],
-                    'References': [],   # Empty references to save memory
-                    'Products': [],     # Empty products to save memory
-                    'metrics': {}       # Empty metrics to save memory
+                    'References': row['reference_links'] if isinstance(row['reference_links'], list) else [],
+                    'Products': row['products'] if isinstance(row['products'], list) else [],
+                    'metrics': row['metrics'] if isinstance(row['metrics'], dict) else {}
                 }
                 cves.append(cve)
             
@@ -444,9 +445,8 @@ class DatabaseManager:
             cursor.close()
             self.return_connection(conn)
     
-    def get_all_cves(self, limit=500) -> List[Dict[str, Any]]:
-        """Get all CVEs from database - MEMORY OPTIMIZED"""
-        # Reduced limit from 5000 to 500
+    def get_all_cves(self, limit=5000) -> List[Dict[str, Any]]:
+        """Get all CVEs from database"""
         if not self.use_database:
             return []
         
@@ -458,12 +458,12 @@ class DatabaseManager:
         try:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             cursor.execute("""
-            SELECT id, severity, cvss_score, cwe, published, last_modified
+            SELECT id, description, severity, cvss_score, cwe,
+                published, last_modified, reference_links, products, metrics
             FROM cves
             ORDER BY published DESC
             LIMIT %s
             """, (limit,))
-            # NOTE: Removed description, reference_links, products, metrics to save memory
             
             rows = cursor.fetchall()
             
@@ -472,15 +472,15 @@ class DatabaseManager:
             for row in rows:
                 cve = {
                     'ID': row['id'],
-                    'Description': '',  # Empty description to save memory
+                    'Description': row['description'],
                     'Severity': row['severity'],
                     'CVSS_Score': row['cvss_score'],
                     'CWE': row['cwe'],
                     'Published': row['published'],
                     'lastModified': row['last_modified'],
-                    'References': [],   # Empty references to save memory
-                    'Products': [],     # Empty products to save memory
-                    'metrics': {}       # Empty metrics to save memory
+                    'References': row['reference_links'] if isinstance(row['reference_links'], list) else [],
+                    'Products': row['products'] if isinstance(row['products'], list) else [],
+                    'metrics': row['metrics'] if isinstance(row['metrics'], dict) else {}
                 }
                 cves.append(cve)
             
@@ -492,9 +492,8 @@ class DatabaseManager:
             cursor.close()
             self.return_connection(conn)
     
-    def get_recent_cves(self, days=30, limit=500) -> List[Dict[str, Any]]:
-        """Get CVEs from the last N days - MEMORY OPTIMIZED"""
-        # Reduced limit from 5000 to 500
+    def get_recent_cves(self, days=30, limit=5000) -> List[Dict[str, Any]]:
+        """Get CVEs from the last N days"""
         if not self.use_database:
             return []
         
@@ -507,13 +506,13 @@ class DatabaseManager:
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             # Use a simplified query that doesn't require complex date operations
             cursor.execute("""
-            SELECT id, severity, cvss_score, cwe, published, last_modified
+            SELECT id, description, severity, cvss_score, cwe,
+                published, last_modified, reference_links, products, metrics
             FROM cves
             WHERE published > (CURRENT_DATE - INTERVAL '%s days')::TEXT
             ORDER BY published DESC
             LIMIT %s
             """, (days, limit))
-            # NOTE: Removed description, reference_links, products, metrics to save memory
             
             rows = cursor.fetchall()
             
@@ -522,15 +521,15 @@ class DatabaseManager:
             for row in rows:
                 cve = {
                     'ID': row['id'],
-                    'Description': '',  # Empty description to save memory
+                    'Description': row['description'],
                     'Severity': row['severity'],
                     'CVSS_Score': row['cvss_score'],
                     'CWE': row['cwe'],
                     'Published': row['published'],
                     'lastModified': row['last_modified'],
-                    'References': [],   # Empty references to save memory
-                    'Products': [],     # Empty products to save memory
-                    'metrics': {}       # Empty metrics to save memory
+                    'References': row['reference_links'] if isinstance(row['reference_links'], list) else [],
+                    'Products': row['products'] if isinstance(row['products'], list) else [],
+                    'metrics': row['metrics'] if isinstance(row['metrics'], dict) else {}
                 }
                 cves.append(cve)
             
@@ -554,14 +553,6 @@ class DatabaseManager:
         
         try:
             cursor = conn.cursor()
-            # Simplified metadata to save space
-            simplified_metadata = {}
-            if metadata:
-                # Only keep essential keys to reduce size
-                for k in ['count', 'updated', 'version']:
-                    if k in metadata:
-                        simplified_metadata[k] = metadata[k]
-            
             cursor.execute("""
             INSERT INTO cache_metadata (key, last_updated, total_records, metadata)
             VALUES (%s, CURRENT_TIMESTAMP, %s, %s)
@@ -569,7 +560,7 @@ class DatabaseManager:
                 last_updated = CURRENT_TIMESTAMP,
                 total_records = EXCLUDED.total_records,
                 metadata = EXCLUDED.metadata
-            """, (key, total_records, json.dumps(simplified_metadata)))
+            """, (key, total_records, json.dumps(metadata or {})))
             conn.commit()
         except Exception as e:
             print(f"[Database] Error updating metadata: {str(e)}")
@@ -612,7 +603,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def save_timeline_data(self, year_month_counts):
-        """Save timeline data to database - MEMORY OPTIMIZED"""
+        """Save timeline data to database"""
         if not self.use_database:
             return False
         
@@ -623,31 +614,18 @@ class DatabaseManager:
         
         try:
             cursor = conn.cursor()
-            # Limit to 50 entries maximum to save memory
-            year_month_counts_limited = {}
-            count = 0
-            for key, value in year_month_counts.items():
-                year_month_counts_limited[key] = value
-                count += 1
-                if count >= 50:
-                    break
-            
             values = []
-            for (year, month), count in year_month_counts_limited.items():
+            for (year, month), count in year_month_counts.items():
                 values.append((year, month, count))
             
-            # Use smaller batch size
-            batch_size = 10
-            for i in range(0, len(values), batch_size):
-                batch = values[i:i+batch_size]
-                execute_batch(cursor, """
-                INSERT INTO timeline_data (year, month, count)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (year, month) DO UPDATE SET
-                    count = EXCLUDED.count
-                """, batch)
-                conn.commit()
+            execute_batch(cursor, """
+            INSERT INTO timeline_data (year, month, count)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (year, month) DO UPDATE SET
+                count = EXCLUDED.count
+            """, values)
             
+            conn.commit()
             print(f"[Database] Saved timeline data: {len(values)} records")
             return True
         except Exception as e:
@@ -659,10 +637,33 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def get_timeline_data(self, years=1) -> Dict[str, Any]:
-        """Get timeline data from database - MEMORY OPTIMIZED"""
+        """Get timeline data from database"""
         if not self.use_database:
             # If no database or no connection, return default data for visualization
-            return self.get_default_timeline_data(years)
+            labels = []
+            values = []
+            raw_data = {}
+            total_cves = 0
+            
+            # Use default timeline data to ensure chart works
+            current_year = datetime.now().year
+            start_year = current_year - years
+            
+            for (year, month), count in DEFAULT_TIMELINE_DATA.items():
+                if year >= start_year:
+                    label = f"{year}-{month:02d}"
+                    labels.append(label)
+                    values.append(count)
+                    raw_data[label] = count
+                    total_cves += count
+            
+            return {
+                'labels': labels,
+                'values': values,
+                'total_cves': total_cves,
+                'months_covered': len(labels),
+                'raw_data': raw_data
+            }
         
         conn = self.get_connection()
         if not conn:
@@ -747,7 +748,7 @@ class DatabaseManager:
         }
     
     def save_summary_stats(self, key, count, data):
-        """Save summary statistics to database - MEMORY OPTIMIZED"""
+        """Save summary statistics to database"""
         if not self.use_database:
             return False
         
@@ -758,16 +759,6 @@ class DatabaseManager:
         
         try:
             cursor = conn.cursor()
-            # Simplify data to save space
-            if isinstance(data, dict) and len(str(data)) > 1000:
-                # If data is too large, simplify it
-                simplified_data = {}
-                # Keep only essential keys
-                for k in ['labels', 'counts', 'total', 'type']:
-                    if k in data:
-                        simplified_data[k] = data[k]
-                data = simplified_data
-                
             cursor.execute("""
             INSERT INTO summary_stats (key, count, last_updated, data)
             VALUES (%s, %s, CURRENT_TIMESTAMP, %s)
@@ -788,7 +779,7 @@ class DatabaseManager:
             self.return_connection(conn)
     
     def get_summary_stats(self, key):
-        """Get summary statistics from database - NEW"""
+        """Get summary statistics from database"""
         if not self.use_database:
             # Return default data based on key
             if key == 'cwe_severity':
@@ -920,10 +911,19 @@ class DatabaseManager:
             cursor.execute("SELECT COUNT(*) FROM cves")
             total_cves = cursor.fetchone()[0]
             
+            # Get table sizes
+            cursor.execute("""
+            SELECT relname as table, pg_size_pretty(pg_total_relation_size(relid)) as size
+            FROM pg_catalog.pg_statio_user_tables
+            ORDER BY pg_total_relation_size(relid) DESC
+            """)
+            
+            tables = {row[0]: row[1] for row in cursor.fetchall()}
+            
             return {
                 'total_cves': total_cves,
                 'database_enabled': True,
-                'tables': ['cves', 'cache_metadata', 'timeline_data', 'summary_stats']
+                'table_sizes': tables
             }
         except Exception as e:
             print(f"[Database] Error getting stats: {str(e)}")
