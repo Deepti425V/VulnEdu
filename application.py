@@ -5,7 +5,7 @@ This file works alongside your existing vulnedu.py file.
 import os
 import sys
 import psutil
-from vulnedu import app  # Import the app directly from your main vulnedu.py file
+from vulnedu import app  # Import the app created in vulnedu.py
 
 def print_memory_stats():
     """Helper function to print memory stats for debugging"""
@@ -13,13 +13,15 @@ def print_memory_stats():
         memory = psutil.virtual_memory()
         process = psutil.Process(os.getpid())
         memory_info = process.memory_info()
-        
-        print(f"[application.py] MEMORY: Total: {memory.total / (1024*1024):.1f}MB, Available: {memory.available / (1024*1024):.1f}MB")
-        print(f"[application.py] PROCESS: RSS: {memory_info.rss / (1024*1024):.1f}MB, VMS: {memory_info.vms / (1024*1024):.1f}MB")
+
+        print(f"[application.py] MEMORY: Total: {memory.total / (1024*1024):.1f}MB, "
+              f"Available: {memory.available / (1024*1024):.1f}MB")
+        print(f"[application.py] PROCESS: RSS: {memory_info.rss / (1024*1024):.1f}MB, "
+              f"VMS: {memory_info.vms / (1024*1024):.1f}MB")
     except:
         print("[application.py] Failed to get memory stats")
 
-# Get the port from environment or use default
+# Render provides PORT; default for local/dev
 port = int(os.environ.get('PORT', 10000))
 
 print(f"[application.py] Starting VulnEdu application on port {port}")

@@ -1,511 +1,227 @@
 import os
 import json
 import gzip
-from typing import List, Dict, Any, Optional, Tuple
+import gc
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 import config
 from database.db_manager import db_manager
-from services.cache.cache_manager import cache_manager
-import gc
-import psutil
-import ijson  # For streaming JSON parsing
 
-class DataProcessor:
-    """Process and extract insights from historical NVD data with streaming and lazy loading"""
-    
-    def __init__(self):
-        self.historical_dir = config.NVD_HISTORICAL_DIR
-        self.processed_dir = config.NVD_PROCESSED_DIR
-        
-        # CRITICAL: Memory-efficient caching - only 1 year at a time
-        self._year_cache = {}
-        self._max_cache_size = config.MAX_YEAR_CACHE_SIZE  # Only 1 year
+class HistoricalDataProcessor:
+    """
+    Loads historical CVEs year-by-year in a memory-safe way.
+    DB-first: if DB has the year's records, we use those.
+    If DB lacks them and local files exist, we parse files (locally),
+    then (optionally) store to DB.
+    """
+    def __init__(self, historical_dir: Optional[str] = None):
+        self.historical_dir = historical_dir or config.NVD_HISTORICAL_DIR
+        # Only keep ONE year's worth of parsed JSON in RAM
+        self._year_cache: Dict[str, List[Dict[str, Any]]] = {}
+        self._max_cache_size = 1
         self._years_available = set()
-        self._batch_size = config.BATCH_SIZE  # Process in batches
-        
-        print(f"[DataProcessor] Initialized with streaming support")
-        print(f"[DataProcessor] Max cache size: {self._max_cache_size} year(s)")
-        print(f"[DataProcessor] Batch size: {self._batch_size} CVEs")
-        
-        # Check available files
+        print(f"[Historical] DataProcessor initialized")
+        print(f"[Historical] Local directory: {self.historical_dir}")
         self._check_available_files()
-        self._monitor_memory()
-    
-    def _monitor_memory(self):
-        """Monitor current memory usage"""
-        try:
-            process = psutil.Process(os.getpid())
-            mem_mb = process.memory_info().rss / 1024 / 1024
-            print(f"[Memory] Current usage: {mem_mb:.2f} MB / {config.MAX_MEMORY_USAGE_MB} MB limit")
-            
-            if mem_mb > config.MAX_MEMORY_USAGE_MB:
-                print(f"[Memory] WARNING: Exceeding limit! Clearing caches...")
-                self._emergency_memory_cleanup()
-        except Exception as e:
-            print(f"[Memory] Error monitoring: {e}")
-    
-    def _emergency_memory_cleanup(self):
-        """Emergency memory cleanup when approaching limits"""
-        print("[Memory] Emergency cleanup initiated")
-        
-        # Clear all in-memory caches
-        self._year_cache.clear()
-        cache_manager.clear_cache()
-        
-        # Force garbage collection
-        gc.collect()
-        
-        # Monitor result
-        try:
-            process = psutil.Process(os.getpid())
-            mem_mb = process.memory_info().rss / 1024 / 1024
-            print(f"[Memory] After cleanup: {mem_mb:.2f} MB")
-        except:
-            pass
-    
+
+    # --------- file discovery helpers ----------
     def _check_available_files(self):
-        """Check what historical files are available"""
+        """Find available historical files (for local/dev)."""
         self._years_available.clear()
-        
         if not os.path.exists(self.historical_dir):
-            print(f"[DataProcessor] Creating directory: {self.historical_dir}")
-            os.makedirs(self.historical_dir, exist_ok=True)
+            print(f"[Historical] Directory does not exist: {self.historical_dir}")
+            try:
+                os.makedirs(self.historical_dir, exist_ok=True)
+            except Exception:
+                pass
             return
-        
+
         files = os.listdir(self.historical_dir)
-        for file in files:
-            if file.startswith(('CVE-', 'nvdcve-')):
-                year = None
-                # Extract year from filename
-                if file.startswith("CVE-") and "." in file:
-                    year_str = file[4:file.find(".")]
-                    if year_str.isdigit() and len(year_str) == 4:
-                        year = int(year_str)
-                
-                if year and 2000 <= year <= 2050:
-                    self._years_available.add(year)
-        
-        print(f"[DataProcessor] Available years: {sorted(self._years_available)}")
-    
+        cve_files = [f for f in files if f.startswith(('CVE-', 'nvdcve-'))]
+        if cve_files:
+            print(f"[Historical] Found {len(cve_files)} files: {cve_files}")
+        for file in cve_files:
+            year = None
+            if file.startswith("CVE-") and "." in file:
+                year_str = file[4:file.find(".")]
+                if year_str.isdigit() and len(year_str) == 4:
+                    year = int(year_str)
+            elif file.startswith("nvdcve-") and "-" in file:
+                parts = file.split("-")
+                if len(parts) >= 3 and parts[2].isdigit() and len(parts[2]) == 4:
+                    year = int(parts[2])
+            if year and 2000 <= year <= 2050:
+                self._years_available.add(year)
+
+        if self._years_available:
+            print(f"[Historical] Available years: {sorted(self._years_available)}")
+        else:
+            print(f"[Historical] WARNING: No files found in {self.historical_dir}")
+
     def get_available_years(self) -> List[int]:
-        """Get list of available years"""
+        """Return the list of available local years (for local/dev)."""
         if not self._years_available:
             self._check_available_files()
         return sorted(self._years_available, reverse=True)
-    
-    def get_year_data(self, year: int) -> List[Dict]:
-        """Load CVEs for a specific year with database caching and memory management"""
+
+    # --------- main data access ----------
+    def get_year_data(self, year: int) -> List[Dict[str, Any]]:
+        """
+        Get CVEs for a specific year.
+        - Prefer DB (Render).
+        - Fall back to memory cache.
+        - Finally, load from local file if allowed/available (local/dev).
+        """
         year_str = str(year)
-        
-        # Monitor memory before loading
-        self._monitor_memory()
-        
-        # First check database
+
+        # 1) Prefer DB
         if db_manager.use_database:
             cves = db_manager.get_cves_by_filter(year=year_str)
             if cves:
-                print(f"[DataProcessor] Retrieved {len(cves)} CVEs for {year} from database")
+                print(f"[Historical] Retrieved {len(cves)} CVEs for {year} from database")
                 return cves
-        
-        # Check memory cache (only if we have room)
-        if year_str in self._year_cache:
-            print(f"[DataProcessor] Using cached data for {year}")
-            return self._year_cache[year_str]
-        
-        # Clear cache if at limit
-        if len(self._year_cache) >= self._max_cache_size:
-            oldest_year = next(iter(self._year_cache))
-            print(f"[DataProcessor] Evicting {oldest_year} from cache to save memory")
-            del self._year_cache[oldest_year]
-            gc.collect()
-        
-        # Load from file with streaming if large
-        data = self._load_year_file_streaming(year)
-        
-        # Save to database
-        if db_manager.use_database and data:
-            print(f"[DataProcessor] Saving {len(data)} CVEs to database")
-            # Save in batches to avoid memory spike
-            for i in range(0, len(data), self._batch_size):
-                batch = data[i:i+self._batch_size]
-                db_manager.save_cves_batch(batch)
-        
-        # Only cache if memory usage is reasonable
-        process = psutil.Process(os.getpid())
-        mem_mb = process.memory_info().rss / 1024 / 1024
-        if mem_mb < config.MAX_MEMORY_USAGE_MB * 0.8:  # 80% threshold
-            self._year_cache[year_str] = data
-            print(f"[DataProcessor] Cached {len(data)} CVEs for {year} (memory OK)")
-        else:
-            print(f"[DataProcessor] Not caching {year} data (memory usage high: {mem_mb:.2f} MB)")
-        
-        return data
-    
-    def _load_year_file_streaming(self, year: int) -> List[Dict]:
-        """Load CVEs with streaming for large files"""
-        # Find the file
-        possible_filenames = [
-            f"CVE-{year}.json.gz",
-            f"CVE-{year}.json",
-            f"nvdcve-1.1-{year}.json.gz",
-            f"nvdcve-1.1-{year}.json",
-        ]
-        
-        target_file = None
-        is_gzipped = False
-        
-        for filename in possible_filenames:
-            file_path = os.path.join(self.historical_dir, filename)
-            if os.path.exists(file_path):
-                target_file = file_path
-                is_gzipped = filename.endswith('.gz')
-                break
-        
-        if not target_file:
-            print(f"[DataProcessor] No file found for {year}")
-            return []
-        
-        # Check file size
-        file_size = os.path.getsize(target_file)
-        file_size_mb = file_size / 1024 / 1024
-        print(f"[DataProcessor] Loading {target_file} ({file_size_mb:.2f} MB)")
-        
-        # Use streaming for large files (>10MB)
-        if file_size_mb > 10 and config.STREAM_JSON_ENABLED:
-            return self._stream_parse_json(target_file, is_gzipped)
-        else:
-            return self._load_json_traditional(target_file, is_gzipped)
-    
-    def _stream_parse_json(self, filepath: str, is_gzipped: bool) -> List[Dict]:
-        """Stream parse JSON to avoid loading entire file into memory"""
-        print(f"[DataProcessor] Using streaming parser for {filepath}")
-        cves = []
-        
-        try:
-            if is_gzipped:
-                file_obj = gzip.open(filepath, 'rb')
-            else:
-                file_obj = open(filepath, 'rb')
-            
-            # Use ijson for streaming
-            parser = ijson.items(file_obj, 'vulnerabilities.item')
-            
-            batch_count = 0
-            for item in parser:
-                processed = self._process_json_2_0_cve(item)
-                if processed:
-                    cves.append(processed)
-                
-                # Process in batches to manage memory
-                if len(cves) % self._batch_size == 0:
-                    batch_count += 1
-                    print(f"[DataProcessor] Processed batch {batch_count} ({len(cves)} CVEs)")
-                    gc.collect()  # Force garbage collection between batches
-            
-            file_obj.close()
-            print(f"[DataProcessor] Stream parsed {len(cves)} CVEs")
-            
-        except Exception as e:
-            print(f"[DataProcessor] Stream parsing failed, falling back to traditional: {e}")
-            return self._load_json_traditional(filepath, is_gzipped)
-        
-        return cves
-    
-    def _load_json_traditional(self, filepath: str, is_gzipped: bool) -> List[Dict]:
-        """Traditional JSON loading (for smaller files)"""
-        try:
-            if is_gzipped:
-                with gzip.open(filepath, 'rt', encoding='utf-8') as f:
-                    data = json.load(f)
-            else:
-                with open(filepath, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-            
-            cves = []
-            
-            # Process based on format
-            vulnerabilities = data.get("vulnerabilities", [])
-            if vulnerabilities:
-                print(f"[DataProcessor] Processing {len(vulnerabilities)} items (JSON 2.0)")
-                # Process in batches
-                for i in range(0, len(vulnerabilities), self._batch_size):
-                    batch = vulnerabilities[i:i+self._batch_size]
-                    for item in batch:
-                        processed = self._process_json_2_0_cve(item)
-                        if processed:
-                            cves.append(processed)
-                    gc.collect()
-            else:
-                # Try JSON 1.1 format
-                cve_items = data.get("CVE_Items", [])
-                if cve_items:
-                    print(f"[DataProcessor] Processing {len(cve_items)} items (JSON 1.1)")
-                    for i in range(0, len(cve_items), self._batch_size):
-                        batch = cve_items[i:i+self._batch_size]
-                        for item in batch:
-                            processed = self._process_json_1_1_cve(item)
-                            if processed:
-                                cves.append(processed)
-                        gc.collect()
-            
-            # Clear raw data immediately
-            del data
-            gc.collect()
-            
-            print(f"[DataProcessor] Loaded {len(cves)} CVEs")
-            return cves
-            
-        except Exception as e:
-            print(f"[DataProcessor] Error loading {filepath}: {e}")
-            return []
-    
-    def _process_json_2_0_cve(self, item: Dict) -> Optional[Dict]:
-        """Process JSON 2.0 format CVE - memory optimized"""
-        try:
-            cve_data = item.get("cve", {})
-            if not cve_data:
-                return None
-            
-            cve_id = cve_data.get("id", "")
-            if not cve_id:
-                return None
-            
-            # Extract only essential fields to save memory
-            description = ""
-            for desc in cve_data.get("descriptions", []):
-                if desc.get("lang") == "en":
-                    description = desc.get("value", "")[:500]  # Limit description length
-                    break
-            
-            # Extract severity
-            severity = "UNKNOWN"
-            cvss_score = None
-            metrics = cve_data.get("metrics", {})
-            
-            for version in ["cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
-                if version in metrics and metrics[version]:
-                    try:
-                        metric = metrics[version][0]
-                        cvss_data = metric.get("cvssData", {})
-                        severity = cvss_data.get("baseSeverity", "UNKNOWN").upper()
-                        cvss_score = cvss_data.get("baseScore")
-                        break
-                    except:
-                        continue
-            
-            # Extract CWE
-            cwe = None
-            for weakness in cve_data.get("weaknesses", []):
-                for desc in weakness.get("description", []):
-                    if desc.get("lang") == "en":
-                        value = desc.get("value", "")
-                        if value.startswith("CWE"):
-                            cwe = value
-                            break
-                if cwe:
-                    break
-            
-            return {
-                "ID": cve_id,
-                "Description": description,
-                "Severity": severity,
-                "CWE": cwe,
-                "Published": cve_data.get("published", ""),
-                "lastModified": cve_data.get("lastModified", ""),
-                "References": [],  # Empty to save memory
-                "Products": [],  # Empty to save memory
-                "CVSS_Score": cvss_score,
-                "metrics": {}  # Empty to save memory
-            }
-            
-        except Exception:
-            return None
-    
-    def _process_json_1_1_cve(self, item: Dict) -> Optional[Dict]:
-        """Process JSON 1.1 format CVE - memory optimized"""
-        try:
-            cve_data = item.get("cve", {})
-            if not cve_data:
-                return None
-            
-            cve_id = cve_data.get("CVE_data_meta", {}).get("ID", "")
-            if not cve_id:
-                return None
-            
-            # Extract description (limited length)
-            description = ""
-            descriptions = cve_data.get("description", {}).get("description_data", [])
-            for desc in descriptions:
-                if desc.get("lang") == "en":
-                    description = desc.get("value", "")[:500]
-                    break
-            
-            # Extract severity
-            severity = "UNKNOWN"
-            cvss_score = None
-            impact = item.get("impact", {})
-            
-            if "baseMetricV3" in impact:
-                severity = impact["baseMetricV3"].get("cvssV3", {}).get("baseSeverity", "UNKNOWN").upper()
-                cvss_score = impact["baseMetricV3"].get("cvssV3", {}).get("baseScore")
-            elif "baseMetricV2" in impact:
-                score = impact["baseMetricV2"].get("cvssV2", {}).get("baseScore", 0)
-                cvss_score = score
-                if score >= 7.0:
-                    severity = "HIGH"
-                elif score >= 4.0:
-                    severity = "MEDIUM"
-                else:
-                    severity = "LOW"
-            
-            # Extract CWE
-            cwe = None
-            problem_types = cve_data.get("problemtype", {}).get("problemtype_data", [])
-            for problem_type in problem_types:
-                for desc in problem_type.get("description", []):
-                    if desc.get("lang") == "en":
-                        value = desc.get("value", "")
-                        if value.startswith("CWE"):
-                            cwe = value
-                            break
-                if cwe:
-                    break
-            
-            return {
-                "ID": cve_id,
-                "Description": description,
-                "Severity": severity,
-                "CWE": cwe,
-                "Published": item.get("publishedDate", ""),
-                "lastModified": item.get("lastModifiedDate", ""),
-                "References": [],  # Empty to save memory
-                "Products": [],  # Empty to save memory
-                "CVSS_Score": cvss_score,
-                "metrics": {}  # Empty to save memory
-            }
-            
-        except Exception:
-            return None
-    
-    def get_filtered_cves_for_year(self, year: int, month: Optional[int] = None, 
-                                  day: Optional[int] = None) -> List[Dict]:
-        """Get filtered CVEs with memory-efficient processing"""
-        # Try database first
-        if db_manager.use_database:
-            year_str = str(year)
-            month_str = str(month).zfill(2) if month is not None else None
-            day_str = str(day).zfill(2) if day is not None else None
-            
-            cves = db_manager.get_cves_by_filter(
-                year=year_str,
-                month=month_str,
-                day=day_str
-            )
-            if cves:
-                print(f"[DataProcessor] Retrieved filtered CVEs from database")
-                return cves
-        
-        # Load year data
-        all_cves = self.get_year_data(year)
-        
-        if not month and not day:
-            return all_cves
-        
-        # Filter efficiently
-        filtered_cves = []
-        for cve in all_cves:
-            published = cve.get('Published', '')
-            if not published:
-                continue
-            
-            try:
-                # Parse date
-                if 'T' in published:
-                    dt = datetime.fromisoformat(published.replace('Z', '+00:00'))
-                else:
-                    dt = datetime.strptime(published[:10], '%Y-%m-%d')
-                
-                # Apply filters
-                if month is not None and dt.month != month:
-                    continue
-                if day is not None and dt.day != day:
-                    continue
-                
-                filtered_cves.append(cve)
-            except:
-                continue
-        
-        return filtered_cves
-    
-    def calculate_vulnerabilities_timeline(self, years=1) -> Dict[str, Any]:
-        """Calculate timeline with memory-efficient processing"""
-        # Try cache first
-        cached_timeline = cache_manager.get_timeline_data(years)
-        if cached_timeline and cached_timeline.get('labels'):
-            print(f"[DataProcessor] Using cached timeline data")
-            return cached_timeline
-        
-        current_year = datetime.now().year
-        year_range = list(range(current_year - years + 1, current_year + 1))
-        
-        result = {
-            'labels': [],
-            'values': [],
-            'total_cves': 0,
-            'months_covered': 0,
-            'raw_data': {}
-        }
-        
-        for year in year_range:
-            if year not in self._years_available:
-                continue
-            
-            # Process year data
-            cves = self.get_year_data(year)
-            print(f"[DataProcessor] Processing timeline for {year}: {len(cves)} CVEs")
-            
-            # Group by month
-            month_counts = {}
-            for cve in cves:
-                published = cve.get('Published', '')
-                if not published:
-                    continue
-                
-                try:
-                    if 'T' in published:
-                        dt = datetime.fromisoformat(published.replace('Z', '+00:00'))
-                    else:
-                        dt = datetime.strptime(published[:10], '%Y-%m-%d')
-                    
-                    month_key = f"{dt.year}-{dt.month:02d}"
-                    month_counts[month_key] = month_counts.get(month_key, 0) + 1
-                except:
-                    continue
-            
-            # Clear year data immediately to save memory
-            if str(year) in self._year_cache:
-                del self._year_cache[str(year)]
-                gc.collect()
-            
-            # Add to results
-            for month_key, count in sorted(month_counts.items()):
-                result['labels'].append(month_key)
-                result['values'].append(count)
-                result['raw_data'][month_key] = count
-                result['total_cves'] += count
-        
-        result['months_covered'] = len(result['labels'])
-        
-        # Cache the results
-        cache_manager.set_timeline_data(result)
-        
-        return result
-    
-    def clear_cache(self):
-        """Clear all in-memory caches"""
-        self._year_cache.clear()
-        gc.collect()
-        print("[DataProcessor] Cache cleared")
 
-# Global instance
-historical_loader = DataProcessor()
+        # 2) Use in-memory year cache
+        if year_str in self._year_cache:
+            print(f"[Historical] Using cached data for {year}")
+            return self._year_cache[year_str]
+
+        # 3) Try to load from local feed if enabled (local/dev)
+        if config.USE_LOCAL_FEEDS:
+            data = self._load_year_file(year)
+            if db_manager.use_database and data:
+                print(f"[Historical] Saving {len(data)} CVEs for {year} to database")
+                db_manager.save_cves_batch(data)
+            # keep just one year in memory
+            if len(self._year_cache) >= self._max_cache_size:
+                oldest = next(iter(self._year_cache.keys()))
+                print(f"[Historical] Evicting {oldest} from cache")
+                del self._year_cache[oldest]
+                gc.collect()
+            self._year_cache[year_str] = data
+            return data
+
+        # If local feeds disabled and DB empty, return empty list (safe default)
+        print(f"[Historical] No DB data for {year} and local feeds disabled")
+        return []
+
+    # ---------- local file parsing (supports .json or .json.gz) ----------
+    def _load_year_file(self, year: int) -> List[Dict[str, Any]]:
+        """
+        Load a year file from historical_dir (JSON or GZ) in a streaming-safe way.
+        Supports multiple naming patterns (nvdcve-1.1-YYYY.json, etc.).
+        """
+        patterns = [
+            f"CVE-{year}.json",
+            f"nvdcve-1.1-{year}.json",
+            f"nvdcve-2.0-{year}.json",
+            f"CVE-{year}.json.gz",
+            f"nvdcve-1.1-{year}.json.gz",
+            f"nvdcve-2.0-{year}.json.gz",
+        ]
+        filepath = None
+        for name in patterns:
+            candidate = os.path.join(self.historical_dir, name)
+            if os.path.exists(candidate):
+                filepath = candidate
+                break
+
+        if not filepath:
+            print(f"[Historical] No historical file found for {year}")
+            return []
+
+        try:
+            open_f = gzip.open if filepath.endswith(".gz") else open
+            with open_f(filepath, "rt", encoding="utf-8", errors="ignore") as f:
+                data = json.load(f)
+        except Exception as e:
+            print(f"[Historical] Error reading {filepath}: {e}")
+            return []
+
+        # NVD JSON 2.0 → "vulnerabilities": [ { "cve": {...}}, ... ]
+        vulns = data.get("vulnerabilities") or data.get("CVE_Items") or []
+        out: List[Dict[str, Any]] = []
+        for item in vulns:
+            cve_obj = item.get("cve", item)  # support both shapes
+            processed = self._process_cve_item(cve_obj)
+            if processed:
+                out.append(processed)
+
+        print(f"[Historical] Loaded {len(out)} CVEs from {os.path.basename(filepath)}")
+        return out
+
+    # ---------- normalize NVD CVE into your app schema ----------
+    def _process_cve_item(self, cve_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        try:
+            cve_id = cve_data.get("id") or cve_data.get("CVE_data_meta", {}).get("ID")
+            if not cve_id:
+                return None
+
+            # Description
+            description = ""
+            desc = cve_data.get("descriptions") or cve_data.get("description", {}).get("description_data")
+            if isinstance(desc, list) and desc:
+                # NVD 2.0: list of dicts with 'lang', 'value'
+                description = desc[0].get("value") or ""
+            elif isinstance(desc, str):
+                description = desc
+
+            # Severity / CVSS
+            severity = "UNKNOWN"
+            cvss_score = None
+            metrics = cve_data.get("metrics") or {}
+            # Try CVSS v3.1 then v3.0 then v2.0
+            for key in ["cvssMetricV31", "cvssMetricV30", "cvssMetricV2", "cvssMetricV3"]:
+                arr = metrics.get(key)
+                if isinstance(arr, list) and arr:
+                    m = arr[0].get("cvssData") or arr[0].get("cvssData", {})
+                    if not m:
+                        m = arr[0].get("baseMetricV3", {}).get("cvssV3", {})
+                    cvss_score = m.get("baseScore")
+                    sev = m.get("baseSeverity") or arr[0].get("baseSeverity")
+                    if isinstance(sev, str):
+                        severity = sev.upper()
+                    break
+
+            # CWE
+            cwe = "Unknown"
+            weaknesses = cve_data.get("weaknesses") or []
+            if weaknesses:
+                d = weaknesses[0].get("description") or weaknesses[0].get("description", [])
+                if isinstance(d, list) and d:
+                    cwe = d[0].get("value", "Unknown")
+
+            # Dates
+            published = cve_data.get("published")
+            if not published:
+                # older schemas
+                published = cve_data.get("publishedDate") or ""
+            last_modified = cve_data.get("lastModified") or cve_data.get("lastModifiedDate") or ""
+
+            # References
+            refs = []
+            references = cve_data.get("references") or cve_data.get("reference_data", [])
+            if isinstance(references, list):
+                for r in references:
+                    url = r.get("url") or r.get("refsource")
+                    if url:
+                        refs.append(url)
+
+            return {
+                "ID": cve_id,
+                "Description": description or "No description available",
+                "Severity": severity,
+                "CVSS_Score": cvss_score,
+                "CWE": cwe,
+                "Published": published or "",
+                "lastModified": last_modified or "",
+                "References": refs,
+                "Products": [],
+                "metrics": {},
+            }
+        except Exception as e:
+            print(f"[Historical] Error processing CVE item: {e}")
+            return None
+
+# Global instance used by analyzers
+historical_loader = HistoricalDataProcessor()
