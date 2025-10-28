@@ -60,7 +60,12 @@ AUTO_UPDATE_FEEDS = False
 USE_GITHUB_DATA = False
 
 # Safety: disable DB caching on Render unless explicitly set
-USE_DATABASE_CACHE = not running_on_render()
+USE_DATABASE_CACHE = False
+if running_on_render():
+    USE_DATABASE_CACHE = os.environ.get("USE_DATABASE_CACHE", "false").lower() == "true"    
+else:
+    USE_DATABASE_CACHE = True
+    
 
 # Path for JSON.gz historical data
 LOCAL_HISTORICAL_PATH = os.path.join(DATA_DIR, "nvd", "historical")
