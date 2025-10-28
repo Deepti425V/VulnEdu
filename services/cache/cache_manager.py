@@ -24,7 +24,10 @@ class CacheManager:
         # Memory usage monitoring
         self._last_memory_check = time.time()
         self._memory_check_interval = 60  # Check memory usage every minute
-    
+        
+        print("[Cache] CacheManager initialized with memory threshold of", 
+              config.MAX_MEMORY_USAGE_MB, "MB")
+
     def get_api_data_30_days(self) -> Optional[bool]:
         """Check if API data cache is valid - returns True if DB should be used"""
         cache_key = "api_30_days"
@@ -56,7 +59,7 @@ class CacheManager:
                     return True
         
         return None
-    
+
     def set_api_data_30_days(self, data: List[Dict[str, Any]]):
         """Set cache timestamp for API data"""
         cache_key = "api_30_days"
@@ -73,9 +76,9 @@ class CacheManager:
         # Update memory cache
         with self._lock:
             self._cache_timestamps[cache_key] = now
-        
+            
         print(f"[Cache] Set timestamp for API data ({len(data)} CVEs)")
-    
+
     def get_historical_data(self) -> Optional[bool]:
         """Check if historical data is loaded in the database"""
         # Check database first
@@ -89,9 +92,9 @@ class CacheManager:
         if self._historical_loaded:
             print("[Cache] Historical data marked as loaded in memory")
             return True
-        
+            
         return None
-    
+
     def set_historical_data(self, data: Dict[str, List[Dict]]):
         """Mark historical data as loaded"""
         total_cves = sum(len(year_data) for year_data in data.values())
@@ -107,42 +110,43 @@ class CacheManager:
         # Update memory flag
         with self._lock:
             self._historical_loaded = True
-        
+            
         print(f"[Cache] Marked historical data as loaded ({total_cves} CVEs)")
-    
+
     def get_summary_stats(self, key: str) -> Optional[Dict[str, Any]]:
         """Get cached summary statistics"""
         if self.db_manager.use_database:
             return self.db_manager.get_summary_stats(key)
+            
         return None
-    
+
     def set_summary_stats(self, key: str, count: int, data: Dict[str, Any]):
         """Set cached summary statistics"""
         if self.db_manager.use_database:
             self.db_manager.save_summary_stats(key, count, data)
-        print(f"[Cache] Saved summary stats for {key} ({count} records)")
-    
+            print(f"[Cache] Saved summary stats for {key} ({count} records)")
+
     def get_timeline_data(self, years=1) -> Optional[Dict[str, Any]]:
         """Get cached timeline data"""
         if self.db_manager.use_database:
             return self.db_manager.get_timeline_data(years)
+            
         return None
-    
+
     def set_timeline_data(self, data: Dict[str, Any]):
         """Save timeline data"""
         if self.db_manager.use_database and 'raw_data' in data:
             year_month_counts = {}
-            
             for date_str, count in data['raw_data'].items():
                 parts = date_str.split('-')
                 if len(parts) >= 2:
                     year = int(parts[0])
                     month = int(parts[1])
                     year_month_counts[(year, month)] = count
-            
+                    
             self.db_manager.save_timeline_data(year_month_counts)
             print(f"[Cache] Saved timeline data ({len(year_month_counts)} records)")
-    
+
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""
         with self._lock:
@@ -162,9 +166,9 @@ class CacheManager:
             if self.db_manager.use_database:
                 db_stats = self.db_manager.get_stats()
                 stats.update(db_stats)
-            
+                
             return stats
-    
+
     def clear_cache(self):
         """Clear all cached data"""
         # Clear in-memory cache
@@ -175,16 +179,16 @@ class CacheManager:
         # Clear database cache if available
         if self.db_manager.use_database:
             self.db_manager.clear_all_cves()
-        
+            
         print("[Cache] All caches cleared")
-    
+
     def check_memory_usage(self):
-        """Check memory usage and clear cache if needed - NEW"""
+        """Check memory usage and clear cache if needed"""
         # Only check periodically to reduce overhead
         current_time = time.time()
         if current_time - self._last_memory_check < self._memory_check_interval:
             return
-        
+            
         self._last_memory_check = current_time
         
         try:
@@ -195,6 +199,7 @@ class CacheManager:
             memory_info = process.memory_info()
             memory_mb = memory_info.rss / 1024 / 1024
             
+            # Log memory usage every check
             print(f"[Cache] Current memory usage: {memory_mb:.2f} MB")
             
             # If memory usage is getting too high, clear in-memory caches
@@ -216,19 +221,28 @@ class CacheManager:
                 memory_mb_after = memory_info.rss / 1024 / 1024
                 print(f"[Cache] Memory usage after cleanup: {memory_mb_after:.2f} MB (freed {memory_mb - memory_mb_after:.2f} MB)")
                 
+                # If still too high, make a more aggressive cleanup
+                if memory_mb_after > config.MAX_MEMORY_USAGE_MB * 0.9:
+                    print("[Cache] Memory still high after cleanup, performing more aggressive cleanup")
+                    self.clear_all()  # Clear all caches including database
+                    gc.collect()
+                    gc.collect()  # Double collection sometimes helps
         except ImportError:
             print("[Cache] psutil not available, skipping memory check")
         except Exception as e:
             print(f"[Cache] Error checking memory: {e}")
-    
+
+    def clear_all(self):
+        """Clear all caches including database"""
+        self.clear_cache()
+        print("[Cache] All caches cleared, including database")
+
     def warm_up_cache(self):
         """Warm up cache - load basic data into database"""
         if self.db_manager.use_database:
             print("[Cache] Performing cache warm-up with database")
-            
             # Nothing to do here - we'll load data on demand
             # This is just a placeholder for future optimization
-            
             return True
         else:
             print("[Cache] Cache warm-up skipped (using memory)")

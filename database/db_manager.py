@@ -37,9 +37,7 @@ DEFAULT_TIMELINE_DATA = {
 }
 
 class DatabaseManager:
-    """Manages PostgreSQL database connections with connection pooling and fallbacks for
-    Render deployment"""
-    
+    """Manages PostgreSQL database connections with connection pooling and fallbacks for Render deployment"""
     def __init__(self):
         # Get database URL from both config and environment variable
         self.database_url = os.environ.get('DATABASE_URL') or getattr(config, 'DATABASE_URL', None)
@@ -61,7 +59,7 @@ class DatabaseManager:
         
         self.connection_pool = None
         self.use_database = bool(self.database_url)
-        self.cached_database_tables = {}  # Track what tables exist
+        self.cached_database_tables = {} # Track what tables exist
         
         if self.use_database:
             print("[Database] Database URL found, database mode ENABLED")
@@ -69,7 +67,7 @@ class DatabaseManager:
             if pool_success:
                 self.init_tables()
                 try:
-                    self.init_default_data()  # Add default data for visualizations
+                    self.init_default_data() # Add default data for visualizations
                 except Exception as e:
                     print(f"[Database] Error in default data initialization: {str(e)}")
         else:
@@ -108,7 +106,7 @@ class DatabaseManager:
         """Get connection from pool with retry logic"""
         if not self.connection_pool:
             return None
-            
+        
         try:
             return self.connection_pool.getconn()
         except Exception as e:
@@ -117,8 +115,7 @@ class DatabaseManager:
             # Try to reinitialize the pool if this fails
             try:
                 print("[Database] Attempting to reinitialize connection pool...")
-                self.connection_pool = pool.SimpleConnectionPool(
-                    1, 2, self.database_url, connect_timeout=10)
+                self.connection_pool = pool.SimpleConnectionPool(1, 2, self.database_url, connect_timeout=10)
                 return self.connection_pool.getconn()
             except Exception as e:
                 print(f"[Database] Failed to reinitialize connection pool: {str(e)}")
@@ -290,8 +287,8 @@ class DatabaseManager:
             # Add timeline data if none exists
             if not timeline_data_exists:
                 print("[Database] Adding default timeline data")
-                
                 timeline_values = []
+                
                 for (year, month), count in DEFAULT_TIMELINE_DATA.items():
                     timeline_values.append((year, month, count))
                 
@@ -305,7 +302,6 @@ class DatabaseManager:
                 
                 conn.commit()
                 print(f"[Database] Added timeline data for {len(DEFAULT_TIMELINE_DATA)} months")
-                
         except Exception as e:
             print(f"[Database] Error initializing default data: {str(e)}")
             conn.rollback()
@@ -351,7 +347,7 @@ class DatabaseManager:
                 # Use ON CONFLICT to handle duplicates
                 execute_batch(cursor, """
                 INSERT INTO cves (id, description, severity, cvss_score, cwe,
-                                published, last_modified, reference_links, products, metrics)
+                           published, last_modified, reference_links, products, metrics)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (id) DO UPDATE SET
                     description = EXCLUDED.description,
@@ -375,12 +371,10 @@ class DatabaseManager:
             
             print(f"[Database] Saved {total_saved} CVEs to database")
             return True
-            
         except Exception as e:
             print(f"[Database] Error saving CVEs: {str(e)}")
             conn.rollback()
             return False
-            
         finally:
             cursor.close()
             self.return_connection(conn)
@@ -469,12 +463,10 @@ class DatabaseManager:
                     print(f"[Database] Error processing row: {str(e)}")
             
             return cves
-            
         except Exception as e:
             print(f"[Database] Error fetching CVEs with filter: {str(e)}")
             # Fall back to default data
             return self._get_default_cves(year, month, day, severity, limit)
-            
         finally:
             cursor.close()
             self.return_connection(conn)
@@ -544,8 +536,8 @@ class DatabaseManager:
                 'Description': f"Mock vulnerability for testing purposes ({cve_id})",
                 'Severity': cve_severity,
                 'CVSS_Score': 7.5 if cve_severity == "HIGH" else 
-                              9.1 if cve_severity == "CRITICAL" else 
-                              5.5 if cve_severity == "MEDIUM" else 3.2,
+                               9.1 if cve_severity == "CRITICAL" else 
+                               5.5 if cve_severity == "MEDIUM" else 3.2,
                 'CWE': list(DEFAULT_CWE_SEVERITY_DATA.keys())[i % len(DEFAULT_CWE_SEVERITY_DATA)],
                 'Published': f"{year}-{rand_month:02d}-{rand_day:02d}",
                 'lastModified': f"{year}-{rand_month:02d}-{rand_day:02d}",
@@ -553,7 +545,7 @@ class DatabaseManager:
                 'Products': [],
                 'metrics': {}
             })
-        
+            
         return cves
     
     def get_timeline_data(self, years=1) -> Dict[str, Any]:
@@ -609,11 +601,9 @@ class DatabaseManager:
                 'months_covered': len(labels),
                 'raw_data': raw_data
             }
-            
         except Exception as e:
             print(f"[Database] Error fetching timeline data: {str(e)}")
             return self.get_default_timeline_data(years)
-            
         finally:
             cursor.close()
             self.return_connection(conn)
@@ -669,12 +659,10 @@ class DatabaseManager:
             
             conn.commit()
             return True
-            
         except Exception as e:
             print(f"[Database] Error saving summary stats: {str(e)}")
             conn.rollback()
             return False
-            
         finally:
             cursor.close()
             self.return_connection(conn)
@@ -728,14 +716,13 @@ class DatabaseManager:
             if key == 'cwe_severity':
                 return self.get_default_cwe_severity_stats()
             return None
-            
         except Exception as e:
             print(f"[Database] Error getting summary stats: {str(e)}")
+            
             # Return default data based on key
             if key == 'cwe_severity':
                 return self.get_default_cwe_severity_stats()
             return None
-            
         finally:
             cursor.close()
             self.return_connection(conn)
@@ -831,20 +818,261 @@ class DatabaseManager:
                 'timeline_data_loaded': timeline_count > 0,
                 'cwe_data_loaded': cwe_data_exists
             }
-            
         except Exception as e:
             print(f"[Database] Error getting stats: {str(e)}")
             return {'database_enabled': False, 'error': str(e)}
-            
         finally:
             cursor.close()
             self.return_connection(conn)
-    
+
     def close(self):
         """Close all connections in pool"""
         if self.connection_pool:
             self.connection_pool.closeall()
             print("[Database] Connection pool closed")
+            
+    # Adding the missing methods that caused the errors
+    def get_cache_metadata(self, cache_key):
+        """Get metadata for cached data - THIS WAS MISSING"""
+        if not self.use_database:
+            return None
+            
+        conn = self.get_connection()
+        if not conn:
+            print(f"[Database] Failed to get connection for get_cache_metadata: {cache_key}")
+            return None
+            
+        try:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cursor.execute("""
+            SELECT key, last_updated, total_records, metadata
+            FROM cache_metadata
+            WHERE key = %s
+            """, (cache_key,))
+            
+            row = cursor.fetchone()
+            return row
+        except Exception as e:
+            print(f"[Database] Error getting cache metadata: {str(e)}")
+            return None
+        finally:
+            cursor.close()
+            self.return_connection(conn)
+            
+    def update_cache_metadata(self, cache_key, total_records, metadata=None):
+        """Update cache metadata - THIS WAS MISSING"""
+        if not self.use_database:
+            return False
+            
+        conn = self.get_connection()
+        if not conn:
+            print(f"[Database] Failed to get connection for update_cache_metadata: {cache_key}")
+            return False
+            
+        try:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+            INSERT INTO cache_metadata (key, last_updated, total_records, metadata)
+            VALUES (%s, CURRENT_TIMESTAMP, %s, %s)
+            ON CONFLICT (key) DO UPDATE SET
+                last_updated = CURRENT_TIMESTAMP,
+                total_records = EXCLUDED.total_records,
+                metadata = EXCLUDED.metadata
+            """, (cache_key, total_records, json.dumps(metadata or {})))
+            
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"[Database] Error updating cache metadata: {str(e)}")
+            conn.rollback()
+            return False
+        finally:
+            cursor.close()
+            self.return_connection(conn)
+    
+    def get_recent_cves(self, days=30, limit=25):
+        """Get recent CVEs for the learn pages - THIS WAS MISSING"""
+        if not self.use_database:
+            return self._get_default_cves(None, None, None, None, limit)
+            
+        conn = self.get_connection()
+        if not conn:
+            print("[Database] Failed to get connection for get_recent_cves")
+            return self._get_default_cves(None, None, None, None, limit)
+            
+        try:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            # Calculate the date threshold (last X days)
+            from datetime import datetime, timedelta
+            threshold_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m')
+            
+            query = """
+            SELECT id, description, severity, cvss_score, cwe, published
+            FROM cves
+            WHERE published >= %s
+            ORDER BY published DESC
+            LIMIT %s
+            """
+            
+            cursor.execute(query, (threshold_date, limit))
+            rows = cursor.fetchall()
+            
+            # Convert to list of dicts in the expected format
+            cves = []
+            for row in rows:
+                cve = {
+                    'ID': row['id'],
+                    'Description': row['description'],
+                    'Severity': row['severity'],
+                    'CVSS_Score': row['cvss_score'],
+                    'CWE': row['cwe'],
+                    'Published': row['published']
+                }
+                cves.append(cve)
+                
+            return cves
+        except Exception as e:
+            print(f"[Database] Error getting recent CVEs: {str(e)}")
+            return self._get_default_cves(None, None, None, None, limit)
+        finally:
+            cursor.close()
+            self.return_connection(conn)
+    
+    def get_cve_detail(self, cve_id):
+        """Get details for a specific CVE"""
+        if not self.use_database:
+            return None
+            
+        conn = self.get_connection()
+        if not conn:
+            print(f"[Database] Failed to get connection for get_cve_detail: {cve_id}")
+            return None
+            
+        try:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cursor.execute("""
+            SELECT id, description, severity, cvss_score, cwe, 
+                   published, last_modified, reference_links, products, metrics
+            FROM cves
+            WHERE id = %s
+            """, (cve_id,))
+            
+            row = cursor.fetchone()
+            if not row:
+                return None
+                
+            # Process JSON fields
+            reference_links = row['reference_links']
+            if isinstance(reference_links, str):
+                reference_links = json.loads(reference_links)
+                
+            products = row['products']
+            if isinstance(products, str):
+                products = json.loads(products)
+                
+            metrics = row['metrics']
+            if isinstance(metrics, str):
+                metrics = json.loads(metrics)
+                
+            return {
+                'ID': row['id'],
+                'Description': row['description'],
+                'Severity': row['severity'],
+                'CVSS_Score': row['cvss_score'],
+                'CWE': row['cwe'],
+                'Published': row['published'],
+                'lastModified': row['last_modified'],
+                'References': reference_links if isinstance(reference_links, list) else [],
+                'Products': products if isinstance(products, list) else [],
+                'metrics': metrics if isinstance(metrics, dict) else {}
+            }
+        except Exception as e:
+            print(f"[Database] Error getting CVE detail: {str(e)}")
+            return None
+        finally:
+            cursor.close()
+            self.return_connection(conn)
+            
+    def save_cve_detail(self, cve):
+        """Save a single CVE detail"""
+        if not self.use_database or not cve:
+            return False
+            
+        return self.save_cves_batch([cve])
+        
+    def get_all_cves(self, limit=1000):
+        """Get all CVEs with a limit"""
+        return self.get_cves_by_filter(limit=limit)
+        
+    def clear_all_cves(self):
+        """Clear all CVEs from the database (for cache clearing)"""
+        if not self.use_database:
+            return False
+            
+        conn = self.get_connection()
+        if not conn:
+            print("[Database] Failed to get connection for clear_all_cves")
+            return False
+            
+        try:
+            cursor = conn.cursor()
+            
+            cursor.execute("DELETE FROM cves WHERE id NOT LIKE 'RESERVED%'")
+            conn.commit()
+            
+            cursor.execute("DELETE FROM cache_metadata")
+            conn.commit()
+            
+            print("[Database] Cleared all CVEs and cache metadata")
+            return True
+        except Exception as e:
+            print(f"[Database] Error clearing CVEs: {str(e)}")
+            conn.rollback()
+            return False
+        finally:
+            cursor.close()
+            self.return_connection(conn)
+            
+    def save_timeline_data(self, year_month_counts):
+        """Save timeline data to database"""
+        if not self.use_database or not year_month_counts:
+            return False
+            
+        conn = self.get_connection()
+        if not conn:
+            print("[Database] Failed to get connection for save_timeline_data")
+            return False
+            
+        try:
+            cursor = conn.cursor()
+            
+            # Prepare values for batch insert
+            values = []
+            for (year, month), count in year_month_counts.items():
+                values.append((year, month, count))
+                
+            # Use batching for better performance
+            execute_batch(cursor, """
+            INSERT INTO timeline_data (year, month, count)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (year, month) DO UPDATE SET
+                count = EXCLUDED.count
+            """, values, page_size=50)
+            
+            conn.commit()
+            print(f"[Database] Saved timeline data for {len(values)} months")
+            return True
+        except Exception as e:
+            print(f"[Database] Error saving timeline data: {str(e)}")
+            conn.rollback()
+            return False
+        finally:
+            cursor.close()
+            self.return_connection(conn)
 
 # Global database manager instance
 db_manager = DatabaseManager()
