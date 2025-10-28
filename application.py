@@ -4,34 +4,20 @@ This file works alongside your existing vulnedu.py file.
 """
 import os
 import sys
+import psutil
+from vulnedu import app  # Import the app directly from your main vulnedu.py file
 
-# Apply patches before importing the app
-try:
-    import patch
-    print("[application.py] Applied compatibility patches")
-except Exception as e:
-    print(f"[application.py] Failed to apply compatibility patches: {e}")
-
-# Import psutil for memory stats (if available)
-try:
-    import psutil
-    def print_memory_stats():
-        """Helper function to print memory stats for debugging"""
-        try:
-            memory = psutil.virtual_memory()
-            process = psutil.Process(os.getpid())
-            memory_info = process.memory_info()
-            
-            print(f"[application.py] MEMORY: Total: {memory.total / (1024*1024):.1f}MB, Available: {memory.available / (1024*1024):.1f}MB")
-            print(f"[application.py] PROCESS: RSS: {memory_info.rss / (1024*1024):.1f}MB, VMS: {memory_info.vms / (1024*1024):.1f}MB")
-        except:
-            print("[application.py] Failed to get memory stats")
-except ImportError:
-    def print_memory_stats():
-        print("[application.py] psutil not available, skipping memory stats")
-
-# Import the app after patches are applied
-from vulnedu import app
+def print_memory_stats():
+    """Helper function to print memory stats for debugging"""
+    try:
+        memory = psutil.virtual_memory()
+        process = psutil.Process(os.getpid())
+        memory_info = process.memory_info()
+        
+        print(f"[application.py] MEMORY: Total: {memory.total / (1024*1024):.1f}MB, Available: {memory.available / (1024*1024):.1f}MB")
+        print(f"[application.py] PROCESS: RSS: {memory_info.rss / (1024*1024):.1f}MB, VMS: {memory_info.vms / (1024*1024):.1f}MB")
+    except:
+        print("[application.py] Failed to get memory stats")
 
 # Get the port from environment or use default
 port = int(os.environ.get('PORT', 10000))
