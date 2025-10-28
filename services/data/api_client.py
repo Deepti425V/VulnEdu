@@ -7,43 +7,52 @@ import config
 import threading
 import logging
 import gc
+import os
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class NVDApiClient:
     """Robust NVD API client with memory-safe caching and thread-safe access"""
-    
+
     def __init__(self):
+        # 🔒 Respect environment flag to disable API completely
+        self.disabled = os.getenv("DISABLE_API_CLIENT", "false").lower() == "true"
+        if self.disabled:
+            logger.warning("[API Client] DISABLED by environment variable; no API calls will be made.")
+            self.cached_data = []
+            return
+
         self.base_url = config.NVD_API_URL
         self.api_key = config.NVD_API_KEY
         self.timeout = config.API_TIMEOUT
         self.last_request_time = 0
-        
+
         # Rate limiting
         if self.api_key:
             self.min_request_interval = 30 / 50  # 50 requests per 30 seconds with key
         else:
             self.min_request_interval = 30 / 5   # 5 requests per 30 seconds without key
-        
+
         # HTTP session
         self.session = requests.Session()
         if self.api_key:
             self.session.headers.update({"apiKey": self.api_key})
-        
+
         # Lightweight thread-safe cache
         self._cache_timestamps = {}
         self._cache_lock = threading.Lock()
-        
+
         # Database manager
         from database import db_manager
         self.db = db_manager
-        
+
         # Cache manager
         from services.cache.cache_manager import cache_manager
         self.cache_manager = cache_manager
-        
+
         logger.info("[API Client] Initialized with API key: %s", bool(self.api_key))
 
     def _rate_limit(self):
@@ -70,20 +79,23 @@ class NVDApiClient:
 
     def get_cves_last_30_days(self) -> List[Dict[str, Any]]:
         """Fetch CVEs from the last 30 days, memory-safe and thread-safe"""
+        if self.disabled:
+            logger.warning("[API Client] Disabled; returning empty list.")
+            return []
+
         cache_key = "cves_30_days"
-        
+
         # Check in-memory cache first
         cached = self.cache_manager.get_api_data_30_days()
         if isinstance(cached, list):
             logger.info("[API Client] Using cached CVE data (%d CVEs)", len(cached))
             if self.db.use_database:
-                # Optionally fetch a small batch from DB
                 return self.db.get_cves_by_filter(limit=2000)
             return cached
         else:
             if cached is not None:
                 logger.warning("[API Client] Cache returned unexpected type (%s) - ignoring cached value", type(cached))
-        
+
         logger.info("[API Client] Fetching fresh CVE data from API")
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=30)
@@ -94,7 +106,7 @@ class NVDApiClient:
         try:
             while True:
                 self.cache_manager.check_memory_usage()
-                
+
                 params = {
                     "resultsPerPage": results_per_page,
                     "startIndex": start_index,
@@ -125,7 +137,6 @@ class NVDApiClient:
                     if processed:
                         batch_processed.append(processed)
 
-                # Save batch to DB
                 if batch_processed and self.db.use_database:
                     self.db.save_cves_batch(batch_processed)
 
@@ -142,8 +153,6 @@ class NVDApiClient:
                 logger.info("[API Client] Successfully processed %d CVEs", len(all_cves))
 
             all_cves.sort(key=lambda x: x.get('Published', ''), reverse=True)
-
-            # Cache in memory
             self.cache_manager.set_api_data_30_days(all_cves)
             self._set_cache_timestamp(cache_key)
 
@@ -219,6 +228,10 @@ class NVDApiClient:
 
     def get_cve_detail(self, cve_id: str) -> Dict[str, Any]:
         """Get details for a specific CVE"""
+        if self.disabled:
+            logger.warning("[API Client] Disabled; returning minimal CVE for %s", cve_id)
+            return self._generate_fallback_cve(cve_id, "API client disabled by configuration")
+
         try:
             if self.db.use_database:
                 db_cve = self.db.get_cve_detail(cve_id)
@@ -276,9 +289,10 @@ class NVDApiClient:
         """Clear all caches"""
         with self._cache_lock:
             self._cache_timestamps.clear()
-        if self.db.use_database:
+        if not self.disabled and self.db.use_database:
             self.db.clear_all_cves()
-        self.cache_manager.clear_all()
+        if not self.disabled:
+            self.cache_manager.clear_all()
         logger.info("API client cache cleared")
 
     def get_cache_stats(self) -> Dict[str, Any]:
@@ -286,11 +300,12 @@ class NVDApiClient:
         with self._cache_lock:
             stats = {
                 "cached_entries": len(self._cache_timestamps),
-                "cache_ages": {k: f"{int((time.time()-v)/60)} minutes" for k,v in self._cache_timestamps.items()}
+                "cache_ages": {k: f"{int((time.time()-v)/60)} minutes" for k, v in self._cache_timestamps.items()}
             }
-        if self.db.use_database:
+        if not self.disabled and self.db.use_database:
             stats["database"] = self.db.get_stats()
         return stats
+
 
 # Global instance
 api_client = NVDApiClient()

@@ -29,6 +29,8 @@ print(f"[application.py] Python version: {sys.version}")
 print(f"[application.py] Current directory: {os.getcwd()}")
 print_memory_stats()
 
+import os
+
 if __name__ == "__main__":
-    # For local testing and Render deployment
-    app.run(host='0.0.0.0', port=port)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)

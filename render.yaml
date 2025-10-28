@@ -4,9 +4,9 @@ services:
     env: python
     plan: free
     branch: main
-    repo: https://github.com/yourusername/vulnedu.git  # ← replace with your repo URL
+    repo: https://github.com/yourusername/vulnedu.git  # ← replace with your real repo URL
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --workers=1 --threads=2 --timeout=120 vulnedu:app
+    startCommand: gunicorn --workers=1 --threads=2 --timeout=120 --bind 0.0.0.0:$PORT "vulnedu:create_app()"
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.12
@@ -14,12 +14,12 @@ services:
         generateValue: true
       - key: FLASK_ENV
         value: production
-      # ⬇️ These three disable DB mode and use local data instead
+      # ⬇️ Disable database and API fetching on Render free plan
       - key: DATABASE_ENABLED
         value: false
       - key: USE_DATABASE_CACHE
         value: false
       - key: USE_LOCAL_FEEDS
         value: true
-
-# ⚠️ Remove the "databases:" section entirely unless you explicitly want Postgres.
+      - key: DISABLE_API_CLIENT
+        value: true  # <— add this to prevent NVD API fetches
