@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     branch: main
-    repo: https://github.com/yourusername/vulnedu.git  # ← replace with your real repo URL
+    repo: https://github.com/YOUR_GITHUB_USERNAME/vulnedu.git
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn --workers=1 --threads=2 --timeout=120 --bind 0.0.0.0:$PORT application:app
     envVars:
@@ -14,7 +14,6 @@ services:
         generateValue: true
       - key: FLASK_ENV
         value: production
-      # ⬇️ Disable database and API fetching on Render free plan
       - key: DATABASE_ENABLED
         value: false
       - key: USE_DATABASE_CACHE
@@ -22,4 +21,4 @@ services:
       - key: USE_LOCAL_FEEDS
         value: true
       - key: DISABLE_API_CLIENT
-        value: true  # <— add this to prevent NVD API fetches
+        value: true
