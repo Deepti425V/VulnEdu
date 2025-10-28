@@ -61,7 +61,7 @@ MAX_CACHE_ENTRIES = 10
 RECENT_DAYS_THRESHOLD = 30
 
 # >>> Important change: rely on the DB, not local files, in production
-USE_LOCAL_FEEDS = False          # <— switch OFF local JSON at runtime
+USE_LOCAL_FEEDS = True          # <— switch OFF local JSON at runtime
 AUTO_UPDATE_FEEDS = False
 USE_GITHUB_DATA = False          # no GitHub scraping/calls in free tier
 

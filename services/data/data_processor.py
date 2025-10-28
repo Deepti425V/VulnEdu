@@ -7,6 +7,7 @@ from datetime import datetime
 import config
 from database.db_manager import db_manager
 
+
 class HistoricalDataProcessor:
     """
     Loads historical CVEs year-by-year in a memory-safe way.
@@ -14,6 +15,7 @@ class HistoricalDataProcessor:
     If DB lacks them and local files exist, we parse files (locally),
     then (optionally) store to DB.
     """
+
     def __init__(self, historical_dir: Optional[str] = None):
         self.historical_dir = historical_dir or config.NVD_HISTORICAL_DIR
         # Only keep ONE year's worth of parsed JSON in RAM
@@ -161,7 +163,6 @@ class HistoricalDataProcessor:
             description = ""
             desc = cve_data.get("descriptions") or cve_data.get("description", {}).get("description_data")
             if isinstance(desc, list) and desc:
-                # NVD 2.0: list of dicts with 'lang', 'value'
                 description = desc[0].get("value") or ""
             elif isinstance(desc, str):
                 description = desc
@@ -170,33 +171,52 @@ class HistoricalDataProcessor:
             severity = "UNKNOWN"
             cvss_score = None
             metrics = cve_data.get("metrics") or {}
-            # Try CVSS v3.1 then v3.0 then v2.0
             for key in ["cvssMetricV31", "cvssMetricV30", "cvssMetricV2", "cvssMetricV3"]:
                 arr = metrics.get(key)
                 if isinstance(arr, list) and arr:
-                    m = arr[0].get("cvssData") or arr[0].get("cvssData", {})
-                    if not m:
-                        m = arr[0].get("baseMetricV3", {}).get("cvssV3", {})
+                    m = arr[0].get("cvssData") or arr[0].get("baseMetricV3", {}).get("cvssV3", {})
+                    if not m and isinstance(arr[0], dict):
+                        m = arr[0].get("cvssData", {})
                     cvss_score = m.get("baseScore")
                     sev = m.get("baseSeverity") or arr[0].get("baseSeverity")
                     if isinstance(sev, str):
                         severity = sev.upper()
                     break
 
-            # CWE
+            # CWE (collect full list if available)
             cwe = "Unknown"
+            cwe_list = []
             weaknesses = cve_data.get("weaknesses") or []
-            if weaknesses:
-                d = weaknesses[0].get("description") or weaknesses[0].get("description", [])
-                if isinstance(d, list) and d:
-                    cwe = d[0].get("value", "Unknown")
+            for w in weaknesses:
+                descs = w.get("description", [])
+                for d in descs:
+                    val = d.get("value")
+                    if val and val.startswith("CWE-"):
+                        cwe_list.append(val)
+            if cwe_list:
+                cwe = cwe_list[0]
 
             # Dates
-            published = cve_data.get("published")
-            if not published:
-                # older schemas
-                published = cve_data.get("publishedDate") or ""
-            last_modified = cve_data.get("lastModified") or cve_data.get("lastModifiedDate") or ""
+            published = (
+                cve_data.get("published")
+                or cve_data.get("publishedDate")
+                or cve_data.get("datePublished")
+                or ""
+            )
+            last_modified = (
+                cve_data.get("lastModified")
+                or cve_data.get("lastModifiedDate")
+                or ""
+            )
+
+            # ✅ Normalize date format for charts
+            published_str = ""
+            if published:
+                try:
+                    dt = datetime.fromisoformat(published.replace("Z", "+00:00"))
+                    published_str = dt.strftime("%Y-%m-%d")
+                except Exception:
+                    published_str = str(published).split("T")[0]
 
             # References
             refs = []
@@ -207,21 +227,26 @@ class HistoricalDataProcessor:
                     if url:
                         refs.append(url)
 
+            # ✅ FINAL normalized return
             return {
                 "ID": cve_id,
                 "Description": description or "No description available",
                 "Severity": severity,
                 "CVSS_Score": cvss_score,
                 "CWE": cwe,
-                "Published": published or "",
+                "cwe_id": cwe_list,
+                "Published": published_str,
+                "published_date": published_str,  # fixed format YYYY-MM-DD
                 "lastModified": last_modified or "",
                 "References": refs,
                 "Products": [],
                 "metrics": {},
             }
+
         except Exception as e:
             print(f"[Historical] Error processing CVE item: {e}")
             return None
+
 
 # Global instance used by analyzers
 historical_loader = HistoricalDataProcessor()
