@@ -22,3 +22,5 @@ services:
         value: true
       - key: DISABLE_API_CLIENT
         value: true
+      - key: SKIP_PRELOAD
+        value: true

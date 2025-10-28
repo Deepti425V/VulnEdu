@@ -7,12 +7,13 @@ from routes.learn_routes import learn_bp
 from routes.utility_routes import utility_bp
 import config
 
+
 # --------------------------------------------------------------------------------------
 # APP FACTORY
 # --------------------------------------------------------------------------------------
 def create_app():
     """Factory pattern for VulnEdu Flask app"""
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder="static", template_folder="templates")
     app.config["SECRET_KEY"] = config.SECRET_KEY
 
     # Register blueprints
@@ -46,16 +47,30 @@ if __name__ == "__main__":
     ]:
         os.makedirs(directory, exist_ok=True)
 
-    # Optional: precompute aggregates (skipped on Render)
-    try:
-        from services.data.data_processor import historical_loader
-        years = historical_loader.get_available_years()
-        print(f"[Startup] Found {len(years)} years: {years}")
-        for y in years:
-            historical_loader.get_year_data(y)
-        print("[Startup] Preloaded one-year cache successfully")
-    except Exception as e:
-        print(f"[Startup] Aggregator note: {e}")
+    # ------------------------------------------------------------------------------
+    # ⚠️ IMPORTANT FIX:
+    # Disable heavy preloading of all historical CVE data when running on Render
+    # or when SKIP_PRELOAD=true is set in the environment.
+    # This makes startup instant and avoids Render timeouts.
+    # ------------------------------------------------------------------------------
+
+    skip_preload = os.getenv("SKIP_PRELOAD", "false").lower() == "true"
+
+    if not config.running_on_render() and not skip_preload:
+        try:
+            from services.data.data_processor import historical_loader
+            years = historical_loader.get_available_years()
+            print(f"[Startup] Found {len(years)} years: {years}")
+            # Only preload the most recent year (fast startup)
+            if years:
+                latest = max(years)
+                print(f"[Startup] Preloading latest year only: {latest}")
+                historical_loader.get_year_data(latest)
+            print("[Startup] Preloaded one-year cache successfully")
+        except Exception as e:
+            print(f"[Startup] Aggregator note: {e}")
+    else:
+        print("[Startup] Skipping heavy historical preload on Render or SKIP_PRELOAD=true")
 
     # Launch dev server
     app.run(host="0.0.0.0", port=5000, debug=True)
