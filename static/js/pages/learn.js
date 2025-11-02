@@ -3,20 +3,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // Stacked CWE Severity Bar Chart (Learn View) ===
     // Only run if we have data for the chart and the proper container exists.
     if (
-        window.learnCweSeverityData &&
-        Array.isArray(window.learnCweSeverityData.labels) &&
-        window.learnCweSeverityData.labels.length > 0 &&
-        document.getElementById('learnCweSeverityChart')
+        window.cweSeverityData &&
+        Array.isArray(window.cweSeverityData.labels) &&
+        window.cweSeverityData.labels.length > 0 &&
+        document.getElementById('cweSeverityChart')
     ) {
         // Get the canvas context for Chart.js rendering
-        const ctx = document.getElementById('learnCweSeverityChart').getContext('2d');
-        const data = window.learnCweSeverityData.data || {};
+        const ctx = document.getElementById('cweSeverityChart').getContext('2d');
+        const data = window.cweSeverityData.data || {};
 
         // Create stacked bar chart showing CWE severity distribution
         new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: window.learnCweSeverityData.labels, //CWE names/codes for x-axis
+                labels: window.cweSeverityData.labels, //CWE names/codes for x-axis
                 datasets: [
                     // Color-coded severity levels with industry-standard colors
                     { label: 'Critical', data: data.CRITICAL || [], backgroundColor: '#f55855' }, // Red for critical
