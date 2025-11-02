@@ -13,10 +13,11 @@ def get_cve_trends_last_30_days() -> Dict[str, Any]:
     # Initialize daily counting structure
     daily_counts = defaultdict(int)
     today = datetime.now(timezone.utc).date()
+    start_date = today - timedelta(days=29)
     
     # Pre-fill last 30 days with zero counts
     for i in range(30):
-        day = today - timedelta(days=29-i)
+        day = start_date + timedelta(days=i)
         daily_counts[day.strftime('%Y-%m-%d')] = 0
     
     # Process each CVE to count by publication date
