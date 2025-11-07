@@ -14,26 +14,54 @@
         {% include 'components/filters/search_filters.html' %}
     </div>
 
+    {# --- GLOBAL Note for Dashboard Filters --- #}
     {% if note_text %}
-    <div style="font-size: 0.85em; color: #a9adc1; margin-bottom: 12px; font-style: italic;">
+    <div style="font-size: 0.85em; color: #a9adc1; margin-top: -10px; font-style: italic;">
         {{ note_text }}
     </div>
     {% endif %}
 
+    <!-- Row 1 -->
     <div class="dashboard-row-1">
         <div class="trend-sevi-blocks">
-            <div style="font-weight:700; color:#F5E8D8; margin-bottom:8px; font-size: 1.02rem; letter-spacing:0.15px; text-align:left;">
+            <div style="font-weight:700; color:#F5E8D8; margin-bottom:4px; font-size: 1.02rem; letter-spacing:0.15px; text-align:left;">
                 CVE Trends (Last 30 days)
             </div>
+
+            {# NOTE UNDER CVE TRENDS #}
+            {% if note_text %}
+            <div style="font-size: 0.78em; color: #a9adc1; margin-bottom: 8px; font-style: italic;">
+                {{ note_text }}
+            </div>
+            {% endif %}
+
             <canvas id="dailyTrendChart" height="70"></canvas>
         </div>
         {% include 'components/severity_cards.html' %}
     </div>
 
+    <!-- Row 2 -->
     <div class="dashboard-row-2">
-        {% include 'components/charts/pie_chart.html' %}
-        <section style="background:#1a2236; border-radius:14px; padding:30px 30px 10px 30px; flex:2; display: flex; flex-direction:column; min-width: 350px; min-height:250px; height: 300px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+
+        <!-- SEVERITY PIE -->
+        <section style="background:#1a2236; border-radius:14px; padding:30px; flex:1; min-width:300px;">
+            <div style="font-weight:700; color:#F5E8D8; margin-bottom:6px; font-size: 1.02rem; letter-spacing:0.15px;">
+                Severity Distribution
+            </div>
+
+            {# NOTE UNDER SEVERITY DISTRIBUTION #}
+            {% if note_text %}
+            <div style="font-size: 0.78em; color: #a9adc1; margin-bottom: 12px; font-style: italic;">
+                {{ note_text }}
+            </div>
+            {% endif %}
+
+            {% include 'components/charts/pie_chart.html' %}
+        </section>
+
+        <!-- TIMELINE CHART -->
+        <section style="background:#1a2236; border-radius:14px; padding:30px 30px 10px 30px; flex:2; min-width: 350px; height: 300px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <div style="font-weight:700; color:#F5E8D8; font-size: 1.02rem; letter-spacing:0.15px;">
                     Vulnerabilities Over Time
                 </div>
@@ -44,14 +72,36 @@
                     <option value="5" {% if timeline_years == 5 %}selected{% endif %}>Last 5 Years</option>
                 </select>
             </div>
+
+            {# NOTE UNDER VULNERABILITIES OVER TIME #}
+            {% if note_text %}
+            <div style="font-size: 0.78em; color: #a9adc1; margin-bottom: 6px; font-style: italic;">
+                {{ note_text }}
+            </div>
+            {% endif %}
+
             <div style="position: relative; height:250px;">
                 <canvas id="timelineChart"></canvas>
             </div>
         </section>
     </div>
 
+    <!-- Row 3 (Vendor Risk / Radar) -->
     <div style="display: flex; gap: 25px; align-items: stretch;">
-        {% include 'components/charts/radar_chart.html' %}
+        <section style="flex: 1;">
+            <div style="font-weight:700; color:#F5E8D8; margin-bottom:6px; font-size: 1.02rem; letter-spacing:0.15px;">
+                Vendor Risk Analysis
+            </div>
+
+            {# NOTE UNDER VENDOR RISK ANALYSIS #}
+            {% if note_text %}
+            <div style="font-size: 0.78em; color: #a9adc1; margin-bottom: 10px; font-style: italic;">
+                {{ note_text }}
+            </div>
+            {% endif %}
+
+            {% include 'components/charts/radar_chart.html' %}
+        </section>
     </div>
 
     <script>
