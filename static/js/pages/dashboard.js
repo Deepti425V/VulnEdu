@@ -328,27 +328,25 @@ document.addEventListener('DOMContentLoaded', function() {
         // Enhanced tooltip with CWE details, definitions, and mitigations
         function radarTooltip(context) {
             const code = context.label;
-            const name = context.dataset.meta.names ?
-                context.dataset.meta.names[context.dataIndex] : "";
-            const val = context.dataset.data[context.dataIndex];
-
+            const dataset = context.dataset;
+            const name = dataset._cweNames ? dataset._cweNames[context.dataIndex] : "";
+            const val = dataset.data[context.dataIndex];
+        
             // Get 30-day activity count for this CWE
-            const cwe30DayCount = window.cwe30DayCounts && 
-                window.cwe30DayCounts[code] ?
-                window.cwe30DayCounts[code] : 0;
-
+            const cwe30DayCount = window.cwe30DayCounts && window.cwe30DayCounts[code]
+                ? window.cwe30DayCounts[code]
+                : 0;
+            
             // Get CWE definition if available
-            let def = "";
-            if (window.cweRadarDescriptions && window.cweRadarDescriptions[code]) {
-                def = window.cweRadarDescriptions[code];
-            }
-
+            const def = window.cweRadarDescriptions && window.cweRadarDescriptions[code]
+                ? window.cweRadarDescriptions[code]
+                : "";
+            
             // Get mitigation information if available
-            let mitig = "";
-            if (window.cweMitigations && window.cweMitigations[code]) {
-                mitig = "Mitigation: " + window.cweMitigations[code];
-            }
-
+            const mitig = window.cweMitigations && window.cweMitigations[code]
+                ? "Mitigation: " + window.cweMitigations[code]
+                : "";
+            
             // Return comprehensive tooltip information
             return [
                 `CWE ${code}`,
