@@ -385,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         pointHoverRadius: 6,                  // Hover point size
                         pointRadius: 4,                       // Normal point size
                         pointHitRadius: 21,                   // Click detection area
-                        meta: { names: names }                // Store names for tooltips
+                        _cweNames: names                      // Store names for tooltips
                     }]
                 },
                 options: {
