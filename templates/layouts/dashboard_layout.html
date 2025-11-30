@@ -1,31 +1,26 @@
 {% extends "base.html" %}
 
-<!-- Head block injection for dashboard-specific styling -->
 {% block head %}
 <style>
-/* Dashboard-specific styles embedded in template for co-location and performance */
-
-/* Main dashboard grid container - vertical organization with consistent spacing */
 .dashboard-grid {
     display: grid;
     gap: 25px;
     margin-bottom: 25px;
 }
 
-/* Top dashboard row - horizontal flex layout for metrics and quick stats */
 .dashboard-row-1 {
     display: flex;
     gap: 25px;
+    flex-wrap: wrap;
 }
 
-/* Main dashboard row - horizontal flex with stretch alignment for equal heights */
 .dashboard-row-2 {
     display: flex;
     gap: 25px;
     align-items: stretch;
+    flex-wrap: wrap;
 }
 
-/* Trend visualization blocks - compact containers for sparklines and metrics */
 .trend-sevi-blocks {
     display: flex;
     flex-direction: column;
@@ -37,16 +32,15 @@
     height: 110px;
 }
 
-/* Severity cards grid - 4-column layout for vulnerability severity display */
 .severity-cards-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 15px;
     flex: 1;
     align-items: stretch;
+    min-width: 400px;
 }
 
-/* Individual severity card styling - interactive cards with hover effects */
 .severity-card {
     background: #1a2236;
     cursor: pointer;
@@ -56,25 +50,159 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    transition: box-shadow 0.2s;
+    transition: box-shadow 0.2s, transform 0.1s;
 }
 
-/* Responsive breakpoint for tablets and smaller laptops */
 @media (max-width: 1200px) {
-    /* Convert horizontal dashboard rows to vertical stacking */
     .dashboard-row-1,
     .dashboard-row-2 {
         flex-direction: column;
+        gap: 20px;
     }
     
-    /* Reduce severity cards from 4 to 2 columns for better mobile readability */
     .severity-cards-grid {
         grid-template-columns: repeat(2, 1fr);
+        min-width: auto;
+        width: 100%;
+    }
+
+    .trend-sevi-blocks {
+        width: 100%;
+        height: auto;
+        min-height: 100px;
+    }
+}
+
+@media (max-width: 767px) {
+    .dashboard-row-1,
+    .dashboard-row-2 {
+        flex-direction: column;
+        gap: 16px;
+        flex-wrap: nowrap;
+    }
+    
+    .severity-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        width: 100%;
+        min-width: auto;
+    }
+
+    .trend-sevi-blocks {
+        width: 100%;
+        height: auto;
+        min-height: 90px;
+        padding: 16px;
+        border-radius: 14px;
+    }
+
+    .severity-card {
+        padding: 16px 12px;
+        min-height: 120px;
+        border-radius: 14px;
+    }
+
+    section {
+        width: 100% !important;
+        min-width: auto !important;
+        flex: auto !important;
+    }
+
+    section[style*="flex:1"] {
+        padding: 20px 16px !important;
+    }
+
+    canvas {
+        max-width: 100%;
+        height: auto !important;
+    }
+
+    #radarReadout {
+        width: 100% !important;
+        margin-left: 0 !important;
+        padding-top: 12px !important;
+        min-width: auto !important;
+    }
+
+    div[style*="display: flex"][style*="height:340px"] {
+        width: 100% !important;
+        flex-direction: column !important;
+    }
+
+    div[style*="width:60%"],
+    div[style*="width:50%"] {
+        width: 100% !important;
+        height: auto !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .severity-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .severity-card {
+        padding: 12px 8px;
+        min-height: 110px;
+        border-radius: 12px;
+    }
+
+    .trend-sevi-blocks {
+        padding: 12px;
+        min-height: 80px;
+        border-radius: 12px;
+    }
+
+    .dashboard-row-1,
+    .dashboard-row-2 {
+        gap: 12px;
+    }
+
+    div[style*="position: relative; height:340px"] {
+        height: 250px !important;
+    }
+
+    div[style*="position: relative; height:250px"] {
+        height: 180px !important;
+    }
+}
+
+@media (max-width: 360px) {
+    .severity-cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .severity-card {
+        padding: 10px 6px;
+        min-height: 100px;
+    }
+
+    section,
+    .card-panel,
+    .trend-sevi-blocks {
+        width: 100%;
+        margin: 0;
+    }
+}
+
+@media (max-height: 500px) and (max-width: 1024px) {
+    .severity-card {
+        padding: 12px 8px;
+        min-height: 80px;
+    }
+
+    .trend-sevi-blocks {
+        height: auto;
+        min-height: 70px;
+    }
+
+    canvas {
+        max-height: 200px;
     }
 }
 </style>
 {% endblock %}
 
-<!-- Content block placeholder - child templates inject dashboard components here -->
 {% block content %}
 {% endblock %}

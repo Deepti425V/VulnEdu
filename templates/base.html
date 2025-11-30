@@ -3,17 +3,26 @@
 <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>{{ APP_NAME or "VulnEdu" }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             font-family: 'Segoe UI', 'Arial', 'sans-serif';
             background-color: #101828;
             color: #f8fafc;
+            overflow-x: hidden;
         }
+
+        /* SIDEBAR */
         .sidebar {
             width: 250px;
             background: #1a2236;
@@ -21,22 +30,35 @@
             padding: 30px 0 0 0;
             height: 100vh;
             position: fixed;
-            left: 0; top: 0; bottom: 0;
+            left: 0;
+            top: 0;
+            bottom: 0;
             box-shadow: 2px 0 14px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            z-index: 1000;
+            transition: transform 0.3s ease;
         }
+
+        .sidebar.mobile-hidden {
+            transform: translateX(-100%);
+        }
+
         .sidebar-header {
             font-weight: 700;
             font-size: 1.5rem;
             color: #F5E8D8;
             text-align: center;
             margin-bottom: 30px;
+            padding: 0 20px;
         }
+
         .sidebar-links {
             padding-left: 24px;
             display: flex;
             flex-direction: column;
             gap: 12px;
         }
+
         .sidebar-links a,
         .sidebar-links .sidebar-parent {
             color: #a9adc1;
@@ -45,14 +67,21 @@
             padding: 8px 6px;
             border-radius: 4px;
             transition: background 0.2s, color 0.2s;
+            display: block;
+            word-break: break-word;
         }
-        .sidebar-links a.active, .sidebar-links a:hover {
+
+        .sidebar-links a.active,
+        .sidebar-links a:hover {
             background: #263159;
             color: #fff;
         }
+
         .sidebar-links .sidebar-parent {
             padding-bottom: 4px;
+            color: #a9adc1;
         }
+
         .sidebar-submenu {
             display: flex;
             flex-direction: column;
@@ -60,6 +89,7 @@
             margin-left: 20px;
             margin-top: 3px;
         }
+
         .sidebar-submenu a {
             font-weight: 520;
             font-size: 0.97em;
@@ -67,27 +97,36 @@
             color: #a9adc1;
             border-radius: 3px;
             transition: background 0.2s, color 0.2s;
+            display: block;
         }
-        .sidebar-submenu a.active, .sidebar-submenu a:hover {
+
+        .sidebar-submenu a.active,
+        .sidebar-submenu a:hover {
             background: #263159;
             color: #F5E8D8;
         }
+
+        /* MAIN CONTENT */
         .mainwrap {
             margin-left: 250px;
             min-height: 100vh;
             background: #101828;
             box-sizing: border-box;
+            transition: margin-left 0.3s ease;
         }
+
         header {
             padding: 0;
             background: transparent;
             color: inherit;
         }
+
         main {
             max-width: 1500px;
             margin: 0 auto;
             padding: 36px 40px;
         }
+
         footer {
             padding: 16px;
             background: #151e37;
@@ -95,11 +134,135 @@
             font-size: 0.91em;
             text-align: right;
         }
+
+        /* HAMBURGER MENU */
+        .hamburger-btn {
+            display: none;
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 1001;
+            background: #1a2236;
+            border: none;
+            color: #F5E8D8;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .hamburger-btn:hover {
+            background: #263159;
+        }
+
+        .hamburger-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* OVERLAY */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1200px) {
+            .mainwrap {
+                margin-left: 250px;
+            }
+            main {
+                padding: 28px 32px;
+            }
+        }
+
+        @media (max-width: 1023px) {
+            .sidebar {
+                width: 220px;
+            }
+            .mainwrap {
+                margin-left: 220px;
+            }
+            main {
+                padding: 24px 28px;
+            }
+            footer {
+                text-align: center;
+                font-size: 0.88em;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .sidebar {
+                width: 100%;
+                height: 100vh;
+            }
+            .sidebar.mobile-hidden {
+                transform: translateX(-100%);
+            }
+            .mainwrap {
+                margin-left: 0;
+            }
+            .hamburger-btn {
+                display: block;
+            }
+            main {
+                padding: 16px 16px;
+                max-width: 100%;
+            }
+            footer {
+                padding: 12px 16px;
+                font-size: 0.85em;
+            }
+            .sidebar-header {
+                font-size: 1.3rem;
+                margin-bottom: 24px;
+            }
+            .sidebar-links {
+                padding-left: 16px;
+            }
+            .sidebar-submenu {
+                margin-left: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            main {
+                padding: 12px 12px;
+            }
+            .sidebar-header {
+                font-size: 1.2rem;
+                margin-bottom: 20px;
+            }
+            .hamburger-btn {
+                font-size: 20px;
+                padding: 6px 10px;
+            }
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
 <body>
-    <aside class="sidebar">
+    <!-- HAMBURGER BUTTON -->
+    <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle navigation menu">
+        ☰
+    </button>
+
+    <!-- OVERLAY -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">VulnEdu</div>
         <div class="sidebar-links">
             <a href="{{ url_for('main.index') }}" class="{% if request.endpoint == 'main.index' %}active{% endif %}">Dashboard</a>
@@ -128,6 +291,7 @@
         </div>
     </aside>
 
+    <!-- MAIN CONTENT -->
     <div class="mainwrap">
         <header></header>
         <main>
@@ -135,6 +299,52 @@
         </main>
         <footer>© 2025 VulnEdu · Educational CVE Analysis Tool</footer>
     </div>
+
+    <!-- MOBILE MENU SCRIPT -->
+    <script>
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+        hamburgerBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            sidebar.classList.toggle('mobile-hidden');
+            sidebarOverlay.classList.toggle('active');
+        });
+
+        sidebarOverlay.addEventListener('click', function() {
+            sidebar.classList.add('mobile-hidden');
+            sidebarOverlay.classList.remove('active');
+        });
+
+        const sidebarLinks = sidebar.querySelectorAll('a');
+        sidebarLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                sidebar.classList.add('mobile-hidden');
+                sidebarOverlay.classList.remove('active');
+            });
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                sidebar.classList.add('mobile-hidden');
+                sidebarOverlay.classList.remove('active');
+            }
+        });
+
+        function initSidebar() {
+            if (window.innerWidth <= 767) {
+                sidebar.classList.add('mobile-hidden');
+                sidebarOverlay.classList.remove('active');
+            } else {
+                sidebar.classList.remove('mobile-hidden');
+                sidebarOverlay.classList.remove('active');
+            }
+        }
+
+        initSidebar();
+        window.addEventListener('resize', initSidebar);
+    </script>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block scripts %}{% endblock %}
