@@ -241,61 +241,30 @@ a {
     align-items: stretch;
 }
 
-/* MOBILE RESPONSIVE */
+/* MOBILE RESPONSIVE - ONLY CHANGE LAYOUT */
 
 @media (max-width: 1200px) {
     .severity-cards-grid {
         grid-template-columns: repeat(2, 1fr);
     }
-    .main-content {
-        margin-left: 215px;
-        padding: 24px;
-    }
-}
-
-@media (max-width: 1023px) {
-    .dashboard-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    .topbar-search {
-        width: 100%;
-        justify-content: flex-start;
-    }
-    .topbar-search input[type="text"],
-    .topbar-search select,
-    .topbar-search button {
-        flex: 1;
-        min-width: 100px;
-    }
-    .severity-cards-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    .main-content {
-        margin-left: 0;
-        padding: 16px;
-    }
 }
 
 @media (max-width: 767px) {
-    .main-content {
-        margin-left: 0;
-        padding: 16px;
-    }
     .dashboard-header {
         flex-direction: column;
         align-items: stretch;
-        margin-bottom: 20px;
     }
+
     .dashboard-header h1 {
         font-size: 1.5rem !important;
         margin-bottom: 8px;
     }
+
     .topbar-search {
         width: 100%;
         flex-direction: column;
-        gap: 8px;
     }
+
     .topbar-search input[type="text"],
     .topbar-search select,
     .topbar-search button {
@@ -303,94 +272,51 @@ a {
         padding: 10px 12px;
         font-size: 16px;
     }
+
     .severity-cards-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 12px;
     }
+
     .severity-card {
         padding: 16px 12px;
         min-height: 120px;
-        border-radius: 12px;
     }
-    .severity-card div:first-child {
-        font-size: 1.8rem !important;
-    }
+
     .card-panel {
         padding: 16px;
-        margin-bottom: 16px;
     }
-    .card-title {
-        font-size: 0.95em;
-    }
+
     .vuln-table {
         font-size: 0.9em;
     }
+
     .vuln-table th,
     .vuln-table td {
         padding: 8px 10px;
     }
-    .trend-sevi-blocks {
-        width: 100%;
-        height: auto;
-        min-height: 90px;
-        padding: 16px;
-    }
-    .dashboard-row-1,
-    .dashboard-row-2 {
-        flex-direction: column !important;
-        gap: 16px;
-    }
-    .chart-area {
-        min-height: 180px;
-    }
-    canvas {
-        max-width: 100%;
-        height: auto !important;
-    }
 }
 
 @media (max-width: 480px) {
-    .main-content {
-        padding: 12px;
-    }
-    .dashboard-header {
-        margin-bottom: 16px;
-    }
-    .dashboard-header h1 {
-        font-size: 1.3rem !important;
-        margin-bottom: 8px;
-    }
     .severity-cards-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 10px;
     }
+
     .severity-card {
         padding: 12px 8px;
         min-height: 110px;
-        border-radius: 10px;
     }
-    .severity-card div:first-child {
-        font-size: 1.6rem !important;
-    }
-    .severity-card div:last-child {
-        font-size: 0.9em;
-        margin-top: 6px;
-    }
+
     .card-panel {
         padding: 12px;
     }
+
     .topbar-search input[type="text"],
     .topbar-search select,
     .topbar-search button {
         padding: 9px 10px;
         font-size: 14px;
-    }
-    .trend-sevi-blocks {
-        padding: 12px;
-        min-height: 80px;
-    }
-    .chart-area {
-        min-height: 150px;
     }
 }
 
@@ -398,41 +324,15 @@ a {
     .dashboard-header h1 {
         font-size: 1.1rem !important;
     }
+
     .severity-cards-grid {
         grid-template-columns: 1fr;
     }
-    .topbar-search {
-        gap: 6px;
-    }
+
     .topbar-search input[type="text"],
     .topbar-search select,
     .topbar-search button {
         padding: 8px 8px;
         font-size: 13px;
-    }
-    .main-content {
-        padding: 8px;
-    }
-    .card-panel {
-        padding: 10px;
-        margin-bottom: 12px;
-    }
-}
-
-.hide-mobile {
-    display: none !important;
-}
-
-@media (min-width: 768px) {
-    .show-mobile {
-        display: none !important;
-    }
-}
-
-@media (max-width: 767px) {
-    .sidebar,
-    .mainwrap {
-        will-change: transform;
-        transform: translateZ(0);
     }
 }

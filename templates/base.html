@@ -300,7 +300,7 @@
         <footer>© 2025 VulnEdu · Educational CVE Analysis Tool</footer>
     </div>
 
-    <!-- MOBILE MENU SCRIPT -->
+    <!-- MOBILE MENU SCRIPT - ONLY CLOSES ON MOBILE -->
     <script>
         const hamburgerBtn = document.getElementById('hamburgerBtn');
         const sidebar = document.getElementById('sidebar');
@@ -317,11 +317,15 @@
             sidebarOverlay.classList.remove('active');
         });
 
+        // ONLY close sidebar on link click if ON MOBILE
         const sidebarLinks = sidebar.querySelectorAll('a');
         sidebarLinks.forEach(link => {
             link.addEventListener('click', function() {
-                sidebar.classList.add('mobile-hidden');
-                sidebarOverlay.classList.remove('active');
+                // Only close if mobile (width < 768px)
+                if (window.innerWidth <= 767) {
+                    sidebar.classList.add('mobile-hidden');
+                    sidebarOverlay.classList.remove('active');
+                }
             });
         });
 
