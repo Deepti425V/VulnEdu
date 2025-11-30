@@ -1,36 +1,51 @@
 :root {
-    --bg-main: #151b24;
-    --bg-sidebar: #10151c;
-    --bg-card: #1a222c;
-    --card-border: #222b36;
-    --text-main: #eaf4fb;
-    --text-muted: #8b9bb4;
-    --primary: #FFD700;
-    --accent: #BCA424;
-    --accent-light: #F3D565;
-    --critical: #f55855;
-    --high: #f8a541;
-    --medium: #3b8ded;
-    --low: #4ddebe;
-    --badge-bg: #252e3b;
-    --badge-font: #fff;
-    --radius: 11px;
-    --linegap-main: 1.6;
-    --linegap-heading: 1.25;
+    /* Background colors for different interface areas */
+    --bg-main: #151b24; /* main page background - dark blue-gray */
+    --bg-sidebar: #10151c; /* sidebar background - darker for contrast */
+    --bg-card: #1a222c; /* card/panel background - slightly lighter */
+    --card-border: #222b36; /* card border color - subtle definition */
+    
+    /* Text colors for hierarchy and readability */
+    --text-main: #eaf4fb; /* default text color - light blue-white */
+    --text-muted: #8b9bb4; /* muted/secondary text color - medium gray */
+    
+    /* NEW ACCENT COLORS - replacing all blues */
+    --primary: #FFD700; /* primary gold for links/headings */
+    --accent: #BCA424; /* deep tan for emphasis */
+    --accent-light: #F3D565; /* light khaki for highlights */
+    
+    /* Severity colors following CVSS standards - DO NOT CHANGE */
+    --critical: #f55855; /* red: critical severity */
+    --high: #f8a541; /* orange: high severity */
+    --medium: #3b8ded; /* blue: medium severity */
+    --low: #4ddebe; /* teal: low severity */
+    
+    /* Badge styling variables */
+    --badge-bg: #252e3b; /* background for general badges */
+    --badge-font: #fff; /* text color for badges */
+    
+    /* General sizing & spacing variables for consistency */
+    --radius: 11px; /* consistent rounded corners */
+    --linegap-main: 1.6; /* reading line spacing for body text */
+    --linegap-heading: 1.25; /* tighter line spacing for headings */
 }
 
+/* Base typography with consistent line spacing */
 body, html {
     line-height: var(--linegap-main);
 }
 
+/* Headings use more compact line spacing */
 h1, h2, h3, h4, h5, h6 {
     line-height: var(--linegap-heading);
 }
 
+/* Apply main line-height to content blocks for consistency */
 p, ul, ol, li, table, td, th, .main-content, .card-panel, .vuln-table td, .vuln-table th, .sidebar-links a, .sidebar-submenu a, .dashboard-header, .card-title, .card-value {
     line-height: var(--linegap-main);
 }
 
+/* Full page setup with dark theme foundation */
 body {
     margin: 0;
     padding: 0;
@@ -39,11 +54,13 @@ body {
     font-family: 'Inter', Arial, sans-serif;
 }
 
+/* Default link styling with NEW gold color */
 a {
     color: var(--primary);
     text-decoration: none;
 }
 
+/* Fixed sidebar navigation system */
 #sidebar {
     position: fixed;
     left: 0;
@@ -55,12 +72,14 @@ a {
     box-shadow: 2px 0 15px rgba(10,20,25,0.09);
 }
 
+/* Logo styling within sidebar */
 .sidebar-logo {
     width: 160px;
     margin: 0 auto 30px auto;
     display: block;
 }
 
+/* Navigation menu link styling */
 .sidebar-menu a {
     display: block;
     padding: 12px 32px 12px 32px;
@@ -70,6 +89,7 @@ a {
     border-left: 3px solid transparent;
 }
 
+/* Hover and active link states - NEW gold accent */
 .sidebar-menu a.active,
 .sidebar-menu a:hover {
     background: var(--bg-card);
@@ -77,6 +97,7 @@ a {
     border-left: 3px solid var(--accent);
 }
 
+/* Educational section in sidebar */
 .sidebar-learn {
     margin-left: 32px;
     color: var(--text-muted);
@@ -89,6 +110,7 @@ a {
     font-weight: bold;
 }
 
+/* Main content area layout */
 .main-content {
     margin-left: 215px;
     padding: 32px;
@@ -96,21 +118,21 @@ a {
     background: var(--bg-main);
 }
 
+/* Dashboard header with space-between alignment */
 .dashboard-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 32px;
-    flex-wrap: wrap;
-    gap: 16px;
 }
 
+/* Top search bar with grouped elements */
 .topbar-search {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
 }
 
+/* Form input and select styling */
 .topbar-search input[type="text"],
 .topbar-search select {
     border: none;
@@ -119,9 +141,9 @@ a {
     background: var(--bg-card);
     color: var(--text-main);
     font-size: 1em;
-    min-width: 120px;
 }
 
+/* Button styling with NEW gold colors */
 .topbar-search button {
     background: var(--accent);
     border: none;
@@ -133,10 +155,12 @@ a {
     transition: background .18s;
 }
 
+/* Button hover state */
 .topbar-search button:hover {
     background: var(--primary);
 }
 
+/* Card/Panel component styling */
 .card-panel {
     background: var(--bg-card);
     color: var(--text-main);
@@ -147,18 +171,21 @@ a {
     box-shadow: 0 1px 8px rgba(0,0,0,0.05);
 }
 
+/* Card title styling */
 .card-title {
     font-weight: 600;
     margin-bottom: 10px;
     color: var(--text-muted);
 }
 
+/* Card value styling for important numbers/stats */
 .card-value {
     font-size: 2em;
     font-family: 'JetBrains Mono', monospace;
     font-weight: bold;
 }
 
+/* Vulnerability table styling */
 .vuln-table {
     width: 100%;
     border-collapse: collapse;
@@ -168,26 +195,31 @@ a {
     overflow: hidden;
 }
 
+/* Table cell styling for consistent spacing */
 .vuln-table th,
 .vuln-table td {
     padding: 11px 15px;
     border-bottom: 1px solid var(--card-border);
 }
 
+/* Table header styling for differentiation */
 .vuln-table th {
     background: #1e2734;
     color: var(--text-muted);
     font-size: 0.96em;
 }
 
+/* Table content cell styling */
 .vuln-table td {
     color: var(--text-main);
 }
 
+/* Remove border from last table row for clean appearance */
 .vuln-table tr:last-child td {
     border-bottom: none;
 }
 
+/* CVE Severity badge styling - UNCHANGED */
 .cve-badge {
     display: inline-block;
     padding: 4px 13px;
@@ -198,17 +230,20 @@ a {
     margin-right: 3px;
 }
 
+/* Severity-specific background colors - UNCHANGED */
 .cve-badge.CRITICAL { background: var(--critical); }
 .cve-badge.HIGH { background: var(--high); }
 .cve-badge.MEDIUM { background: var(--medium); }
 .cve-badge.LOW { background: var(--low); }
 
+/* Chart area container styling */
 .chart-area {
     width: 100%;
     min-height: 220px;
     margin-top: 10px;
 }
 
+/* Enhanced interactive severity card styling */
 .severity-card {
     background: #1a2236;
     cursor: pointer;
@@ -220,19 +255,21 @@ a {
     justify-content: center;
     transition: box-shadow 0.2s, transform 0.1s;
     border: 1px solid transparent;
-    min-height: 140px;
 }
 
+/* Hover state - NEW gold glow */
 .severity-card:hover {
     box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.3);
     transform: translateY(-2px);
     border-color: rgba(255, 215, 0, 0.2);
 }
 
+/* Active state for click feedback */
 .severity-card:active {
     transform: translateY(0);
 }
 
+/* Grid layout for severity cards */
 .severity-cards-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -241,98 +278,9 @@ a {
     align-items: stretch;
 }
 
-/* MOBILE RESPONSIVE - ONLY CHANGE LAYOUT */
-
+/* Responsive breakpoint for smaller screens */
 @media (max-width: 1200px) {
     .severity-cards-grid {
         grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 767px) {
-    .dashboard-header {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .dashboard-header h1 {
-        font-size: 1.5rem !important;
-        margin-bottom: 8px;
-    }
-
-    .topbar-search {
-        width: 100%;
-        flex-direction: column;
-    }
-
-    .topbar-search input[type="text"],
-    .topbar-search select,
-    .topbar-search button {
-        width: 100%;
-        padding: 10px 12px;
-        font-size: 16px;
-    }
-
-    .severity-cards-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-    }
-
-    .severity-card {
-        padding: 16px 12px;
-        min-height: 120px;
-    }
-
-    .card-panel {
-        padding: 16px;
-    }
-
-    .vuln-table {
-        font-size: 0.9em;
-    }
-
-    .vuln-table th,
-    .vuln-table td {
-        padding: 8px 10px;
-    }
-}
-
-@media (max-width: 480px) {
-    .severity-cards-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-    }
-
-    .severity-card {
-        padding: 12px 8px;
-        min-height: 110px;
-    }
-
-    .card-panel {
-        padding: 12px;
-    }
-
-    .topbar-search input[type="text"],
-    .topbar-search select,
-    .topbar-search button {
-        padding: 9px 10px;
-        font-size: 14px;
-    }
-}
-
-@media (max-width: 360px) {
-    .dashboard-header h1 {
-        font-size: 1.1rem !important;
-    }
-
-    .severity-cards-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .topbar-search input[type="text"],
-    .topbar-search select,
-    .topbar-search button {
-        padding: 8px 8px;
-        font-size: 13px;
     }
 }
